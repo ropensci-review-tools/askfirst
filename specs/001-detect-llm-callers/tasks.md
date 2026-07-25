@@ -12,7 +12,7 @@ stage's working notes and ultimately its `design-decisions.md`), not
 runnable code.
 
 ## T001-1: Survey non-cooperative environment/process signals
-- [ ] T001-1: Investigate and document what environment variables,
+- [x] T001-1: Investigate and document what environment variables,
   process names, or other process-level artifacts known AI coding
   agents/tools (Opencode, Claude Code, Cursor, GitHub Copilot CLI, other
   MCP-based tools) set or expose when they spawn or drive an R
@@ -21,7 +21,7 @@ runnable code.
   to specifically support R.
 
 ## T001-2: Survey R session/process introspection signals
-- [ ] T001-2: Investigate and document R-native introspection signals
+- [x] T001-2: Investigate and document R-native introspection signals
   that could distinguish an agentic caller from a human one, including
   parent process name, relevant `Sys.getenv()` entries, `commandArgs()`
   contents, and stdin/stdout TTY attachment. Explicitly note why
@@ -30,7 +30,7 @@ runnable code.
   two cases reliably.
 
 ## T001-3: Survey call-stack / caller-frame signals
-- [ ] T001-3: Investigate whether call-stack or caller-frame
+- [x] T001-3: Investigate whether call-stack or caller-frame
   characteristics (e.g. `sys.calls()`, `sys.function()`, frame depth,
   calling package/namespace) differ in any detectable way between
   programmatic/agentic invocation and a human typing at a console or
@@ -38,7 +38,7 @@ runnable code.
   no reliable signal is found here.
 
 ## T001-4: Investigate `btw` as a cooperative detection signal
-- [ ] T001-4: Read the `btw` package's source/documentation to
+- [x] T001-4: Read the `btw` package's source/documentation to
   determine what context or hooks it currently exposes about the
   calling LLM/session. Document: (a) what's available today, (b)
   whether/how it could be extended or locally patched to expose an
@@ -47,7 +47,7 @@ runnable code.
   local patch versus what's usable unmodified.
 
 ## T001-5: Evaluate and rank candidate detection signals
-- [ ] T001-5: Using the findings from T001-1 through T001-4 (plus any
+- [x] T001-5: Using the findings from T001-1 through T001-4 (plus any
   additional heuristic/statistical signals identified along the way),
   evaluate every candidate detection signal against this stage's three
   constraints — no false positives for humans, works without tool
@@ -56,7 +56,7 @@ runnable code.
   reasoning for rejecting the rest.
 
 ## T001-6: Investigate message-delivery mechanisms
-- [ ] T001-6: Investigate and document candidate mechanisms for how
+- [x] T001-6: Investigate and document candidate mechanisms for how
   `pkghooks` would actually deliver a redirect message to an LLM caller
   once detected — R's condition system (`message()`/`warning()`/a
   custom condition class), an annotated return value/attribute, or
@@ -65,7 +65,7 @@ runnable code.
   being silently swallowed or auto-handled instead.
 
 ## T001-7: Evaluate session intervention points
-- [ ] T001-7: Evaluate each candidate intervention point identified in
+- [x] T001-7: Evaluate each candidate intervention point identified in
   `plan.md` — package load (`.onLoad()`/`.onAttach()`), first function
   call, every function call, error/failure time, capability-gap time,
   and help/documentation access — against the stage's constraints.
@@ -76,7 +76,7 @@ runnable code.
   capability-gap-time as three independent points).
 
 ## T001-8: Investigate capability-gap detection approaches
-- [ ] T001-8: Investigate how "capability-gap" situations — a function
+- [x] T001-8: Investigate how "capability-gap" situations — a function
   or package call succeeds but doesn't meet the actual requirement, and
   no error is raised — could be identified. Since there is no condition
   to hook into, evaluate approaches such as package-author-maintained
@@ -86,20 +86,20 @@ runnable code.
   per-function author opt-in, or whether opt-in is unavoidable.
 
 ## T001-9: Assess R-only vs. language-agnostic scope
-- [ ] T001-9: Assess whether `pkghooks`'s detection + messaging logic
+- [x] T001-9: Assess whether `pkghooks`'s detection + messaging logic
   should be scoped as R-only or designed as a language-agnostic pattern
   with R as the first reference implementation. Document the reasoning
   and a recommendation, noting that `.onLoad()`/`.onAttach()` remain
   the practical R integration point either way.
 
 ## T001-10: Research prior art
-- [ ] T001-10: Research whether existing R packages, or precedents in
+- [x] T001-10: Research whether existing R packages, or precedents in
   other language ecosystems, already address LLM-vs-human caller
   detection or "redirect the AI agent to a human maintainer" messaging.
   Document anything relevant found, or explicitly note if none exists.
 
 ## T001-11: Sketch a design-level `pkghooks` opt-in API
-- [ ] T001-11: Sketch, at a design level only (no implementation), what
+- [x] T001-11: Sketch, at a design level only (no implementation), what
   a `pkghooks`-provided API would look like for a package author who
   wants to opt in to this behavior — e.g. an explicit wrapper function,
   a package-level `.onLoad()`/`.onAttach()` hook, an R6/S4 class, or
@@ -108,7 +108,7 @@ runnable code.
   capability-gap annotations.
 
 ## T001-12: Synthesize findings into a decision-ready design document
-- [ ] T001-12: Synthesize the outputs of T001-1 through T001-11 into a
+- [x] T001-12: Synthesize the outputs of T001-1 through T001-11 into a
   single coherent design document covering: the recommended detection
   approach(es), the recommended message-delivery mechanism, the
   recommended set of intervention points and how load-time/error-time/
