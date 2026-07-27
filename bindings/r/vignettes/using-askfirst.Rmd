@@ -176,13 +176,16 @@ Because your `scenarios` list (from step 1) is what's returned and
 signalled here, your only responsibility is writing that list well; the
 call site is up to the agent.
 
-At `"high"`/`"medium"` confidence, calling it signals a non-fatal
+At `"high"` confidence, calling it halts with an
 `askfirst::<language>::<pkg>::scenario_check` condition carrying your
 registered scenarios and guidance to check with the user before implementing
-a workaround. At `"low"` confidence (a human calling it directly), it
-returns the scenario list with no nudge wording and no signalled condition
-— a human calling this deliberately doesn't need to be told to ask
-themselves.
+a workaround — unlike the load-time notice or error-time redirect, halting
+is the deliberate intent here, since this is a self-check the agent performs
+before writing a workaround and needs to actually stop rather than merely
+read advice it could continue past. At `"medium"`/`"low"` confidence
+(including a human calling it directly), it returns the scenario list with
+no nudge wording and no signalled condition — a human calling this
+deliberately doesn't need to be told to ask themselves.
 
 ## 4. What your end users experience
 
@@ -197,9 +200,9 @@ Putting the three pieces together, from the perspective of someone using
   `askfirst::r::<pkg>::error_redirect` alongside any uncaught error from
   your code, is halted with `askfirst::r::<pkg>::capability_gap` at any
   `askfirst_capability_gap()` call site you've added, and — if it calls
-  `askfirst_check_scenarios()` on its own initiative — sees
-  `askfirst::r::<pkg>::scenario_check` with your registered scenario list
-  and guidance to check with the user first.
+  `askfirst_check_scenarios()` on its own initiative — is halted with
+  `askfirst::r::<pkg>::scenario_check` carrying your registered scenario
+  list and guidance to check with the user first.
 
 For a concrete, runnable walkthrough of registering a test package and
 verifying these behaviors under real agent-tool sessions, see the

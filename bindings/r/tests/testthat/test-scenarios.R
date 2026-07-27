@@ -64,29 +64,26 @@ test_that("the load-time notice still includes the generic instruction with no s
   expect_no_match(msg, "Situations to watch for")
 })
 
-test_that("askfirst_check_scenarios signals askfirst_scenario_check at high confidence", {
+test_that("askfirst_check_scenarios halts with a askfirst_scenario_check condition under high confidence", {
   local_reset_askfirst_state()
   .askfirst_state$confidence <- "high"
   .askfirst_state$packages[["mypkg"]] <- list(
     notice = "n", on_error = FALSE, scenarios = c("scenario A")
   )
 
-  caught <- NULL
-  withCallingHandlers(
-    result <- askfirst_check_scenarios("mypkg"),
-    askfirst_scenario_check = function(cnd) {
-      caught <<- cnd
-      invokeRestart("muffleMessage")
-    }
+  caught <- tryCatch(
+    askfirst_check_scenarios("mypkg"),
+    askfirst_scenario_check = function(cnd) cnd
   )
 
   expect_s3_class(caught, "askfirst_scenario_check")
   expect_s3_class(caught, "askfirst_condition")
+  expect_s3_class(caught, "error")
   expect_equal(caught$pkg, "mypkg")
+  expect_equal(caught$scenarios, "scenario A")
   expect_match(conditionMessage(caught), "scenario A", fixed = TRUE)
   expect_match(conditionMessage(caught), "should be asked", fixed = TRUE)
   expect_match(conditionMessage(caught), "not limited to", fixed = TRUE)
-  expect_equal(result, "scenario A")
 })
 
 test_that("askfirst_check_scenarios does not signal at medium confidence", {
@@ -150,16 +147,12 @@ test_that("askfirst_check_scenarios auto-loads namespace for unregistered packag
     }
   )
 
-  caught <- NULL
-  withCallingHandlers(
-    result <- askfirst_check_scenarios("autopkg"),
-    askfirst_scenario_check = function(cnd) {
-      caught <<- cnd
-      invokeRestart("muffleMessage")
-    }
+  caught <- tryCatch(
+    askfirst_check_scenarios("autopkg"),
+    askfirst_scenario_check = function(cnd) cnd
   )
 
   expect_s3_class(caught, "askfirst_scenario_check")
   expect_match(conditionMessage(caught), "scenario A", fixed = TRUE)
-  expect_equal(result, "scenario A")
+  expect_equal(caught$scenarios, "scenario A")
 })

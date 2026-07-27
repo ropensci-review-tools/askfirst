@@ -1,7 +1,7 @@
 ---
-created: 2026-07-27T12:32:25Z
+created: 2026-07-27T18:30:00Z
 agent: claude-sonnet-5
-git_hash: 65a2aa07f4fed431862d6542991f629bc64caf31
+git_hash: beafb6fe16abee766676cb2455d6154b2fed530e
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,19 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Eleven design stages are complete. Stage 009 made
+capability. Twelve design stages are complete. Stage 012 hardened this
+mechanism further after a field report showed an agent reading the
+scenario-check advisory and offering a workaround anyway:
+`askfirst_check_scenarios()` now halts at high confidence (matching
+`askfirst_capability_gap()`) instead of merely informing, the `directive:`
+prefix line differentiates `stop-and-ask` from `notice` by actual severity
+rather than one uniform value, `agent-hooks/` SessionStart guidance no
+longer frames a workaround as any kind of selectable menu option on a
+`stop-and-ask` signal, and a previously silent bug was fixed where the
+shipped R-package installer had never received stage 011's hook-text fixes
+at all — a dev-time generation script now regenerates the installer's
+embedded hook content from the canonical `agent-hooks/` source, with a
+regression test guarding against future drift. Stage 009 made
 `askfirst_check_scenarios()` self-initializing by auto-loading the target
 package's namespace when no `askfirst_init()` registration exists, so the
 function works from any R session without an explicit `init()` call first.
@@ -314,19 +326,31 @@ infrastructure unverified in CI in the interim).
 ### Messaging format: structured prefix over second-person embedded instructions, trust-boundary split preserved and strengthened
 **Outcome:** All askfirst condition signals now carry a
 `askfirst::<language>::<pkg>::<type>` prefix line (language, adopting package
-name, signal type), a `directive: ask-before-proceeding` line (stage 011,
-applied uniformly across all four signal types), the message body, and a
-`See: <url>` line. Agent hooks (SessionStart and PostToolUse) pre-load
-context about this format so AI assistants recognise it as legitimate
-metadata; stage 011 extended the SessionStart context with explicit
-instruction to treat scenario/example lists as non-exhaustive and to mark
-"ask the user" as the recommended option (not a neutral co-equal choice)
-when presenting a workaround-vs-ask decision. `tools/install-agent-hooks.sh`
-is a shared shell script for installing the hooks; the R function
-`askfirst_install_agent_hooks()` is a thin wrapper around it. The scenario
-bullet list previously duplicated (with inconsistent wording) between the
-load-time notice and the on-demand scenario-check message now appears only
-in the latter, worded as explicitly non-exhaustive.
+name, signal type), a `directive:` line, the message body, and a
+`See: <url>` line. The `directive:` value differentiates severity
+(`stop-and-ask` for `capability_gap`, `scenario_check`, and
+`error_redirect`; `notice` only for the load-time notice) as of stage 012,
+replacing the single uniform `ask-before-proceeding` value stage 011
+introduced for all four signal types. `askfirst_check_scenarios()` now
+halts (`call_stop = TRUE`) at high confidence rather than merely informing,
+matching `askfirst_capability_gap()`'s existing halting behavior. Agent
+hooks (SessionStart and PostToolUse) pre-load context about this format so
+AI assistants recognise it as legitimate metadata; stage 011 extended the
+SessionStart context with explicit instruction to treat scenario/example
+lists as non-exhaustive, and stage 012 replaced stage 011's "mark ask-first
+as recommended" mitigation with a stronger rule: on a `stop-and-ask`
+signal, no workaround may be presented as an option — recommended or
+otherwise — until the user has answered the upstream question.
+`tools/install-agent-hooks.sh` is a shared shell script for installing the
+hooks; the R function `askfirst_install_agent_hooks()` is a thin wrapper
+around it. Its embedded hook content is now regenerated from the canonical
+`agent-hooks/claude/*.sh` source via `tools/generate-install-hooks.sh`
+(stage 012), after investigation found the shipped installer had silently
+never received stage 011's fixes at all; a regression test now compares
+the two directly. The scenario bullet list previously duplicated (with
+inconsistent wording) between the load-time notice and the on-demand
+scenario-check message now appears only in the latter, worded as
+explicitly non-exhaustive.
 **Rationale:** The previous second-person format ("If you are an AI coding
 agent...") was interpreted as a prompt injection by AI assistants, causing
 outright refusal. The structured prefix lets the tool's system context
@@ -339,15 +363,24 @@ literally match a listed example scenario. Rather than reversing stage
 the already-trusted agent-hooks context (pre-loaded before any session
 starts, not subject to the same prompt-injection risk as an adopting
 package's own signal output), while message text itself gained only a
-structural (non-tonal) actionability marker.
+structural (non-tonal) actionability marker. Stage 012 found, via a further
+field report, that stage 011's fixes were only partial: an advisory-only
+message is not a gate regardless of wording, and offering a "recommended"
+workaround option is still offering a workaround option. Both were
+addressed at the mechanism level (halting; no-menu-until-answered) rather
+than by further softening message text.
 **Roads not taken:** Keeping the second-person embedded-instruction format
 (actively counterproductive — triggers prompt-injection guardrails);
 implementing hook installation as R-only logic (rejected mid-stage in favor
 of a shared shell script callable from any binding); reintroducing
 imperative/second-person message text directly in stage 011 (rejected —
 would have reversed stage 007's trust-boundary decision rather than
-extended it).
-**Stages:** 007, 011
+extended it); resolving the installer's stale embedded hook text at
+runtime via relative filesystem lookup of `agent-hooks/` (stage 012 —
+would have reintroduced install-layout coupling that an earlier, deliberate
+reversion within stage 007 had specifically removed to keep the shared
+`tools/` installer usable by any future language binding).
+**Stages:** 007, 011, 012
 
 ### Demo content: vignette-scoped, realistic function replacing abstract placeholders
 **Outcome:** The `askfirst-development.Rmd` vignette's tokenpkg demo was
@@ -474,6 +507,33 @@ remain opt-in infrastructure and message text is the only channel
 guaranteed to reach every agent. The redundant, inconsistently-worded
 scenario bullets previously repeated between the load-time notice and the
 on-demand scenario-check message were consolidated to the latter alone.
+Stage 012 was triggered by a further field report on the same underlying
+rule: an agent read the scenario-check advisory message, then offered a
+workaround as one of two menu options anyway. Re-examining stage 011's
+fixes against this report showed both were partial — the uniform
+`directive: ask-before-proceeding` line didn't distinguish signals that
+actually halted execution from ones that merely printed advice, and the
+"mark ask-first as recommended" hook instruction still treated the
+workaround as a selectable option rather than removing it from the choice
+set. The fix made `askfirst_check_scenarios()` halt like
+`askfirst_capability_gap()` already did, differentiated the `directive:`
+value by real severity (including `error_redirect`, which — though itself
+non-fatal — always accompanies an already-halting error from the adopting
+package's own code), and rewrote hook guidance so a `stop-and-ask` signal
+permits no workaround-as-option framing at all until the user has
+answered. Investigation during this stage also surfaced an unrelated,
+previously silent bug: the shipped R-package installer
+(`tools/install-agent-hooks.sh`) embedded an independent, hand-maintained
+copy of the hook text that had never received stage 011's fixes — real
+installs had been stale since the moment those fixes shipped. The initial
+fix considered was restoring stage 007's original runtime relative-path
+resolution of `agent-hooks/`, but this was corrected once it was
+recognized that stage 007's later move to inline embedding had been a
+deliberate language-agnosticism decision (avoiding runtime install-layout
+coupling for a script shared across all future bindings), not an
+oversight; the actual fix used a dev-time generation script plus a
+regression test instead, preserving that property while still eliminating
+the drift.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -556,3 +616,20 @@ on-demand scenario-check message were consolidated to the latter alone.
   alternative to dropping them from the notice entirely, rejected in favor
   of a single location so there is nothing left to reconcile between the
   two.
+
+**Messaging (stage 012):**
+- Keeping `askfirst_check_scenarios()` non-fatal and relying solely on
+  message/hook wording to make the ask-first rule stick — rejected once a
+  field report showed advisory-only delivery is read-and-continued-past
+  regardless of how the wording is strengthened; halting was adopted
+  instead.
+- Keeping stage 011's "mark ask-first as recommended" menu framing —
+  rejected as still offering the workaround as a selectable option, which
+  the field report identified as the anti-pattern itself, independent of
+  which option carries a recommendation label.
+- Resolving the installer's stale embedded hook text via runtime relative-
+  path resolution of `agent-hooks/` — an initial plan, corrected once it
+  was recognized that stage 007's earlier move away from that approach was
+  a deliberate language-agnosticism decision (avoiding runtime
+  install-layout coupling in a script shared across all future bindings),
+  not an oversight; a dev-time generation script was used instead.

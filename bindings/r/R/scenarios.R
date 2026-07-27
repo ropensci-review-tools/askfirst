@@ -76,14 +76,18 @@ askfirst_try_load_namespace <- function(pkg) {
 #'   If the package has not yet called [askfirst_init()] in this session, its
 #'   namespace is loaded automatically to trigger the init call from the
 #'   package's `.onLoad()`.
-#' @return Invisibly, the character vector of scenarios registered for
-#'   `pkg` via [askfirst_init()]'s `scenarios` argument (possibly empty).
-#'   At `"high"` session confidence, also signals a non-fatal
+#' @return At `"low"`/`"medium"` session confidence (a human caller, or an
+#'   agent not yet confidently detected), invisibly returns the character
+#'   vector of scenarios registered for `pkg` via [askfirst_init()]'s
+#'   `scenarios` argument (possibly empty) -- no condition is signalled, since
+#'   a human calling this deliberately doesn't need to be told to ask
+#'   themselves. At `"high"` confidence, does not return: halts with an
 #'   `askfirst_scenario_check` condition carrying the scenario list and a
-#'   reminder to ask the human before implementing a workaround. At
-#'   `"low"` confidence (a human caller), no condition is signalled -- a
-#'   human calling this deliberately doesn't need to be told to ask
-#'   themselves.
+#'   reminder to ask the human before implementing a workaround. Unlike the
+#'   load-time notice or error-time redirect, halting is the deliberate
+#'   intent here -- this is a self-check the calling agent performs before
+#'   writing a workaround, so it must actually stop rather than merely
+#'   print advice the agent could read past.
 #' @examples
 #' \dontrun{
 #' # From within an AI agent's own reasoning, before writing a workaround:
@@ -115,7 +119,13 @@ askfirst_check_scenarios <- function(pkg) {
   confidence <- askfirst_ensure_detection()
   if (identical(confidence, "high")) {
     message_text <- askfirst_build_scenario_check_message(scenarios)
-    askfirst_signal("askfirst_scenario_check", pkg = pkg, message = message_text)
+    askfirst_signal(
+      "askfirst_scenario_check",
+      pkg = pkg,
+      message = message_text,
+      scenarios = scenarios,
+      call_stop = TRUE
+    )
   }
 
   invisible(scenarios)

@@ -176,7 +176,7 @@ test_that("askfirst_signal with default prefix = TRUE includes the structured pr
 
   msg <- conditionMessage(caught)
   expect_match(msg, "askfirst::r::mypkg::notice", fixed = TRUE)
-  expect_match(msg, "directive: ask-before-proceeding", fixed = TRUE)
+  expect_match(msg, "directive: notice", fixed = TRUE)
   expect_match(msg, "raw message", fixed = TRUE)
   expect_match(msg, "See: https://ropensci.github.io/askfirst/", fixed = TRUE)
 })

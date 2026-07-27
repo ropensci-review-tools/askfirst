@@ -13,14 +13,18 @@ namespace is loaded automatically to trigger the init call from the
 package's \code{.onLoad()}.}
 }
 \value{
-Invisibly, the character vector of scenarios registered for
-\code{pkg} via \code{\link[=askfirst_init]{askfirst_init()}}'s \code{scenarios} argument (possibly empty).
-At \code{"high"} session confidence, also signals a non-fatal
+At \code{"low"}/\code{"medium"} session confidence (a human caller, or an
+agent not yet confidently detected), invisibly returns the character
+vector of scenarios registered for \code{pkg} via \code{\link[=askfirst_init]{askfirst_init()}}'s
+\code{scenarios} argument (possibly empty) -- no condition is signalled, since
+a human calling this deliberately doesn't need to be told to ask
+themselves. At \code{"high"} confidence, does not return: halts with an
 \code{askfirst_scenario_check} condition carrying the scenario list and a
-reminder to ask the human before implementing a workaround. At
-\code{"low"} confidence (a human caller), no condition is signalled -- a
-human calling this deliberately doesn't need to be told to ask
-themselves.
+reminder to ask the human before implementing a workaround. Unlike the
+load-time notice or error-time redirect, halting is the deliberate
+intent here -- this is a self-check the calling agent performs before
+writing a workaround, so it must actually stop rather than merely
+print advice the agent could read past.
 }
 \description{
 Call this at any point in a session -- it doesn't need to be tied to any
