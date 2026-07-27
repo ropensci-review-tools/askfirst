@@ -1,7 +1,7 @@
 ---
-created: 2026-07-27T11:05:00Z
+created: 2026-07-27T12:32:25Z
 agent: claude-sonnet-5
-git_hash: 5442965ba81d078a23db0e75a7aca793e492fcd5
+git_hash: 159764dd12ea1465a1eafa4bcd91bfc815c1a30b
 ---
 
 # Design Decisions: askfirst
@@ -9,10 +9,12 @@ git_hash: 5442965ba81d078a23db0e75a7aca793e492fcd5
 ## Current Architecture
 `askfirst` is an R package (rooted at `bindings/r/` in this monorepo) that lets R
 package maintainers detect when their functions are being called from an
-LLM/AI coding agent rather than a human, and issue a message that
+LLM/AI coding agent rather than a human, and issue a structured signal
+(`askfirst::<language>::<pkg>::<type>`) that AI assistants can recognise as
+legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Five design stages are complete. Stage 001 produced
+capability. Six design stages are complete. Stage 001 produced
 research-only findings (no code). Stage 002 produced `agent-detect-spec/`,
 a vendored, upstream-synced copy of `vercel/detect-agent`'s detection data,
 plus a confidence-tiering/intervention-point design that was ultimately
@@ -37,7 +39,12 @@ opencode sessions, one giving adopting-package maintainers a procedural
 guide to the exported API — introducing the project's first vignette
 infrastructure (`knitr`/`rmarkdown`), and, as an in-scope side fix, a
 long-broken `working-directory: r` path in the CI check job that predated
-the `bindings/r/` relocation.
+the `bindings/r/` relocation. Stage 007 revised the messaging system to
+replace the prompt-injection-vulnerable second-person condition format with
+a structured `askfirst::<language>::<pkg>::<type>` prefix, introduced
+pre-configured agent-tool hooks (SessionStart and PostToolUse) at a shared
+`agent-hooks/` directory, and created a binding-agnostic installation script
+at `tools/install-agent-hooks.sh`.
 
 ## Key Decisions
 
@@ -267,6 +274,26 @@ separate stage (rejected, since it would have left the new vignette
 infrastructure unverified in CI in the interim).
 **Stages:** 006
 
+### Messaging format: structured prefix over second-person embedded instructions
+**Outcome:** All askfirst condition signals now carry a
+`askfirst::<language>::<pkg>::<type>` prefix line (language, adopting package
+name, signal type) followed by the message body and a `See: <url>` line.
+Agent hooks (SessionStart and PostToolUse) pre-load context about this
+format so AI assistants recognise it as legitimate metadata.
+`tools/install-agent-hooks.sh` is a shared shell script for installing the
+hooks; the R function `askfirst_install_agent_hooks()` is a thin wrapper
+around it.
+**Rationale:** The previous second-person format ("If you are an AI coding
+agent...") was interpreted as a prompt injection by AI assistants, causing
+outright refusal. The structured prefix lets the tool's system context
+identify it as a known, safe signal, and the shared shell script avoids
+duplicating installation logic across future language bindings.
+**Roads not taken:** Keeping the second-person embedded-instruction format
+(actively counterproductive — triggers prompt-injection guardrails);
+implementing hook installation as R-only logic (rejected mid-stage in favor
+of a shared shell script callable from any binding).
+**Stages:** 007
+
 ## Architectural Evolution
 Stage 001 established the project's foundational research: what signals
 can identify an LLM-driven caller, how a redirect message could reach it,
@@ -311,7 +338,19 @@ internal, invoked automatically by `askfirst_init()`'s `on_error`
 argument), and the CI check job's `working-directory` still pointed at
 the pre-`bindings/r/`-relocation path from before stage 003/005, both
 found and fixed by reading the actual source and workflow file rather
-than by relying on the stage's own plan.
+than by relying on the stage's own plan. Stage 007 addressed a fundamental
+problem surfaced by `transcript.md`: AI assistants interpreted askfirst's
+second-person embedded instructions as prompt injection and refused to
+engage. The fix had two parts: (a) a structured
+`askfirst::<language>::<pkg>::<type>` prefix on every condition signal that
+AI assistants can be taught to recognise as legitimate metadata, and (b)
+agent-tool hooks (SessionStart and PostToolUse for Claude Code and
+opencode) that pre-load context about the format, installed via a shared
+shell script at `tools/install-agent-hooks.sh` with a thin R wrapper.
+The hook scripts live at a root-level `agent-hooks/` directory, shared
+across all language bindings via symlinks, following the same
+root-level-plus-symlink pattern established for the vendored detection data
+in stage 003.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -360,8 +399,6 @@ than by relying on the stage's own plan.
 - Building a language-agnostic implementation now, rather than R-only with
   portable internals — still deferred as premature; only the vendored
   detection data is language-agnostic so far, not any actual code.
-- Standing up a separate repo for the vendored data immediately — deferred
-  until a second, independent language implementation exists.
 - Shipping the confidence-tiering and intervention-point models as
   standalone files under `agent-detect-spec/` — reversed post-retrospective
   once it was recognized that, unlike the vendored data, nothing in the
@@ -371,3 +408,10 @@ than by relying on the stage's own plan.
   location, rather than vendoring a copy into `bindings/r/inst/` — would break once
   the R package is installed or distributed independently of this
   monorepo.
+
+**Messaging format:**
+- Second-person embedded-instruction format ("If you are an AI coding
+  agent...") — retained through stages 001–006, then replaced in stage 007
+  after real-world testing showed AI assistants interpret it as prompt
+  injection and refuse to follow it. The structured prefix and pre-loaded
+  hook context approach was adopted as the replacement.
