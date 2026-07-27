@@ -40,7 +40,7 @@ the same or other adopting packages reuse that one cached result rather
 than recomputing it.
 }
 \details{
-If the session is \code{"high"} or \code{"medium"} confidence, \code{notice} is signalled
+If the session is \code{"high"} confidence, \code{notice} is signalled
 immediately as a non-fatal \code{askfirst_notice} condition, attributed to
 \code{pkg}. The signalled text also always includes a generic reminder to
 call \code{askfirst_check_scenarios()} before writing code that duplicates or

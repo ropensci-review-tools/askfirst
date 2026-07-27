@@ -18,11 +18,11 @@ call \code{\link[=askfirst_capability_gap]{askfirst_capability_gap()}} inline at
 recognizes a known limitation has been hit.
 }
 \author{
-\strong{Maintainer}: ropensci-review-tools \email{maintainers@ropensci-review-tools.example}
+\strong{Maintainer}: Mark Padgham \email{mark.padgham@email.com} (\href{https://orcid.org/0000-0003-2172-5265}{ORCID})
 
 Authors:
 \itemize{
-  \item ropensci-review-tools \email{maintainers@ropensci-review-tools.example}
+  \item Mark Padgham \email{mark.padgham@email.com} (\href{https://orcid.org/0000-0003-2172-5265}{ORCID})
 }
 
 }

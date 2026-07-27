@@ -7,13 +7,15 @@
 askfirst_check_scenarios(pkg)
 }
 \arguments{
-\item{pkg}{The name of a package that has already called
-\code{\link[=askfirst_init]{askfirst_init()}} in this session (a single string).}
+\item{pkg}{The name of a package that adopts askfirst (a single string).
+If the package has not yet called \code{\link[=askfirst_init]{askfirst_init()}} in this session, its
+namespace is loaded automatically to trigger the init call from the
+package's \code{.onLoad()}.}
 }
 \value{
 Invisibly, the character vector of scenarios registered for
 \code{pkg} via \code{\link[=askfirst_init]{askfirst_init()}}'s \code{scenarios} argument (possibly empty).
-At \code{"high"}/\code{"medium"} session confidence, also signals a non-fatal
+At \code{"high"} session confidence, also signals a non-fatal
 \code{askfirst_scenario_check} condition carrying the scenario list and a
 reminder to ask the human before implementing a workaround. At
 \code{"low"} confidence (a human caller), no condition is signalled -- a

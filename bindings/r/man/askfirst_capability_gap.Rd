@@ -30,7 +30,7 @@ detection.
 }
 \details{
 A no-op for human/low-confidence sessions (per the "no false positives
-for humans" constraint). For \code{"high"}/\code{"medium"} confidence sessions,
+for humans" constraint). For \code{"high"} confidence sessions,
 halts execution with a \code{askfirst_capability_gap} condition attributed to
 \code{pkg}, since — unlike the load-time notice or error-time redirect —
 halting is the deliberate intent here.
