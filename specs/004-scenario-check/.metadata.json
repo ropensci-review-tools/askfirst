@@ -1,0 +1,15 @@
+{
+  "agents": [
+    "claude-sonnet-5"
+  ],
+  "created": "2026-07-27T09:42:14Z",
+  "last_updated": "2026-07-27T09:45:42Z",
+  "last_session_id": "bfc91413-bfc6-4b87-9311-6ef7445f2724",
+  "sessions": 1,
+  "input_tokens": 8594014,
+  "output_tokens": 49305,
+  "user_word_count": 1195,
+  "lines_added": 285,
+  "lines_deleted": 0,
+  "files_changed": 2
+}
