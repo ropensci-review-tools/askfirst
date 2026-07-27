@@ -69,6 +69,8 @@ never a plain human console) — immediately signals a load-time notice.
       "Writing a custom date-parsing helper instead of using this package's parser",
       "Re-implementing grouped aggregation instead of this package's group_by()"
     ),
+    contribute_how = "Open an issue describing the gap, or a PR following CONTRIBUTING.md",
+    contribute_url = "https://github.com/example/mypackage/issues",
     on_error = FALSE
   )
 }
@@ -93,6 +95,20 @@ but general enough to cover cases you didn't precisely anticipate.
 `scenarios` defaults to an empty vector; even with none registered, the
 load-time notice still includes a generic reminder to call
 `askfirst_check_scenarios()` before implementing a workaround.
+
+**Writing `contribute_how`/`contribute_url`**: both optional, both default
+to `NULL`. `contribute_how` is free text describing how a human could go
+about contributing a fix to your package (e.g. "Open an issue describing
+the gap, or a PR against `main` following `CONTRIBUTING.md`);
+`contribute_url` is a single URL for where to go (e.g. your issue tracker
+or `CONTRIBUTING.md`). When set, both appear as concrete sentences in the
+load-time notice and the `askfirst_check_scenarios()` message, replacing
+askfirst's otherwise-generic "the developers of `{pkg}` use askfirst"
+framing with something actionable. As with `notice`, write `contribute_how`
+as factual, third-person guidance — not addressed to "you". The agent is
+the direct reader of the resulting message, not the human the guidance is
+meant for, so an unqualified "you" would be read as addressing the agent
+itself rather than the human it's meant to relay this to.
 
 **`on_error`**: a single logical, passed to `askfirst_init()` itself —
 there is no separate function to call. It defaults to `TRUE`, so the two

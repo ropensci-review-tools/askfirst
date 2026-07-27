@@ -37,6 +37,17 @@
 #'   Defaults to an empty vector (no scenarios registered); the generic
 #'   reminder to call `askfirst_check_scenarios()` is still included in the
 #'   load-time notice either way.
+#' @param contribute_how Optional free text describing how a human could go
+#'   about contributing a fix to `pkg` itself (e.g. "Open an issue
+#'   describing the gap, or a PR against `main` following
+#'   `CONTRIBUTING.md`"). Write this as third-person/impersonal guidance,
+#'   not addressed to "you" -- the immediate reader of the resulting
+#'   message is the calling agent, not the human the guidance is meant for,
+#'   so an unqualified "you" would be read as addressing the agent itself.
+#'   Defaults to `NULL` (omitted from messages).
+#' @param contribute_url Optional single URL for where to go to contribute
+#'   (e.g. an issue tracker or `CONTRIBUTING.md` link). Defaults to `NULL`
+#'   (omitted from messages).
 #' @return Invisibly, `NULL`.
 #' @examples
 #' \dontrun{
@@ -52,16 +63,26 @@
 #'     scenarios = c(
 #'       "Writing custom date-parsing logic instead of using this package's parser",
 #'       "Re-implementing grouped aggregation instead of this package's group_by()"
-#'     )
+#'     ),
+#'     contribute_how = paste(
+#'       "Open an issue describing the gap, or a PR against `main`",
+#'       "following CONTRIBUTING.md"
+#'     ),
+#'     contribute_url = "https://github.com/example/mypackage/issues"
 #'   )
 #' }
 #' }
 #' @export
-askfirst_init <- function(pkg, notice, on_error = TRUE, scenarios = character()) {
+askfirst_init <- function(pkg, notice, on_error = TRUE, scenarios = character(),
+                           contribute_how = NULL, contribute_url = NULL) {
   stopifnot(
     "pkg must be a single string" = is.character(pkg) && length(pkg) == 1,
     "notice must be a single string" = is.character(notice) && length(notice) == 1,
-    "scenarios must be a character vector" = is.character(scenarios)
+    "scenarios must be a character vector" = is.character(scenarios),
+    "contribute_how must be NULL or a single string" =
+      is.null(contribute_how) || (is.character(contribute_how) && length(contribute_how) == 1),
+    "contribute_url must be NULL or a single string" =
+      is.null(contribute_url) || (is.character(contribute_url) && length(contribute_url) == 1)
   )
 
   confidence <- askfirst_ensure_detection()
@@ -69,11 +90,13 @@ askfirst_init <- function(pkg, notice, on_error = TRUE, scenarios = character())
   .askfirst_state$packages[[pkg]] <- list(
     notice = notice,
     on_error = isTRUE(on_error),
-    scenarios = scenarios
+    scenarios = scenarios,
+    contribute_how = contribute_how,
+    contribute_url = contribute_url
   )
 
   if (identical(confidence, "high")) {
-    load_time_notice <- askfirst_build_notice(pkg, notice)
+    load_time_notice <- askfirst_build_notice(pkg, notice, contribute_how, contribute_url)
     askfirst_signal("askfirst_notice", pkg = pkg, message = load_time_notice)
   }
 

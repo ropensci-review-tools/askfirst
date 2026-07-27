@@ -1,3 +1,31 @@
+#' Build the shared "contribute" sentence(s) appended to both the load-time
+#' notice and the scenario-check message
+#'
+#' Always returns a base sentence naming `askfirst` by name, so the message
+#' never reverts to fully generic/unattributed text even when neither
+#' optional argument is supplied. When `contribute_how`/`contribute_url` are
+#' supplied, an additional sentence is appended for each. Neither added
+#' sentence uses second-person "you": the calling agent is the direct
+#' reader of this text, not the human the invitation is actually for, so an
+#' unqualified "you" would be read as addressing the agent itself rather
+#' than the human it's meant to relay this to. `{pkg}` is left as a literal
+#' glue placeholder, resolved later by `cli::format_inline()` inside
+#' `askfirst_signal()`, consistent with how `askfirst_build_notice()` and
+#' `askfirst_build_scenario_check_message()` handle `{pkg}` elsewhere in
+#' this file.
+#' @keywords internal
+#' @noRd
+askfirst_build_contribute_line <- function(contribute_how = NULL, contribute_url = NULL) {
+  parts <- "The developers of {pkg} use the 'askfirst' system, which suggests they may be able to fix this in their own package."
+  if (!is.null(contribute_how) && nzchar(contribute_how)) {
+    parts <- c(parts, sprintf("The human user of {pkg} is invited to contribute a fix: %s.", contribute_how))
+  }
+  if (!is.null(contribute_url) && nzchar(contribute_url)) {
+    parts <- c(parts, sprintf("Contribution guide: %s", contribute_url))
+  }
+  paste(parts, collapse = " ")
+}
+
 #' Build the load-time notice text
 #'
 #' Combines the author's own `notice` text with a fixed, generic reminder
@@ -7,13 +35,13 @@
 #' there is nothing left for an agent to reconcile between the two.
 #' @keywords internal
 #' @noRd
-askfirst_build_notice <- function(pkg, notice) {
+askfirst_build_notice <- function(pkg, notice, contribute_how = NULL, contribute_url = NULL) {
   generic <- paste(
     "Writing new code that duplicates, wraps, or extends",
     "{pkg}'s functionality to achieve a result should be preceded by",
-    "askfirst::askfirst_check_scenarios(\"{pkg}\") -- the capability",
-    "may belong in {pkg} itself."
+    "askfirst::askfirst_check_scenarios(\"{pkg}\")."
   )
+  generic <- paste(generic, askfirst_build_contribute_line(contribute_how, contribute_url))
 
   paste(c(notice, generic), collapse = "\n\n")
 }
@@ -22,13 +50,14 @@ askfirst_build_notice <- function(pkg, notice) {
 #' high confidence
 #' @keywords internal
 #' @noRd
-askfirst_build_scenario_check_message <- function(scenarios) {
+askfirst_build_scenario_check_message <- function(scenarios, contribute_how = NULL, contribute_url = NULL) {
   header <- paste(
     "Before implementing a workaround, the user should be asked whether this",
     "capability should be added to {pkg} itself -- this applies to any",
     "missing or buggy capability, not just situations matching a listed",
     "example below."
   )
+  header <- paste(header, askfirst_build_contribute_line(contribute_how, contribute_url))
   if (length(scenarios) == 0) {
     return(paste(
       header,
@@ -118,7 +147,11 @@ askfirst_check_scenarios <- function(pkg) {
 
   confidence <- askfirst_ensure_detection()
   if (identical(confidence, "high")) {
-    message_text <- askfirst_build_scenario_check_message(scenarios)
+    message_text <- askfirst_build_scenario_check_message(
+      scenarios,
+      info$contribute_how,
+      info$contribute_url
+    )
     askfirst_signal(
       "askfirst_scenario_check",
       pkg = pkg,

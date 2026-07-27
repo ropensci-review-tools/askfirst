@@ -59,6 +59,44 @@ test_that("askfirst_init registers pkg's notice and on_error setting", {
   expect_false(.askfirst_state$packages[["mypkg"]]$on_error)
 })
 
+test_that("askfirst_init stores contribute_how and contribute_url when supplied", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "low"
+
+  suppressMessages(askfirst_init(
+    "mypkg", "some notice",
+    contribute_how = "Open a PR against main",
+    contribute_url = "https://example.com/mypkg/issues"
+  ))
+
+  expect_equal(.askfirst_state$packages[["mypkg"]]$contribute_how, "Open a PR against main")
+  expect_equal(.askfirst_state$packages[["mypkg"]]$contribute_url, "https://example.com/mypkg/issues")
+})
+
+test_that("askfirst_init defaults contribute_how and contribute_url to NULL", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "low"
+
+  suppressMessages(askfirst_init("mypkg", "some notice"))
+
+  expect_null(.askfirst_state$packages[["mypkg"]]$contribute_how)
+  expect_null(.askfirst_state$packages[["mypkg"]]$contribute_url)
+})
+
+test_that("askfirst_init rejects non-string, non-NULL contribute_how/contribute_url", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "low"
+
+  expect_error(
+    askfirst_init("mypkg", "some notice", contribute_how = 123),
+    "contribute_how must be NULL or a single string"
+  )
+  expect_error(
+    askfirst_init("mypkg", "some notice", contribute_url = c("a", "b")),
+    "contribute_url must be NULL or a single string"
+  )
+})
+
 test_that("askfirst_install_error_handler is idempotent", {
   local_reset_askfirst_state()
   withr::local_options(error = function() NULL)

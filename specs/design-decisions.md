@@ -1,7 +1,7 @@
 ---
-created: 2026-07-27T18:30:00Z
+created: 2026-07-27T16:55:00Z
 agent: claude-sonnet-5
-git_hash: beafb6fe16abee766676cb2455d6154b2fed530e
+git_hash: 01e8c3fb12f24b22888144a4eb02ae71a5d91f87
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,18 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Twelve design stages are complete. Stage 012 hardened this
+capability. Thirteen design stages are complete. Stage 013 replaced the
+vague "the capability may belong in `{pkg}` itself" framing in the
+load-time notice and the scenario-check message with a concrete, attributed
+invitation naming `askfirst` explicitly, backed by two new optional
+`askfirst_init()` fields — `contribute_how` (free text on how to
+contribute) and `contribute_url` (a single URL) — built via one shared
+internal helper so the two messages can't drift apart. Every sentence
+names its addressee explicitly rather than using an unqualified "you",
+since the calling agent (not the human the invitation is for) is the
+direct reader of the message text; a misread "you" could otherwise be
+taken as inviting the agent itself to go open an upstream PR unsupervised.
+`askfirst_capability_gap()` and `error_redirect` are unchanged. Stage 012 hardened this
 mechanism further after a field report showed an agent reading the
 scenario-check advisory and offering a workaround anyway:
 `askfirst_check_scenarios()` now halts at high confidence (matching
@@ -350,7 +361,14 @@ never received stage 011's fixes at all; a regression test now compares
 the two directly. The scenario bullet list previously duplicated (with
 inconsistent wording) between the load-time notice and the on-demand
 scenario-check message now appears only in the latter, worded as
-explicitly non-exhaustive.
+explicitly non-exhaustive. Stage 013 replaced the load-time notice's and
+scenario-check message's vague closing clause ("...the capability may
+belong in `{pkg}` itself" / "...should be added to `{pkg}` itself") with a
+concrete, attributed invitation built by a shared internal helper
+(`askfirst_build_contribute_line()`), always naming `askfirst` by name and
+optionally including maintainer-supplied `contribute_how`/`contribute_url`
+text (two new optional `askfirst_init()` fields). `askfirst_capability_gap()`
+and `error_redirect` are unchanged.
 **Rationale:** The previous second-person format ("If you are an AI coding
 agent...") was interpreted as a prompt injection by AI assistants, causing
 outright refusal. The structured prefix lets the tool's system context
@@ -368,7 +386,15 @@ field report, that stage 011's fixes were only partial: an advisory-only
 message is not a gate regardless of wording, and offering a "recommended"
 workaround option is still offering a workaround option. Both were
 addressed at the mechanism level (halting; no-menu-until-answered) rather
-than by further softening message text.
+than by further softening message text. Stage 013 found the originally
+proposed replacement wording for the vague upstream-fix framing ("You are
+invited to contribute...") reintroduced a different problem: the calling
+agent, not a human, is the direct reader of message text, so an unqualified
+"you" defaults to being read as addressing the agent itself rather than the
+human the invitation is meant for — a misreading that could plausibly lead
+an agent to conclude it should go open an upstream PR unsupervised. Every
+sentence in the new "contribute" text names its addressee explicitly
+instead.
 **Roads not taken:** Keeping the second-person embedded-instruction format
 (actively counterproductive — triggers prompt-injection guardrails);
 implementing hook installation as R-only logic (rejected mid-stage in favor
@@ -379,8 +405,11 @@ extended it); resolving the installer's stale embedded hook text at
 runtime via relative filesystem lookup of `agent-hooks/` (stage 012 —
 would have reintroduced install-layout coupling that an earlier, deliberate
 reversion within stage 007 had specifically removed to keep the shared
-`tools/` installer usable by any future language binding).
-**Stages:** 007, 011, 012
+`tools/` installer usable by any future language binding); an unqualified
+second-person "you" in the new stage-013 contribute-invitation text
+(rejected once it was recognized the agent, not the human, is the direct
+reader of that text).
+**Stages:** 007, 011, 012, 013
 
 ### Demo content: vignette-scoped, realistic function replacing abstract placeholders
 **Outcome:** The `askfirst-development.Rmd` vignette's tokenpkg demo was
@@ -533,7 +562,26 @@ deliberate language-agnosticism decision (avoiding runtime install-layout
 coupling for a script shared across all future bindings), not an
 oversight; the actual fix used a dev-time generation script plus a
 regression test instead, preserving that property while still eliminating
-the drift.
+the drift. Stage 013 addressed a narrower complaint about message
+*content* rather than delivery mechanism: the load-time notice and
+scenario-check message both ended on a vague, unattributed note ("...the
+capability may belong in `{pkg}` itself") that neither named `askfirst`
+nor gave a human any concrete next step. Two new optional `askfirst_init()`
+fields (`contribute_how`, `contribute_url`) let a maintainer supply
+concrete contribution guidance, built into both messages via one shared
+helper so wording can't independently drift the way stage 011 found the
+scenario bullets had. The plan's first draft used the literally-requested
+"You are invited to contribute..." phrasing; this was corrected during
+plan review once it was recognized that the calling agent, not a human, is
+the direct reader of the resulting message text, so an unqualified "you"
+would default to being read as addressing the agent itself — a misreading
+that could plausibly lead an agent to conclude it should go open an
+upstream PR unsupervised, precisely the kind of unsupervised action
+askfirst exists to route through the human first. Every sentence in the
+final wording names its addressee explicitly instead.
+`askfirst_capability_gap()` and `error_redirect` were left unchanged,
+staying consistent with each function's own established design (fully
+author-supplied message; deliberate verbatim-notice reuse, respectively).
 
 ## Important Roads Not Taken
 **Detection:**
@@ -633,3 +681,19 @@ the drift.
   a deliberate language-agnosticism decision (avoiding runtime
   install-layout coupling in a script shared across all future bindings),
   not an oversight; a dev-time generation script was used instead.
+
+**Messaging (stage 013):**
+- "You are invited to contribute..." phrasing for the new upstream-fix
+  invitation — the literal wording from the initial request, rejected
+  during plan review once it was recognized the calling agent, not a
+  human, is the direct reader of message text; an unqualified "you" would
+  default to being read as addressing the agent itself. Every sentence in
+  the final wording names its addressee explicitly instead.
+- Extending the new contribute-invitation text to `askfirst_capability_gap()`
+  or `error_redirect` — out of scope this stage; the former has no
+  askfirst-added boilerplate to replace today, and the latter has a
+  deliberate, established reason (stage 003) to reuse `notice` text
+  verbatim rather than gain new content.
+- Per-call `contribute_how`/`contribute_url` overrides on
+  `askfirst_capability_gap()` — deferred as unnecessary, since that
+  function doesn't consume these fields at all this stage.

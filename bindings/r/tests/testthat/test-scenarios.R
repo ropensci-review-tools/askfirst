@@ -64,6 +64,85 @@ test_that("the load-time notice still includes the generic instruction with no s
   expect_no_match(msg, "Situations to watch for")
 })
 
+test_that("the load-time notice includes both contribute sentences when both fields are registered", {
+  local_reset_askfirst_state()
+  withr::local_envvar(c(CLAUDECODE = "1"))
+
+  caught <- NULL
+  withCallingHandlers(
+    askfirst_init(
+      "mypkg", "author notice text",
+      contribute_how = "Open a PR against main",
+      contribute_url = "https://example.com/mypkg/issues"
+    ),
+    askfirst_notice = function(cnd) {
+      caught <<- cnd
+      invokeRestart("muffleMessage")
+    }
+  )
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "The developers of mypkg use the 'askfirst' system", fixed = TRUE)
+  expect_match(msg, "invited to contribute a fix: Open a PR against main", fixed = TRUE)
+  expect_match(msg, "Contribution guide: https://example.com/mypkg/issues", fixed = TRUE)
+  expect_no_match(msg, "You are invited", fixed = TRUE)
+})
+
+test_that("the load-time notice includes only the how sentence when only contribute_how is registered", {
+  local_reset_askfirst_state()
+  withr::local_envvar(c(CLAUDECODE = "1"))
+
+  caught <- NULL
+  withCallingHandlers(
+    askfirst_init("mypkg", "author notice text", contribute_how = "Open a PR against main"),
+    askfirst_notice = function(cnd) {
+      caught <<- cnd
+      invokeRestart("muffleMessage")
+    }
+  )
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "invited to contribute a fix: Open a PR against main", fixed = TRUE)
+  expect_no_match(msg, "Contribution guide:", fixed = TRUE)
+})
+
+test_that("the load-time notice includes only the url sentence when only contribute_url is registered", {
+  local_reset_askfirst_state()
+  withr::local_envvar(c(CLAUDECODE = "1"))
+
+  caught <- NULL
+  withCallingHandlers(
+    askfirst_init("mypkg", "author notice text", contribute_url = "https://example.com/mypkg/issues"),
+    askfirst_notice = function(cnd) {
+      caught <<- cnd
+      invokeRestart("muffleMessage")
+    }
+  )
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "Contribution guide: https://example.com/mypkg/issues", fixed = TRUE)
+  expect_no_match(msg, "invited to contribute a fix", fixed = TRUE)
+})
+
+test_that("the load-time notice still names askfirst when neither contribute field is registered", {
+  local_reset_askfirst_state()
+  withr::local_envvar(c(CLAUDECODE = "1"))
+
+  caught <- NULL
+  withCallingHandlers(
+    askfirst_init("mypkg", "author notice text"),
+    askfirst_notice = function(cnd) {
+      caught <<- cnd
+      invokeRestart("muffleMessage")
+    }
+  )
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "The developers of mypkg use the 'askfirst' system", fixed = TRUE)
+  expect_no_match(msg, "invited to contribute a fix", fixed = TRUE)
+  expect_no_match(msg, "Contribution guide:", fixed = TRUE)
+})
+
 test_that("askfirst_check_scenarios halts with a askfirst_scenario_check condition under high confidence", {
   local_reset_askfirst_state()
   .askfirst_state$confidence <- "high"
@@ -84,6 +163,45 @@ test_that("askfirst_check_scenarios halts with a askfirst_scenario_check conditi
   expect_match(conditionMessage(caught), "scenario A", fixed = TRUE)
   expect_match(conditionMessage(caught), "should be asked", fixed = TRUE)
   expect_match(conditionMessage(caught), "not limited to", fixed = TRUE)
+})
+
+test_that("askfirst_check_scenarios message includes both contribute sentences when both fields are registered", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "high"
+  .askfirst_state$packages[["mypkg"]] <- list(
+    notice = "n", on_error = FALSE, scenarios = c("scenario A"),
+    contribute_how = "Open a PR against main",
+    contribute_url = "https://example.com/mypkg/issues"
+  )
+
+  caught <- tryCatch(
+    askfirst_check_scenarios("mypkg"),
+    askfirst_scenario_check = function(cnd) cnd
+  )
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "The developers of mypkg use the 'askfirst' system", fixed = TRUE)
+  expect_match(msg, "invited to contribute a fix: Open a PR against main", fixed = TRUE)
+  expect_match(msg, "Contribution guide: https://example.com/mypkg/issues", fixed = TRUE)
+  expect_no_match(msg, "You are invited", fixed = TRUE)
+})
+
+test_that("askfirst_check_scenarios message still names askfirst when neither contribute field is registered", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "high"
+  .askfirst_state$packages[["mypkg"]] <- list(
+    notice = "n", on_error = FALSE, scenarios = c("scenario A")
+  )
+
+  caught <- tryCatch(
+    askfirst_check_scenarios("mypkg"),
+    askfirst_scenario_check = function(cnd) cnd
+  )
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "The developers of mypkg use the 'askfirst' system", fixed = TRUE)
+  expect_no_match(msg, "invited to contribute a fix", fixed = TRUE)
+  expect_no_match(msg, "Contribution guide:", fixed = TRUE)
 })
 
 test_that("askfirst_check_scenarios does not signal at medium confidence", {

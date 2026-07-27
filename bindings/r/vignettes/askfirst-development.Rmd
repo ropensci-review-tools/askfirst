@@ -121,7 +121,9 @@ tokenpkg_parse_version <- function(version) {
     scenarios = c(
       "Writing a pre-release version parser instead of contributing pre-release suffix support to this package",
       "Implementing cross-package version comparisons that duplicate this package's parser"
-    )
+    ),
+    contribute_how = "Open an issue describing the gap, or a PR against main following CONTRIBUTING.md",
+    contribute_url = "https://github.com/example/tokenpkg/issues"
   )
 }
 

@@ -4,7 +4,14 @@
 \alias{askfirst_init}
 \title{Initialize askfirst detection and load-time messaging}
 \usage{
-askfirst_init(pkg, notice, on_error = TRUE, scenarios = character())
+askfirst_init(
+  pkg,
+  notice,
+  on_error = TRUE,
+  scenarios = character(),
+  contribute_how = NULL,
+  contribute_url = NULL
+)
 }
 \arguments{
 \item{pkg}{The name of the adopting package (a single string), e.g.
@@ -27,6 +34,19 @@ general enough to cover cases you didn't precisely anticipate.
 Defaults to an empty vector (no scenarios registered); the generic
 reminder to call \code{askfirst_check_scenarios()} is still included in the
 load-time notice either way.}
+
+\item{contribute_how}{Optional free text describing how a human could go
+about contributing a fix to \code{pkg} itself (e.g. "Open an issue
+describing the gap, or a PR against \code{main} following
+\code{CONTRIBUTING.md}"). Write this as third-person/impersonal guidance,
+not addressed to "you" -- the immediate reader of the resulting
+message is the calling agent, not the human the guidance is meant for,
+so an unqualified "you" would be read as addressing the agent itself.
+Defaults to \code{NULL} (omitted from messages).}
+
+\item{contribute_url}{Optional single URL for where to go to contribute
+(e.g. an issue tracker or \code{CONTRIBUTING.md} link). Defaults to \code{NULL}
+(omitted from messages).}
 }
 \value{
 Invisibly, \code{NULL}.
@@ -66,7 +86,12 @@ limitations).
     scenarios = c(
       "Writing custom date-parsing logic instead of using this package's parser",
       "Re-implementing grouped aggregation instead of this package's group_by()"
-    )
+    ),
+    contribute_how = paste(
+      "Open an issue describing the gap, or a PR against `main`",
+      "following CONTRIBUTING.md"
+    ),
+    contribute_url = "https://github.com/example/mypackage/issues"
   )
 }
 }
