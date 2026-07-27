@@ -88,24 +88,23 @@ test_that("askfirst_check_scenarios signals askfirst_scenario_check at high conf
   expect_equal(result, "scenario A")
 })
 
-test_that("askfirst_check_scenarios signals askfirst_scenario_check at medium confidence", {
+test_that("askfirst_check_scenarios does not signal at medium confidence", {
   local_reset_askfirst_state()
   .askfirst_state$confidence <- "medium"
   .askfirst_state$packages[["mypkg"]] <- list(
     notice = "n", on_error = FALSE, scenarios = character()
   )
 
-  caught <- NULL
+  fired <- FALSE
   withCallingHandlers(
     askfirst_check_scenarios("mypkg"),
     askfirst_scenario_check = function(cnd) {
-      caught <<- cnd
+      fired <<- TRUE
       invokeRestart("muffleMessage")
     }
   )
 
-  expect_s3_class(caught, "askfirst_scenario_check")
-  expect_match(conditionMessage(caught), "No specific scenarios", fixed = TRUE)
+  expect_false(fired)
 })
 
 test_that("askfirst_check_scenarios returns plain vector with no condition at low confidence", {

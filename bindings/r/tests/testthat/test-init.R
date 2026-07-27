@@ -17,20 +17,20 @@ test_that("askfirst_init signals a askfirst_notice under high confidence, attrib
   expect_match(conditionMessage(caught), "mypkg")
 })
 
-test_that("askfirst_init signals a askfirst_notice under medium confidence", {
+test_that("askfirst_init does not signal a notice under medium confidence", {
   local_reset_askfirst_state()
   .askfirst_state$confidence <- "medium"
 
-  caught <- NULL
+  fired <- FALSE
   withCallingHandlers(
     askfirst_init("mypkg", "notice text"),
     askfirst_notice = function(cnd) {
-      caught <<- cnd
+      fired <<- TRUE
       invokeRestart("muffleMessage")
     }
   )
 
-  expect_s3_class(caught, "askfirst_notice")
+  expect_false(fired)
 })
 
 test_that("askfirst_init does not signal a notice under low confidence", {

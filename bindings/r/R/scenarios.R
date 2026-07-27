@@ -25,7 +25,7 @@ askfirst_build_notice <- function(pkg, notice, scenarios) {
 }
 
 #' Build the message text signalled by askfirst_check_scenarios() at
-#' high/medium confidence
+#' high confidence
 #' @keywords internal
 #' @noRd
 askfirst_build_scenario_check_message <- function(scenarios) {
@@ -78,7 +78,7 @@ askfirst_try_load_namespace <- function(pkg) {
 #'   package's `.onLoad()`.
 #' @return Invisibly, the character vector of scenarios registered for
 #'   `pkg` via [askfirst_init()]'s `scenarios` argument (possibly empty).
-#'   At `"high"`/`"medium"` session confidence, also signals a non-fatal
+#'   At `"high"` session confidence, also signals a non-fatal
 #'   `askfirst_scenario_check` condition carrying the scenario list and a
 #'   reminder to ask the human before implementing a workaround. At
 #'   `"low"` confidence (a human caller), no condition is signalled -- a
@@ -113,7 +113,7 @@ askfirst_check_scenarios <- function(pkg) {
   scenarios <- info$scenarios
 
   confidence <- askfirst_ensure_detection()
-  if (confidence %in% c("high", "medium")) {
+  if (identical(confidence, "high")) {
     message_text <- askfirst_build_scenario_check_message(scenarios)
     askfirst_signal("askfirst_scenario_check", pkg = pkg, message = message_text)
   }

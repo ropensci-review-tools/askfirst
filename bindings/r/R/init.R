@@ -7,7 +7,7 @@
 #' the same or other adopting packages reuse that one cached result rather
 #' than recomputing it.
 #'
-#' If the session is `"high"` or `"medium"` confidence, `notice` is signalled
+#' If the session is `"high"` confidence, `notice` is signalled
 #' immediately as a non-fatal `askfirst_notice` condition, attributed to
 #' `pkg`. The signalled text also always includes a generic reminder to
 #' call `askfirst_check_scenarios()` before writing code that duplicates or
@@ -71,7 +71,7 @@ askfirst_init <- function(pkg, notice, on_error = TRUE, scenarios = character())
     scenarios = scenarios
   )
 
-  if (confidence %in% c("high", "medium")) {
+  if (identical(confidence, "high")) {
     load_time_notice <- askfirst_build_notice(pkg, notice, scenarios)
     askfirst_signal("askfirst_notice", pkg = pkg, message = load_time_notice)
   }
@@ -89,7 +89,7 @@ askfirst_init <- function(pkg, notice, on_error = TRUE, scenarios = character())
 #' `options(error = ...)` that, for each package registered via
 #' `askfirst_init()` with `on_error = TRUE`, checks whether the erroring
 #' call stack passes through that package's namespace and — if the session
-#' is `"high"`/`"medium"` confidence — signals a non-fatal
+#' is `"high"` confidence — signals a non-fatal
 #' `askfirst_error_redirect` notice (using that package's registered
 #' `notice` text) *alongside* the original error, without altering or
 #' suppressing it. Any pre-existing `options(error = ...)` value (e.g. a
@@ -151,7 +151,7 @@ askfirst_install_error_handler <- function() {
 #' @noRd
 askfirst_error_handler <- function(originates_from = askfirst_error_originates_from) {
   confidence <- .askfirst_state$confidence
-  if (is.null(confidence) || !(confidence %in% c("high", "medium"))) {
+  if (is.null(confidence) || !identical(confidence, "high")) {
     return(invisible(NULL))
   }
 

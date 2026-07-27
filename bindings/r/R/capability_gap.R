@@ -9,7 +9,7 @@
 #' detection.
 #'
 #' A no-op for human/low-confidence sessions (per the "no false positives
-#' for humans" constraint). For `"high"`/`"medium"` confidence sessions,
+#' for humans" constraint). For `"high"` confidence sessions,
 #' halts execution with a `askfirst_capability_gap` condition attributed to
 #' `pkg`, since — unlike the load-time notice or error-time redirect —
 #' halting is the deliberate intent here.
@@ -45,7 +45,7 @@ askfirst_capability_gap <- function(pkg, message) {
 
   confidence <- askfirst_ensure_detection()
 
-  if (identical(confidence, "low")) {
+  if (!identical(confidence, "high")) {
     return(invisible(NULL))
   }
 

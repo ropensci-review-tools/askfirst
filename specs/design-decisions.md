@@ -1,7 +1,7 @@
 ---
 created: 2026-07-27T12:32:25Z
 agent: claude-sonnet-5
-git_hash: c1e68f9ef70c2c83ec853714377cbe6a543226c3
+git_hash: f7de07ab72161414d559420192cfd0a5dd7a1e07
 ---
 
 # Design Decisions: askfirst
@@ -14,10 +14,14 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Eight design stages are complete. Stage 009 made
+capability. Nine design stages are complete. Stage 009 made
 `askfirst_check_scenarios()` self-initializing by auto-loading the target
 package's namespace when no `askfirst_init()` registration exists, so the
 function works from any R session without an explicit `init()` call first.
+Stage 010 restricted all four agent-facing signal points to fire only at
+`"high"` confidence (known agent detected), suppressing them during
+medium-confidence sessions (CI, testing, package installation) while
+preserving the medium detection logic intact for future refinement.
 The development vignette (`askfirst-development.Rmd`) now carries a
 concrete, realistic demo with a working `tokenpkg_parse_version()` function
 and version-parsing scenarios, replacing the abstract placeholder content
@@ -93,12 +97,16 @@ language-agnostic, R-independent home for the data that future non-R
 implementations are meant to consume).
 **Stages:** 003
 
-### Confidence: a closed, language-neutral tier enum, documented as design rationale
+### Confidence: a closed, language-neutral tier enum, signallers gated on high only
 **Outcome:** A closed `high`/`medium`/`low`/`cooperative` enum, with
 mapping rules from a raw detection outcome (vendored-data match, plus
 optional TTY/process-ancestry corroboration) onto a tier. `cooperative` is
-reserved for a future tool-initiated signal, currently unused. Documented
-in `specs/002-design-agnostic-spec/design.md` (T002-4) and
+reserved for a future tool-initiated signal, currently unused. All four
+agent-facing signal points — load-time notice, error handler, scenario
+check, and capability gap — fire only at `"high"` confidence. The
+`"medium"` tier (no TTY, no known agent) no longer triggers any signal,
+but its detection logic is preserved for future opt-in mechanisms.
+Documented in `specs/002-design-agnostic-spec/design.md` (T002-4) and
 `design-decisions.md`, not as a standalone file in `agent-detect-spec/`.
 **Rationale:** Vendored detection data carries no confidence concept of
 its own; this layer is `askfirst`'s own contribution on top of it. A
@@ -107,12 +115,16 @@ and extending it later is additive rather than breaking. Originally
 shipped as `agent-detect-spec/confidence-model.md`; moved to the stage's
 own design documents once it was recognized that unenforced prose in a
 "spec" directory implied a guarantee (consistency across implementations)
-it couldn't actually provide.
+it couldn't actually provide. Stage 010 resolved the medium-tier boundary
+open question: medium confidence produced false positives in CI, testing,
+and package installation, so all signals were restricted to high confidence
+while preserving the medium infrastructure.
 **Roads not taken:** An open/extensible tier set (deferred as unnecessary
 complexity for v1); keeping it as a standalone file under
 `agent-detect-spec/` (reversed post-retrospective — see Scope decision
-below).
-**Stages:** 001, 002, 003
+below); medium-confidence signalling (reversed in stage 010 due to false
+positives in non-agent non-interactive contexts).
+**Stages:** 001, 002, 003, 010
 
 ### Attribution: global detection cache, explicit per-package naming in every hook
 **Outcome:** `askfirst_init()` computes the session's confidence/detection
@@ -473,3 +485,5 @@ relied on the CI runner lacking a TTY) was fixed by setting confidence explicitl
 - Empty-scenario fallback for unregistered packages — rejected in stage 009
   in favor of namespace auto-loading, so the real author-supplied scenarios
   are always used rather than silently returning empty data.
+
+Stage 010 addressed the medium-tier boundary open question carried since stage 002: medium-confidence sessions (no TTY, no known agent) were producing false-positive signals during CI, testing, and package installation. All four signal points — `askfirst_init()` load-time notice, `askfirst_error_handler()` error-redirect, `askfirst_check_scenarios()` scenario-check, and `askfirst_capability_gap()` — were restricted to fire only at `"high"` confidence. The medium detection logic in `confidence.R` was left intact, preserving the enum for future selective opt-in. The change was purely mechanical: four condition-line edits across three files, plus corresponding test updates, with 57 tests passing.

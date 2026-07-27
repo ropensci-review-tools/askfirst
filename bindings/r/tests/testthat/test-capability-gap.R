@@ -22,16 +22,13 @@ test_that("askfirst_capability_gap halts with a askfirst_capability_gap conditio
   expect_match(conditionMessage(caught), "grouped input")
 })
 
-test_that("askfirst_capability_gap halts under medium confidence too", {
+test_that("askfirst_capability_gap does not halt under medium confidence", {
   local_reset_askfirst_state()
   .askfirst_state$confidence <- "medium"
 
-  caught <- tryCatch(
-    askfirst_capability_gap("mypkg", "gap message"),
-    askfirst_capability_gap = function(cnd) cnd
-  )
+  result <- askfirst_capability_gap("mypkg", "gap message")
 
-  expect_s3_class(caught, "askfirst_capability_gap")
+  expect_null(result)
 })
 
 test_that("askfirst_capability_gap supports cli/glue-style interpolation from the caller's frame", {
