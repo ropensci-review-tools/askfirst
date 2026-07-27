@@ -4,7 +4,8 @@
 # Hook scripts are embedded inline so the script is self-contained and
 # works regardless of whether agent-hooks/ exists at the call site.
 # Usage:
-#   install-agent-hooks.sh                    # auto-detect tool
+#   install-agent-hooks.sh                    # auto-detect & install
+#   install-agent-hooks.sh --detect           # detect tool(s), print & exit
 #   install-agent-hooks.sh --tool claude       # force Claude Code
 #   install-agent-hooks.sh --tool opencode     # force opencode
 #   install-agent-hooks.sh --overwrite         # replace existing files
@@ -14,6 +15,7 @@ set -euo pipefail
 
 OVERWRITE=false
 TOOL=""
+MODE="install"
 
 usage() {
   sed -n '/^# Usage:/,/^$/{ s/^# //; p; }' "$0"
@@ -24,31 +26,46 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --tool) TOOL="$2"; shift 2 ;;
     --overwrite) OVERWRITE=true; shift ;;
+    --detect) MODE="detect"; shift ;;
     --help) usage ;;
     *) echo "Unknown option: $1"; usage ;;
   esac
 done
 
-detect_tool() {
-  if [[ -n "$TOOL" ]]; then
-    echo "$TOOL"
-    return
-  fi
+detect_tools() {
+  local found=()
   if [[ -f ".claude/settings.json" ]]; then
-    echo "claude"
-  elif [[ -f ".opencode/settings.json" ]]; then
-    echo "opencode"
-  else
-    echo ""
+    found+=("claude")
   fi
+  if [[ -f ".opencode/settings.json" ]]; then
+    found+=("opencode")
+  fi
+  printf '%s\n' "${found[@]}"
 }
 
-TOOL=$(detect_tool)
+if [[ "$MODE" == "detect" ]]; then
+  detect_tools
+  exit 0
+fi
 
 if [[ -z "$TOOL" ]]; then
-  echo "error: could not detect agent tool — no .claude/ or .opencode/ config found in current directory" >&2
-  echo "  Use --tool <name> to specify the tool explicitly." >&2
-  exit 1
+  mapfile -t detected < <(detect_tools)
+  if [[ ${#detected[@]} -eq 0 ]]; then
+    echo "error: could not detect agent tool — no .claude/ or .opencode/ config found in current directory" >&2
+    echo "  Use --tool <name> to specify the tool explicitly." >&2
+    exit 1
+  elif [[ ${#detected[@]} -eq 1 ]]; then
+    TOOL="${detected[0]}"
+  else
+    echo "Multiple tools detected: ${detected[*]}" >&2
+    echo "Which tool should hooks be installed for?" >&2
+    select chosen in "${detected[@]}"; do
+      if [[ -n "$chosen" ]]; then
+        TOOL="$chosen"
+        break
+      fi
+    done
+  fi
 fi
 
 case "$TOOL" in

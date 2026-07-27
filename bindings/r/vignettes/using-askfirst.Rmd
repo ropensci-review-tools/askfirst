@@ -30,7 +30,13 @@ assistant needs context about the `askfirst` signal format. Install the
 askfirst hooks once per project:
 
 ```r
-askfirst::askfirst_install_agent_hooks()
+tools <- askfirst::askfirst_detect_agent_tool()
+if (length(tools) == 1) {
+  askfirst::askfirst_install_agent_hooks(tools)
+} else if (length(tools) > 1) {
+  askfirst::askfirst_install_agent_hooks("claude")
+  askfirst::askfirst_install_agent_hooks("opencode")
+}
 ```
 
 This copies SessionStart and PostToolUse hook scripts into your project's
@@ -40,7 +46,7 @@ telling the AI what `askfirst::` signals are and how to respond; the
 PostToolUse hook annotates `askfirst::` lines in tool output.
 
 If your users prefer to configure manually, they can run the shared shell
-script directly:
+script directly — it interactively prompts when multiple tools are detected:
 ```bash
 /path/to/askfirst/tools/install-agent-hooks.sh
 ```

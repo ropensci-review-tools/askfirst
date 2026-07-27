@@ -133,20 +133,22 @@ is and how to respond to its signals. The PostToolUse hook watches for
 From R:
 
 ```r
-askfirst::askfirst_install_agent_hooks()
-# or specify a tool explicitly:
-askfirst::askfirst_install_agent_hooks(tool = "claude")
+# Detect which tools are available, then install for each:
+tools <- askfirst::askfirst_detect_agent_tool()
+for (t in tools) {
+  askfirst::askfirst_install_agent_hooks(t)
+}
 ```
 
-Or from the shell:
+Or from the shell — the script auto-detects and interactively prompts if
+multiple tools are found:
 
 ```bash
 /path/to/askfirst/tools/install-agent-hooks.sh
 ```
 
-If you prefer to configure manually, add the hook scripts in
-`agent-hooks/claude/` (or `agent-hooks/opencode/`) to your project's
-`.claude/hooks/` directory and register them in `.claude/settings.json`.
+If you prefer to configure manually, run the shared shell script — it
+interactively prompts when multiple tools are detected.
 
 ## Step 2: verify under Claude Code
 
