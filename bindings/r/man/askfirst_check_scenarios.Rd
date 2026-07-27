@@ -16,13 +16,13 @@ Invisibly, the character vector of scenarios registered for
 At \code{"high"}/\code{"medium"} session confidence, also signals a non-fatal
 \code{askfirst_scenario_check} condition carrying the scenario list and a
 reminder to ask the human before implementing a workaround. At
-\code{"low"} confidence (a human caller), no condition is signalled — a
+\code{"low"} confidence (a human caller), no condition is signalled -- a
 human calling this deliberately doesn't need to be told to ask
 themselves.
 }
 \description{
-Call this at any point in a session — it doesn't need to be tied to any
-specific error or event — whenever you notice yourself about to write
+Call this at any point in a session -- it doesn't need to be tied to any
+specific error or event -- whenever you notice yourself about to write
 code that duplicates, wraps, or extends a \code{askfirst}-adopting package's
 functionality to achieve a result. There is no reliable way for
 \code{askfirst} to detect this situation on its own (the code you'd write
@@ -34,7 +34,7 @@ workaround.
 Unlike \code{\link[=askfirst_capability_gap]{askfirst_capability_gap()}} (which requires the package author to
 have already recognized and instrumented a specific known gap),
 \code{askfirst_check_scenarios()} works for gaps the author hasn't
-anticipated precisely enough to instrument inline — at the cost of
+anticipated precisely enough to instrument inline -- at the cost of
 being a self-check the calling agent has to remember to perform, rather
 than something the package can force.
 }
