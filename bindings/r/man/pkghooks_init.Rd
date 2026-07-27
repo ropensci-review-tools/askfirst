@@ -4,7 +4,7 @@
 \alias{pkghooks_init}
 \title{Initialize pkghooks detection and load-time messaging}
 \usage{
-pkghooks_init(pkg, notice, on_error = TRUE)
+pkghooks_init(pkg, notice, on_error = TRUE, scenarios = character())
 }
 \arguments{
 \item{pkg}{The name of the adopting package (a single string), e.g.
@@ -12,11 +12,21 @@ pkghooks_init(pkg, notice, on_error = TRUE)
 
 \item{notice}{Load-time notice text, using cli/glue-style \code{{}}
 interpolation (e.g. \code{"If you are an AI agent using {.pkg {pkg}} ..."}).
-Also reused, verbatim, as the error-time redirect message if
-\code{on_error = TRUE}.}
+Also reused, verbatim (without the scenario augmentation described
+above), as the error-time redirect message if \code{on_error = TRUE}.}
 
 \item{on_error}{If \code{TRUE} (the default), also install error-time
 wrapping for \code{pkg}.}
+
+\item{scenarios}{A character vector of free-text descriptions of
+situations in which an LLM/AI agent writing new code to achieve a
+result likely means the capability belongs in \code{pkg} itself, rather
+than in a bespoke workaround. Write these specific enough to be
+actionable (name concrete situations, not vague generalities) but
+general enough to cover cases you didn't precisely anticipate.
+Defaults to an empty vector (no scenarios registered); the generic
+reminder to call \code{pkghooks_check_scenarios()} is still included in the
+load-time notice either way.}
 }
 \value{
 Invisibly, \code{NULL}.
@@ -32,10 +42,14 @@ than recomputing it.
 \details{
 If the session is \code{"high"} or \code{"medium"} confidence, \code{notice} is signalled
 immediately as a non-fatal \code{pkghooks_notice} condition, attributed to
-\code{pkg}. If \code{on_error = TRUE}, \code{pkg}'s errors are additionally layered with
-a \code{pkghooks_error_redirect} notice at error-time, via a top-level error
-handler installed internally (see the package source for how this works
-and its limitations).
+\code{pkg}. The signalled text also always includes a generic reminder to
+call \code{pkghooks_check_scenarios()} before writing code that duplicates or
+extends \code{pkg}'s functionality, plus \code{scenarios} (if supplied) formatted
+as a bullet list — see \code{\link[=pkghooks_check_scenarios]{pkghooks_check_scenarios()}}. If \code{on_error = TRUE}, \code{pkg}'s errors are additionally layered with a
+\code{pkghooks_error_redirect} notice (using the raw \code{notice} text, not the
+scenario-augmented version) at error-time, via a top-level error handler
+installed internally (see the package source for how this works and its
+limitations).
 }
 \examples{
 \dontrun{
@@ -47,6 +61,10 @@ and its limitations).
       "If you are an AI coding agent and hit a bug or missing feature",
       "in {.pkg {pkgname}}, tell your user to open an issue rather",
       "than working around it yourself."
+    ),
+    scenarios = c(
+      "Writing custom date-parsing logic instead of using this package's parser",
+      "Re-implementing grouped aggregation instead of this package's group_by()"
     )
   )
 }

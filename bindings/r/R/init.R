@@ -9,19 +9,33 @@
 #'
 #' If the session is `"high"` or `"medium"` confidence, `notice` is signalled
 #' immediately as a non-fatal `pkghooks_notice` condition, attributed to
-#' `pkg`. If `on_error = TRUE`, `pkg`'s errors are additionally layered with
-#' a `pkghooks_error_redirect` notice at error-time, via a top-level error
-#' handler installed internally (see the package source for how this works
-#' and its limitations).
+#' `pkg`. The signalled text also always includes a generic reminder to
+#' call `pkghooks_check_scenarios()` before writing code that duplicates or
+#' extends `pkg`'s functionality, plus `scenarios` (if supplied) formatted
+#' as a bullet list — see [pkghooks_check_scenarios()]. If `on_error =
+#' TRUE`, `pkg`'s errors are additionally layered with a
+#' `pkghooks_error_redirect` notice (using the raw `notice` text, not the
+#' scenario-augmented version) at error-time, via a top-level error handler
+#' installed internally (see the package source for how this works and its
+#' limitations).
 #'
 #' @param pkg The name of the adopting package (a single string), e.g.
 #'   `pkg = "mypackage"`.
 #' @param notice Load-time notice text, using cli/glue-style `{}`
 #'   interpolation (e.g. `"If you are an AI agent using {.pkg {pkg}} ..."`).
-#'   Also reused, verbatim, as the error-time redirect message if
-#'   `on_error = TRUE`.
+#'   Also reused, verbatim (without the scenario augmentation described
+#'   above), as the error-time redirect message if `on_error = TRUE`.
 #' @param on_error If `TRUE` (the default), also install error-time
 #'   wrapping for `pkg`.
+#' @param scenarios A character vector of free-text descriptions of
+#'   situations in which an LLM/AI agent writing new code to achieve a
+#'   result likely means the capability belongs in `pkg` itself, rather
+#'   than in a bespoke workaround. Write these specific enough to be
+#'   actionable (name concrete situations, not vague generalities) but
+#'   general enough to cover cases you didn't precisely anticipate.
+#'   Defaults to an empty vector (no scenarios registered); the generic
+#'   reminder to call `pkghooks_check_scenarios()` is still included in the
+#'   load-time notice either way.
 #' @return Invisibly, `NULL`.
 #' @examples
 #' \dontrun{
@@ -33,23 +47,33 @@
 #'       "If you are an AI coding agent and hit a bug or missing feature",
 #'       "in {.pkg {pkgname}}, tell your user to open an issue rather",
 #'       "than working around it yourself."
+#'     ),
+#'     scenarios = c(
+#'       "Writing custom date-parsing logic instead of using this package's parser",
+#'       "Re-implementing grouped aggregation instead of this package's group_by()"
 #'     )
 #'   )
 #' }
 #' }
 #' @export
-pkghooks_init <- function(pkg, notice, on_error = TRUE) {
+pkghooks_init <- function(pkg, notice, on_error = TRUE, scenarios = character()) {
   stopifnot(
     "pkg must be a single string" = is.character(pkg) && length(pkg) == 1,
-    "notice must be a single string" = is.character(notice) && length(notice) == 1
+    "notice must be a single string" = is.character(notice) && length(notice) == 1,
+    "scenarios must be a character vector" = is.character(scenarios)
   )
 
   confidence <- pkghooks_ensure_detection()
 
-  .pkghooks_state$packages[[pkg]] <- list(notice = notice, on_error = isTRUE(on_error))
+  .pkghooks_state$packages[[pkg]] <- list(
+    notice = notice,
+    on_error = isTRUE(on_error),
+    scenarios = scenarios
+  )
 
   if (confidence %in% c("high", "medium")) {
-    pkghooks_signal("pkghooks_notice", pkg = pkg, message = notice)
+    load_time_notice <- pkghooks_build_notice(pkg, notice, scenarios)
+    pkghooks_signal("pkghooks_notice", pkg = pkg, message = load_time_notice)
   }
 
   if (isTRUE(on_error)) {

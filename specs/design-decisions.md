@@ -1,7 +1,7 @@
 ---
 created: 2026-07-25T15:08:44Z
 agent: claude-sonnet-5
-git_hash: 565f3fc188f446727f16a7cf72c7b1c082d16c94
+git_hash: 5a37264df26b0fa98265a841fc89c187940cb74b
 ---
 
 # Design Decisions: pkghooks
@@ -12,7 +12,7 @@ package maintainers detect when their functions are being called from an
 LLM/AI coding agent rather than a human, and issue a message that
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Three design stages are complete. Stage 001 produced
+capability. Four design stages are complete. Stage 001 produced
 research-only findings (no code). Stage 002 produced `agent-detect-spec/`,
 a vendored, upstream-synced copy of `vercel/detect-agent`'s detection data,
 plus a confidence-tiering/intervention-point design that was ultimately
@@ -22,7 +22,11 @@ actual `pkghooks` R package: `pkghooks_init()` (session-cached detection,
 load-time notice, error-time wrapping) and `flag_capability_gap()`
 (capability-gap-time), backed by a `testthat` suite and a clean
 `R CMD check`, with a synced copy of the vendored data at
-`bindings/r/inst/agent-detect-spec/`.
+`bindings/r/inst/agent-detect-spec/`. Stage 004 added
+`pkghooks_check_scenarios()`, an *agent-invoked* mechanism (the LLM calls
+it on its own initiative, rather than `pkghooks` triggering it) for gaps
+the author hasn't anticipated well enough to instrument via
+`flag_capability_gap()`.
 
 ## Key Decisions
 
@@ -99,7 +103,7 @@ one session.
 introspection instead of requiring an explicit `pkg` argument — rejected in
 favor of explicitness; `flag_capability_gap()`'s stage-001 sketch (no `pkg`
 argument) was revised accordingly.
-**Stages:** 003
+**Stages:** 003, 004
 
 ### Messaging: three independent intervention points, layered delivery, documented as design rationale
 **Outcome:** Redirect messages fire at three independent points —
@@ -134,6 +138,35 @@ primary channel (too easily dropped/ignored to serve as more than a
 secondary, structured channel); keeping it as a standalone file under
 `agent-detect-spec/` (reversed post-retrospective).
 **Stages:** 001, 002, 003
+
+### Scenario-check: a fourth, agent-invoked intervention point
+**Outcome:** `pkghooks_check_scenarios(pkg)`, a new exported function, is
+called by the LLM itself at any point in a session — not triggered by
+`pkghooks` detecting anything. It signals a non-fatal
+`pkghooks_scenario_check` condition (at `"high"`/`"medium"` confidence)
+carrying author-supplied "plausible extension scenario" descriptions
+(registered via a new `pkghooks_init(..., scenarios = ...)` parameter)
+plus a reminder to ask the human before implementing a workaround. At
+`"low"` confidence it returns the scenario list plainly, with no nudge.
+The existing load-time notice always folds in a generic instruction to
+call this function, regardless of whether any scenarios were registered.
+**Rationale:** Targets capability gaps the author hasn't anticipated well
+enough to instrument inline via `flag_capability_gap()` — cases where the
+LLM writes new code entirely outside the package to achieve a result, with
+nothing ever erroring and no execution-time event `pkghooks` could hook
+into. Mechanical detection of this (monkey-patching/namespace-manipulation
+calls) was investigated and rejected as both rare and, in the common
+case, invisible to the package at runtime. With no mechanical trigger
+available, an agent-invoked tool — discoverable via the load-time notice —
+is the only viable delivery path.
+**Roads not taken:** Mechanical detection of in-progress workaround
+behavior (`assignInNamespace()`, `trace()`, etc.) — rejected outright, not
+merely deprioritized. Broadening the existing error-time message instead
+of adding a new mechanism — rejected, since the target case is
+error-free by definition. Halting severity (like `capability_gap_time`) —
+rejected in favor of non-fatal, given the heuristic/self-assessed nature
+of this check.
+**Stages:** 004
 
 ### Error-time mechanism: options(error = ...), not globalCallingHandlers()
 **Outcome:** `pkghooks_init(..., on_error = TRUE)` installs error-time
@@ -201,10 +234,16 @@ confidence and messaging reasoning. Implementation surfaced one real
 correction to the plan: `globalCallingHandlers()`, the originally-planned
 error-time mechanism, turned out to be unusable from a package's own load
 hooks, and was replaced with `options(error = ...)` — a discovery made by
-testing against a real package install, not by up-front design review. The
-project now has a working, tested R implementation covering all three
-intervention points; process-ancestry corroboration, the `cooperative`
-confidence tier, and `btw` integration remain deliberately unbuilt
+testing against a real package install, not by up-front design review. Stage 004 added a fourth intervention point, `pkghooks_check_scenarios()`,
+conceptually different from the first three: it is *agent-invoked* rather
+than *system-triggered*, since investigation this stage confirmed there is
+no reliable execution-time signal for "the LLM is about to write code that
+duplicates or extends the package externally" — that code typically never
+touches the package at all. The project now has a working, tested R
+implementation covering four intervention points across two trigger
+categories; process-ancestry corroboration, the `cooperative` confidence
+tier, `btw` integration, and formalizing the agent-invoked category in
+stage 002's language-neutral model remain deliberately unbuilt/undecided
 extension points, and no non-R implementation exists yet.
 
 ## Important Roads Not Taken
@@ -240,6 +279,15 @@ extension points, and no non-R implementation exists yet.
   of an explicit `pkg` argument on every hook — rejected in favor of
   explicit attribution, so messages remain correct when multiple packages
   adopt `pkghooks` in one session.
+- Mechanical detection of in-progress workaround behavior (monkey-patching,
+  namespace manipulation targeting an adopting package) as a trigger for a
+  new capability-gap-style mechanism — rejected outright (stage 004): such
+  calls are rare, and the code an LLM writes to extend a package's
+  functionality typically never touches the package at all, so no
+  execution-time signal exists to detect.
+- Halting severity for the new agent-invoked scenario-check mechanism —
+  rejected in favor of non-fatal, since heuristic/self-assessed triggers
+  carry more false-positive risk than an author-confirmed capability gap.
 
 **Scope:**
 - Building a language-agnostic implementation now, rather than R-only with

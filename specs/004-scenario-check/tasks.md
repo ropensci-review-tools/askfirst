@@ -28,7 +28,7 @@ implementable without further clarification:
   `specs/002-design-agnostic-spec/`.
 
 ## T004-1: Extend pkghooks_init() with a scenarios parameter
-- [ ] T004-1: In `bindings/r/R/init.R`, change `pkghooks_init()`'s
+- [x] T004-1: In `bindings/r/R/init.R`, change `pkghooks_init()`'s
   signature to `pkghooks_init(pkg, notice, on_error = TRUE, scenarios =
   character())`. Validate `scenarios` is a character vector (possibly
   empty; `stopifnot()` alongside the existing `pkg`/`notice` checks).
@@ -36,7 +36,7 @@ implementable without further clarification:
   = notice, on_error = isTRUE(on_error), scenarios = scenarios)`.
 
 ## T004-2: Build the combined load-time notice content
-- [ ] T004-2: In `bindings/r/R/init.R` (or a new
+- [x] T004-2: In `bindings/r/R/init.R` (or a new
   `bindings/r/R/scenarios.R`, whichever keeps `init.R` from growing too
   large — prefer a small helper `pkghooks_build_notice(notice, scenarios,
   pkg)` in `scenarios.R`, called from `pkghooks_init()`), construct the
@@ -51,7 +51,7 @@ implementable without further clarification:
   argument.
 
 ## T004-3: Implement pkghooks_check_scenarios()
-- [ ] T004-3: In `bindings/r/R/scenarios.R`, write and export
+- [x] T004-3: In `bindings/r/R/scenarios.R`, write and export
   `pkghooks_check_scenarios(pkg)`. Validate `pkg` is a single string.
   Look up `.pkghooks_state$packages[[pkg]]$scenarios` (error via
   `rlang::abort()` with a clear message if `pkg` was never registered via
@@ -64,7 +64,7 @@ implementable without further clarification:
   `invisible()`, with no condition signalled and no nudge wording.
 
 ## T004-4: Regenerate package documentation
-- [ ] T004-4: Add roxygen2 documentation to `pkghooks_check_scenarios()`
+- [x] T004-4: Add roxygen2 documentation to `pkghooks_check_scenarios()`
   (parameters, return value, `@examples` demonstrating both a scenario
   list and an empty-scenarios call), and update `pkghooks_init()`'s
   existing roxygen block to document the new `scenarios` parameter,
@@ -74,7 +74,7 @@ implementable without further clarification:
   to regenerate `NAMESPACE` and `man/`.
 
 ## T004-5: Write automated tests
-- [ ] T004-5: Write `bindings/r/tests/testthat/test-scenarios.R`,
+- [x] T004-5: Write `bindings/r/tests/testthat/test-scenarios.R`,
   reusing `local_reset_pkghooks_state()`: (a) `pkghooks_init()` stores
   `scenarios` correctly in the registry; (b) the load-time
   `pkghooks_notice` signalled under high confidence includes both the
@@ -90,7 +90,7 @@ implementable without further clarification:
   never registered raises an informative error.
 
 ## T004-6: Update the manual testing checklist
-- [ ] T004-6: Add a new section to `bindings/r/MANUAL_TESTING.md`,
+- [x] T004-6: Add a new section to `bindings/r/MANUAL_TESTING.md`,
   following its existing structure, with checklist items to verify under
   at least one real agent tool: the load-time notice includes both the
   generic instruction and a registered scenario list; calling
@@ -99,7 +99,7 @@ implementable without further clarification:
   returns the list without any nudge wording.
 
 ## T004-7: Verify no regressions
-- [ ] T004-7: Run the full `testthat` suite and `R CMD check
+- [x] T004-7: Run the full `testthat` suite and `R CMD check
   --as-cran` on `bindings/r/` after T004-1 through T004-5 are complete;
   confirm 0 errors and 0 warnings (matching stage 003's baseline), and
   that all previously-passing tests (detect/confidence/init/capability-gap)
