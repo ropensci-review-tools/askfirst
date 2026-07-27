@@ -8,6 +8,13 @@
 #' itself, not only interpolated into the message text, so calling code can
 #' programmatically distinguish which adopting package raised it.
 #'
+#' When `prefix = TRUE` (the default), the message is prepended with a
+#' structured prefix line (`askfirst::<language>::<pkg>::<type>`) and
+#' appended with a URL line (`See: <url>`), so AI coding assistants can
+#' recognise the output as a legitimate package signal rather than a prompt
+#' injection. Set `prefix = FALSE` to suppress this (useful in tests
+#' checking condition class/metadata only).
+#'
 #' Three concrete classes are used elsewhere in this package, all built via
 #' this one helper:
 #' - `"askfirst_notice"` — non-fatal, load-time (see [askfirst_init()]).
@@ -34,6 +41,9 @@
 #' @param call_stop If `TRUE`, signal via [rlang::abort()] (halting);
 #'   otherwise via [rlang::inform()] (non-fatal, catchable/muffleable like
 #'   [base::message()]).
+#' @param prefix If `TRUE` (the default), prepend `askfirst::<language>::<pkg>::<type>`
+#'   and append `See: <url>` to the message. Set to `FALSE` to suppress
+#'   (e.g. in tests that only check condition class/metadata).
 #' @param .envir Environment used to evaluate `{}` interpolation in
 #'   `message`. Defaults to the caller of `askfirst_signal()`.
 #' @return Invisibly, `NULL` (non-fatal case); does not return in the
@@ -41,7 +51,24 @@
 #' @keywords internal
 #' @noRd
 askfirst_signal <- function(class, pkg, message, ..., call_stop = FALSE,
-                             .envir = parent.frame()) {
+                             prefix = TRUE, .envir = parent.frame()) {
+  type_map <- c(
+    askfirst_notice = "notice",
+    askfirst_error_redirect = "error_redirect",
+    askfirst_capability_gap = "capability_gap",
+    askfirst_scenario_check = "scenario_check"
+  )
+  type <- type_map[[class]]
+
+  if (isTRUE(prefix) && !is.null(type)) {
+    prefix_line <- sprintf(
+      "askfirst::%s::%s::%s",
+      askfirst_lang(), pkg, type
+    )
+    url_line <- sprintf("See: %s", askfirst_url())
+    message <- paste(prefix_line, message, url_line, sep = "\n")
+  }
+
   formatted <- cli::format_inline(message, .envir = .envir)
   full_class <- c(class, "askfirst_condition")
 

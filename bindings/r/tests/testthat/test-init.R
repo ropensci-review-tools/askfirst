@@ -141,3 +141,43 @@ test_that("askfirst_error_handler is a no-op under low confidence", {
 
   expect_false(fired)
 })
+
+test_that("askfirst_signal with prefix = FALSE omits the structured prefix", {
+  local_reset_askfirst_state()
+
+  caught <- NULL
+  withCallingHandlers(
+    askfirst:::askfirst_signal(
+      "askfirst_notice", "mypkg", "raw message", prefix = FALSE
+    ),
+    askfirst_notice = function(cnd) {
+      caught <<- cnd
+      invokeRestart("muffleMessage")
+    }
+  )
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "raw message", fixed = TRUE)
+  expect_no_match(msg, "askfirst::", fixed = TRUE)
+  expect_no_match(msg, "See:", fixed = TRUE)
+})
+
+test_that("askfirst_signal with default prefix = TRUE includes the structured prefix", {
+  local_reset_askfirst_state()
+
+  caught <- NULL
+  withCallingHandlers(
+    askfirst:::askfirst_signal(
+      "askfirst_notice", "mypkg", "raw message"
+    ),
+    askfirst_notice = function(cnd) {
+      caught <<- cnd
+      invokeRestart("muffleMessage")
+    }
+  )
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "askfirst::r::mypkg::notice", fixed = TRUE)
+  expect_match(msg, "raw message", fixed = TRUE)
+  expect_match(msg, "See: https://ropensci.github.io/askfirst/", fixed = TRUE)
+})

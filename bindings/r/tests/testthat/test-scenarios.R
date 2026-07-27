@@ -84,7 +84,7 @@ test_that("askfirst_check_scenarios signals askfirst_scenario_check at high conf
   expect_s3_class(caught, "askfirst_condition")
   expect_equal(caught$pkg, "mypkg")
   expect_match(conditionMessage(caught), "scenario A", fixed = TRUE)
-  expect_match(conditionMessage(caught), "ask your user", fixed = TRUE)
+  expect_match(conditionMessage(caught), "should be asked", fixed = TRUE)
   expect_equal(result, "scenario A")
 })
 

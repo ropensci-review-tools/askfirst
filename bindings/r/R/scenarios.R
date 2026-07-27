@@ -10,10 +10,10 @@
 #' @noRd
 askfirst_build_notice <- function(pkg, notice, scenarios) {
   generic <- paste(
-    "If you notice yourself writing new code that duplicates, wraps, or",
-    "extends {pkg}'s functionality to achieve a result, call",
-    "askfirst::askfirst_check_scenarios(\"{pkg}\") first, or ask your user",
-    "whether this capability belongs in {pkg} itself."
+    "Writing new code that duplicates, wraps, or extends",
+    "{pkg}'s functionality to achieve a result should be preceded by",
+    "askfirst::askfirst_check_scenarios(\"{pkg}\") -- the capability",
+    "may belong in {pkg} itself."
   )
 
   parts <- c(notice, generic)
@@ -30,7 +30,7 @@ askfirst_build_notice <- function(pkg, notice, scenarios) {
 #' @noRd
 askfirst_build_scenario_check_message <- function(scenarios) {
   header <- paste(
-    "Before implementing a workaround, ask your user whether this",
+    "Before implementing a workaround, the user should be asked whether this",
     "capability should be added to {pkg} itself."
   )
   if (length(scenarios) == 0) {
@@ -46,8 +46,8 @@ askfirst_build_scenario_check_message <- function(scenarios) {
 
 #' Check whether a task matches a known "capability gap" scenario for a package
 #'
-#' Call this at any point in a session — it doesn't need to be tied to any
-#' specific error or event — whenever you notice yourself about to write
+#' Call this at any point in a session -- it doesn't need to be tied to any
+#' specific error or event -- whenever you notice yourself about to write
 #' code that duplicates, wraps, or extends a `askfirst`-adopting package's
 #' functionality to achieve a result. There is no reliable way for
 #' `askfirst` to detect this situation on its own (the code you'd write
@@ -58,7 +58,7 @@ askfirst_build_scenario_check_message <- function(scenarios) {
 #' Unlike [askfirst_capability_gap()] (which requires the package author to
 #' have already recognized and instrumented a specific known gap),
 #' `askfirst_check_scenarios()` works for gaps the author hasn't
-#' anticipated precisely enough to instrument inline — at the cost of
+#' anticipated precisely enough to instrument inline -- at the cost of
 #' being a self-check the calling agent has to remember to perform, rather
 #' than something the package can force.
 #'
@@ -69,7 +69,7 @@ askfirst_build_scenario_check_message <- function(scenarios) {
 #'   At `"high"`/`"medium"` session confidence, also signals a non-fatal
 #'   `askfirst_scenario_check` condition carrying the scenario list and a
 #'   reminder to ask the human before implementing a workaround. At
-#'   `"low"` confidence (a human caller), no condition is signalled — a
+#'   `"low"` confidence (a human caller), no condition is signalled -- a
 #'   human calling this deliberately doesn't need to be told to ask
 #'   themselves.
 #' @examples

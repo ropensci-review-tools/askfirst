@@ -74,9 +74,8 @@ export(tokenpkg_scenario_check_demo)
   askfirst::askfirst_init(
     pkg = pkgname,
     notice = paste(
-      "If you are an AI coding agent and hit a bug or missing feature",
-      "in", pkgname, ", tell your user to contact the maintainer",
-      "rather than working around it yourself."
+      "For bugs or missing features in", pkgname, ", ask the user to",
+      "contact the maintainer rather than implementing a workaround."
     ),
     # on_error = TRUE is the default: askfirst_init() installs the
     # top-level error handler internally, there's nothing else to call.
@@ -120,6 +119,35 @@ devtools::install("path/to/tokenpkg")
 # or: R CMD INSTALL path/to/tokenpkg
 ```
 
+## Pre-configure agent hooks
+
+Before starting an agent session, install the askfirst hooks into your
+agent tool's configuration. These hooks pre-load context about the
+`askfirst::<language>::<pkg>::<type>` structured signal format so the AI
+recognises it as legitimate package metadata rather than a prompt injection.
+
+The SessionStart hook injects system-level context explaining what askfirst
+is and how to respond to its signals. The PostToolUse hook watches for
+`askfirst::` lines in tool output and annotates them.
+
+From R:
+
+```r
+askfirst::askfirst_install_agent_hooks()
+# or specify a tool explicitly:
+askfirst::askfirst_install_agent_hooks(tool = "claude")
+```
+
+Or from the shell:
+
+```bash
+/path/to/askfirst/tools/install-agent-hooks.sh
+```
+
+If you prefer to configure manually, add the hook scripts in
+`agent-hooks/claude/` (or `agent-hooks/opencode/`) to your project's
+`.claude/hooks/` directory and register them in `.claude/settings.json`.
+
 ## Step 2: verify under Claude Code
 
 Claude Code runs a persistent session with its own tool-call loop around
@@ -140,11 +168,10 @@ Inside the Claude Code session, ask it to run:
 library(tokenpkg)
 ```
 
-**Confirms load-time notice**: the session transcript shows the
-`askfirst_notice` condition text — including the `notice` string, the
-generic "call `askfirst_check_scenarios()` first" line, and the two
-bulleted scenarios — surfaced to the model (not just printed to a human's
-terminal and dropped).
+**Confirms load-time notice**: the session transcript shows output starting
+with `askfirst::r::tokenpkg::notice` followed by the notice text, the
+generic scenario-check reminder, and the two bulleted scenarios — all
+surfaced to the model as a structured signal, not as embedded instructions.
 
 Next, ask it to run:
 
@@ -152,8 +179,8 @@ Next, ask it to run:
 tokenpkg::tokenpkg_capability_gap_demo()
 ```
 
-**Confirms capability-gap halt**: the transcript shows execution halting
-with the `askfirst_capability_gap` message
+**Confirms capability-gap halt**: the transcript shows
+`askfirst::r::tokenpkg::capability_gap` followed by
 ("this is a deliberately flagged capability gap for manual testing"),
 visibly reaching the model rather than being swallowed as a bare R error.
 
@@ -164,8 +191,8 @@ tokenpkg::tokenpkg_uncaught_error_demo()
 ```
 
 **Confirms error redirect**: both the original
-`"a deliberately uncaught error for manual testing"` error and the
-`askfirst_error_redirect` notice (reusing the registered `notice` text)
+`"a deliberately uncaught error for manual testing"` error and
+`askfirst::r::tokenpkg::error_redirect` (with the registered notice text)
 appear together in the transcript.
 
 Finally, ask it to run:
@@ -174,9 +201,10 @@ Finally, ask it to run:
 askfirst::askfirst_check_scenarios("tokenpkg")
 ```
 
-**Confirms scenario check**: the transcript shows the two registered
-scenarios and the "ask your user before implementing a workaround"
-wording.
+**Confirms scenario check**: the transcript shows
+`askfirst::r::tokenpkg::scenario_check` followed by the two registered
+scenarios and guidance to check with the user before implementing a
+workaround.
 
 ## Step 3: verify under opencode
 
@@ -263,12 +291,11 @@ the messaging actually reaches an agent under real tools, not just the
 mocked behavior already covered by automated tests.
 
 - [ ] Under at least one agent tool from the list above: confirm the
-      load-time notice includes both the generic "call
-      `askfirst_check_scenarios()` first" instruction and the registered
-      scenario bullet list from Step 1 above.
+      load-time notice starts with `askfirst::r::<pkg>::notice` and includes
+      the registered scenario bullet list from Step 1 above.
 - [ ] Under the same tool, explicitly prompt the agent (or call directly)
       `askfirst::askfirst_check_scenarios("tokenpkg")` mid-session —
-      confirm the scenario list and the "ask your user" reminder appear.
+      confirm the `askfirst::r::tokenpkg::scenario_check` prefix appears.
 - [ ] Call `askfirst::askfirst_check_scenarios("tokenpkg")` from a plain
       human R console (no agent tool) — confirm the scenario list is
       returned with **no** nudge wording and no signalled condition.
