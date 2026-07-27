@@ -1,7 +1,7 @@
 ---
-created: 2026-07-25T15:08:44Z
+created: 2026-07-27T11:05:00Z
 agent: claude-sonnet-5
-git_hash: 690e1293bd25d48a746652f6368d2321c4b6c524
+git_hash: 5442965ba81d078a23db0e75a7aca793e492fcd5
 ---
 
 # Design Decisions: askfirst
@@ -29,7 +29,15 @@ the author hasn't anticipated well enough to instrument via
 `askfirst_capability_gap()`. Stage 005 renamed the project from
 `pkghooks` to `askfirst` throughout the repo's current contents (package,
 functions, condition classes, docs, CI) — the R package itself is
-otherwise unchanged by that stage.
+otherwise unchanged by that stage. Stage 006 replaced the manual QA
+checklist (`bindings/r/MANUAL_TESTING.md`) with two real R vignettes —
+one walking `askfirst` maintainers through building a token test package
+and verifying all four intervention points against real Claude Code and
+opencode sessions, one giving adopting-package maintainers a procedural
+guide to the exported API — introducing the project's first vignette
+infrastructure (`knitr`/`rmarkdown`), and, as an in-scope side fix, a
+long-broken `working-directory: r` path in the CI check job that predated
+the `bindings/r/` relocation.
 
 ## Key Decisions
 
@@ -237,6 +245,28 @@ repository and local working directory in the same stage — deferred to
 the user as a separate, later step.
 **Stages:** 005
 
+### Documentation: real vignettes over plain markdown, CI fixed opportunistically
+**Outcome:** `bindings/r/MANUAL_TESTING.md` was replaced by two standard R
+vignettes (`bindings/r/vignettes/askfirst-development.Rmd` and
+`using-askfirst.Rmd`), requiring `knitr`/`rmarkdown` in `Suggests` and
+`VignetteBuilder: knitr`. `.github/workflows/r-cmd-check.yml`'s
+`r-cmd-check` job — found still using `working-directory: r`, a path left
+over from before the package's move to `bindings/r` in an earlier stage —
+was regenerated from `usethis::use_github_action("check-standard")`'s
+current template and corrected to `working-directory: bindings/r`
+throughout, alongside the vignette changes.
+**Rationale:** Vignettes are discoverable via
+`vignette(package = "askfirst")` and any future pkgdown site, unlike a
+plain markdown file only visible by browsing the repo. Fixing the CI path
+in the same stage — rather than deferring it — avoided adding new
+vignette-build coverage on top of a check job that was already pointed at
+the wrong directory.
+**Roads not taken:** Keeping the replacement documents as plain markdown
+(rejected in favor of discoverability); deferring the CI path fix to a
+separate stage (rejected, since it would have left the new vignette
+infrastructure unverified in CI in the interim).
+**Stages:** 006
+
 ## Architectural Evolution
 Stage 001 established the project's foundational research: what signals
 can identify an LLM-driven caller, how a redirect message could reach it,
@@ -270,7 +300,18 @@ extension points, and no non-R implementation exists yet. Stage 005
 renamed the project to `askfirst`, confirming — by touching every file in
 `bindings/r/` at once — that the package structure established across
 stages 003–004 tolerates a full rename cleanly (53 tests and a clean
-`R CMD check` both still pass unchanged in substance, only in name).
+`R CMD check` both still pass unchanged in substance, only in name). Stage
+006 shifted focus from the package's runtime behavior to its
+documentation and CI: the ad hoc `MANUAL_TESTING.md` checklist became two
+real vignettes, giving the project its first vignette-build
+infrastructure, and implementation surfaced two corrections along the way
+— the task breakdown's assumption that `askfirst_install_error_handler()`
+is a directly-callable integration point turned out to be wrong (it is
+internal, invoked automatically by `askfirst_init()`'s `on_error`
+argument), and the CI check job's `working-directory` still pointed at
+the pre-`bindings/r/`-relocation path from before stage 003/005, both
+found and fixed by reading the actual source and workflow file rather
+than by relying on the stage's own plan.
 
 ## Important Roads Not Taken
 **Detection:**

@@ -7,7 +7,7 @@ git_hash: f61eb101bb2764abfbe7c8f986dc7bbf6eb063c6
 # Tasks: manual-testing-vignettes
 
 ## T006-1: Add vignette-building dependencies to DESCRIPTION
-- [ ] T006-1: In `bindings/r/DESCRIPTION`, add `knitr` and `rmarkdown` to
+- [x] T006-1: In `bindings/r/DESCRIPTION`, add `knitr` and `rmarkdown` to
       the `Suggests:` field (alphabetically ordered alongside the
       existing `testthat (>= 3.0.0)` and `withr` entries), and add a new
       top-level `VignetteBuilder: knitr` field. Confirm the file still
@@ -15,7 +15,7 @@ git_hash: f61eb101bb2764abfbe7c8f986dc7bbf6eb063c6
       `devtools::load_all("bindings/r")`.
 
 ## T006-2: Scaffold vignettes/ and write askfirst-development.Rmd — setup and token package
-- [ ] T006-2: Create `bindings/r/vignettes/askfirst-development.Rmd` with
+- [x] T006-2: Create `bindings/r/vignettes/askfirst-development.Rmd` with
       standard vignette YAML front-matter (`title`, `output:
       rmarkdown::html_vignette`, `vignette: >
       %\VignetteIndexEntry{...}\n%\VignetteEngine{knitr::rmarkdown}\n%\VignetteEncoding{UTF-8}`).
@@ -39,7 +39,7 @@ git_hash: f61eb101bb2764abfbe7c8f986dc7bbf6eb063c6
       (`devtools::install("path/to/tokenpkg")` or `R CMD INSTALL`).
 
 ## T006-3: askfirst-development.Rmd — explicit Claude Code and opencode verification steps
-- [ ] T006-3: In the same `askfirst-development.Rmd`, add a section with
+- [x] T006-3: In the same `askfirst-development.Rmd`, add a section with
       explicit, copy-pasteable shell and R code for driving the token
       package (from T006-2) inside a real Claude Code session and a real
       opencode session, and for each of the four intervention points
@@ -52,7 +52,7 @@ git_hash: f61eb101bb2764abfbe7c8f986dc7bbf6eb063c6
       transcript generalizes to the other.
 
 ## T006-4: askfirst-development.Rmd — carry over per-tool checklist and caveats
-- [ ] T006-4: In the same `askfirst-development.Rmd`, add a closing
+- [x] T006-4: In the same `askfirst-development.Rmd`, add a closing
       section presenting the remaining tools as a follow-on manual
       checklist, carrying over the full tool list and its checkbox
       structure from `bindings/r/MANUAL_TESTING.md` lines 47-68 (Cursor,
@@ -71,7 +71,7 @@ git_hash: f61eb101bb2764abfbe7c8f986dc7bbf6eb063c6
       vignettes.
 
 ## T006-5: Write using-askfirst.Rmd consumer guide
-- [ ] T006-5: Create `bindings/r/vignettes/using-askfirst.Rmd` with
+- [x] T006-5: Create `bindings/r/vignettes/using-askfirst.Rmd` with
       standard vignette YAML front-matter (same format as T006-2). Write
       a procedural, descriptive guide for maintainers of other packages
       adopting `askfirst` as a dependency, with one section per
@@ -88,14 +88,14 @@ git_hash: f61eb101bb2764abfbe7c8f986dc7bbf6eb063c6
       `askfirst-development.Rmd`.
 
 ## T006-6: Delete the superseded MANUAL_TESTING.md
-- [ ] T006-6: Delete `bindings/r/MANUAL_TESTING.md` once T006-2 through
+- [x] T006-6: Delete `bindings/r/MANUAL_TESTING.md` once T006-2 through
       T006-4 have absorbed its content into `askfirst-development.Rmd`.
       Grep the repo (`grep -rn "MANUAL_TESTING" .`) for any remaining
       references (e.g. README links, CI config, CONTRIBUTING docs) and
       update them to point at the new vignette(s) instead.
 
 ## T006-7: Build and check the new vignette infrastructure locally
-- [ ] T006-7: From `bindings/r`, run
+- [x] T006-7: From `bindings/r`, run
       `devtools::build_vignettes()` (or
       `rmarkdown::render()` on each `.Rmd` directly if `devtools` isn't
       available) to confirm both vignettes render without errors, then
@@ -105,7 +105,7 @@ git_hash: f61eb101bb2764abfbe7c8f986dc7bbf6eb063c6
       any new `R CMD check` NOTE/WARNING/ERROR.
 
 ## T006-8: Fix and regenerate the CI workflow
-- [ ] T006-8: Run `usethis::use_github_action("check-standard")` (from
+- [x] T006-8: Run `usethis::use_github_action("check-standard")` (from
       within `bindings/r` as the active package, or targeting it) to
       obtain the current upstream `check-standard.yaml` template. Merge
       it into `.github/workflows/r-cmd-check.yml`, replacing the existing

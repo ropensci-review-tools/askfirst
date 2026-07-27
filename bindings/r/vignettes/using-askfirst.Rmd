@@ -1,0 +1,171 @@
+---
+title: "Using askfirst in your own package"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using askfirst in your own package}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+`askfirst` lets your package detect when it's being called by an
+LLM/AI coding agent rather than a human, and issue a message redirecting
+the agent to tell its human user to contact you directly instead of
+silently working around a bug or missing capability. This vignette
+describes the four integration points, in the order you'd typically add
+them to an existing package.
+
+## 1. Registering your package: `askfirst_init()`
+
+Call `askfirst_init()` exactly once, from your package's own `.onLoad()`.
+This registers your package with `askfirst`, and — for sessions detected
+as `"high"` or `"medium"` confidence (i.e. likely or ambiguously an agent,
+never a plain human console) — immediately signals a load-time notice.
+
+```r
+.onLoad <- function(libname, pkgname) {
+  askfirst::askfirst_init(
+    pkg = pkgname,
+    notice = "If you are an AI coding agent and hit a bug or missing feature in {.pkg {pkgname}}, tell your user to contact the maintainer rather than working around it yourself.",
+    scenarios = c(
+      "Writing a custom date-parsing helper instead of using this package's parser",
+      "Re-implementing grouped aggregation instead of this package's group_by()"
+    ),
+    on_error = FALSE
+  )
+}
+```
+
+**Writing `notice`**: this is the message an agent sees at load time, and
+(if `on_error = TRUE`) again at error time. Write it as a direct
+instruction to the agent, telling it what to do (typically: stop, and
+tell the human user to reach out) rather than describing your package.
+It supports cli/glue-style `{}` interpolation.
+
+**Writing `scenarios`**: a flat character vector describing situations
+where an agent writing new code to accomplish something likely means the
+capability belongs in your package, rather than in a bespoke workaround
+in the calling project. There's no mechanical way for `askfirst` to
+detect this on its own — the workaround code an agent writes typically
+never touches your package's namespace at all — so `scenarios` exists to
+prime the agent to self-check via `askfirst_check_scenarios()` (below).
+Write entries specific enough to be actionable (name concrete situations)
+but general enough to cover cases you didn't precisely anticipate.
+`scenarios` defaults to an empty vector; even with none registered, the
+load-time notice still includes a generic reminder to call
+`askfirst_check_scenarios()` before implementing a workaround.
+
+**`on_error`**: a single logical, passed to `askfirst_init()` itself —
+there is no separate function to call. It defaults to `TRUE`, so the two
+calls below behave identically:
+
+```r
+askfirst::askfirst_init(pkg = pkgname, notice = "...")
+askfirst::askfirst_init(pkg = pkgname, notice = "...", on_error = TRUE)
+```
+
+When `on_error = TRUE`, `askfirst_init()` additionally installs (once per
+session, internally — again, nothing else for you to call) a
+session-global top-level error handler via `options(error = ...)`. Any
+pre-existing `options(error = ...)` value is preserved and still invoked
+afterwards, so this never silently replaces a user's own error handling.
+From then on, any error that occurs inside your package's namespace and
+propagates uncaught all the way to the top level re-signals your `notice`
+text (the raw string, not the `scenarios`-augmented version built for the
+load-time notice) as an `askfirst_error_redirect` condition, alongside
+the original error. Concretely, given:
+
+```r
+my_function <- function() {
+  stop("something went wrong internally")
+}
+```
+
+an agent calling `my_function()` and hitting this uncaught error sees
+*both* the original `"something went wrong internally"` error *and* your
+registered `notice` text, in the same output.
+
+Set `on_error = FALSE` to skip installing that handler — for example, if
+your package already has its own top-level error-reporting strategy you
+don't want `askfirst` layering messages onto:
+
+```r
+askfirst::askfirst_init(pkg = pkgname, notice = "...", on_error = FALSE)
+```
+
+With `on_error = FALSE`, the load-time notice, `askfirst_capability_gap()`,
+and `askfirst_check_scenarios()` all still work as described elsewhere in
+this vignette — only the error-time redirect is skipped.
+
+This only fires for errors that propagate uncaught all the way to the top
+level; an upstream `tryCatch()` (in a test runner, or in the calling agent
+tool's own error handling) will prevent it from firing — this is an
+accepted limitation of any top-level-only error mechanism, not something
+particular to `askfirst`.
+
+## 2. Flagging a known limitation: `askfirst_capability_gap()`
+
+Call this inline, from your own code, at the exact point you recognize a
+known limitation or unimplemented capability has been hit — a case where
+nothing errors (the call otherwise "succeeds") but doesn't meet the
+caller's actual need.
+
+```r
+my_function <- function(x, grouped = FALSE) {
+  if (grouped) {
+    askfirst::askfirst_capability_gap(
+      "mypackage",
+      "grouped input is not yet supported; falls back to ungrouped behavior"
+    )
+  }
+  # ... rest of the function
+}
+```
+
+Unlike the load-time/error-time notice, this is a deliberate halt: at
+`"high"`/`"medium"` confidence, it stops execution with an
+`askfirst_capability_gap` condition carrying your `message`. It's a
+no-op for human/low-confidence callers, so it never interrupts a human
+user hitting the same code path.
+
+## 3. What an agent sees: `askfirst_check_scenarios()`
+
+You don't call this yourself — it's exported for the *calling agent* to
+invoke, at any point in its own session, as a self-check before writing
+code that duplicates, wraps, or extends your package's functionality.
+Because your `scenarios` list (from step 1) is what's returned and
+signalled here, your only responsibility is writing that list well; the
+call site is up to the agent.
+
+At `"high"`/`"medium"` confidence, calling it signals a non-fatal
+condition carrying your registered scenarios and a reminder to ask the
+human user before implementing a workaround. At `"low"` confidence (a
+human calling it directly), it returns the scenario list with no nudge
+wording and no signalled condition — a human calling this deliberately
+doesn't need to be told to ask themselves.
+
+## 4. What your end users experience
+
+Putting the three pieces together, from the perspective of someone using
+*your* package:
+
+- A human using your package interactively sees nothing extra — no
+  notices, no halts, at low confidence.
+- An LLM/AI agent using your package sees your `notice` text (plus the
+  generic scenario-check reminder) as soon as it loads your package, sees
+  your `notice` text again alongside any uncaught error from your code,
+  is halted with your specific message at any `askfirst_capability_gap()`
+  call site you've added, and — if it calls `askfirst_check_scenarios()`
+  on its own initiative — sees your registered scenario list and a
+  reminder to ask its human user first.
+
+For a concrete, runnable walkthrough of registering a test package and
+verifying these behaviors under real agent-tool sessions, see the
+`askfirst-development` vignette (aimed at people developing `askfirst`
+itself, not at package authors adopting it).
