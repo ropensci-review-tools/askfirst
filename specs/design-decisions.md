@@ -1,7 +1,7 @@
 ---
 created: 2026-07-27T12:32:25Z
 agent: claude-sonnet-5
-git_hash: 159764dd12ea1465a1eafa4bcd91bfc815c1a30b
+git_hash: 4ad61d730ecbc7fe73df85d64dc487e608b3320a
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,10 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Six design stages are complete. Stage 001 produced
+capability. Seven design stages are complete. The development vignette
+(`askfirst-development.Rmd`) now carries a concrete, realistic demo with a
+working `tokenpkg_parse_version()` function and version-parsing scenarios,
+replacing the abstract placeholder content from earlier stages. Stage 001 produced
 research-only findings (no code). Stage 002 produced `agent-detect-spec/`,
 a vendored, upstream-synced copy of `vercel/detect-agent`'s detection data,
 plus a confidence-tiering/intervention-point design that was ultimately
@@ -294,6 +297,26 @@ implementing hook installation as R-only logic (rejected mid-stage in favor
 of a shared shell script callable from any binding).
 **Stages:** 007
 
+### Demo content: vignette-scoped, realistic function replacing abstract placeholders
+**Outcome:** The `askfirst-development.Rmd` vignette's tokenpkg demo was
+updated with a concrete `tokenpkg_parse_version()` function (parsing
+dot-separated version strings), version-parsing capability-gap scenarios,
+a real input-validation error instead of a synthetic `stop()`, and
+updated verification descriptions — all confined to the vignette file
+itself.
+**Rationale:** The previous abstract placeholder scenarios and messages
+tested only whether text appeared, not whether askfirst's signals guide
+an agent toward appropriate behaviour. The concrete version-parsing
+function and its plausible limitation (no pre-release suffix support)
+give the agent meaningful context to act on. Keeping all changes within
+the vignette avoids coupling the demo fixture to the real package source
+code.
+**Roads not taken:** Modifying the real `bindings/r/R/tokenpkg.R` source file
+instead of keeping changes vignette-only — rejected to avoid a
+maintenance dependency between the demo fixture and the production code
+it is meant to test against.
+**Stages:** 008
+
 ## Architectural Evolution
 Stage 001 established the project's foundational research: what signals
 can identify an LLM-driven caller, how a redirect message could reach it,
@@ -350,7 +373,15 @@ shell script at `tools/install-agent-hooks.sh` with a thin R wrapper.
 The hook scripts live at a root-level `agent-hooks/` directory, shared
 across all language bindings via symlinks, following the same
 root-level-plus-symlink pattern established for the vendored detection data
-in stage 003.
+in stage 003. Stage 008 turned the vignette's tokenpkg demo from an
+abstract placeholder with no useful function into a concrete, realistic
+development exercise: a working `tokenpkg_parse_version()` function, a
+plausible capability gap (no pre-release suffix support), a real
+input-validation error, and updated verification descriptions — all
+confined to the vignette file rather than touching real package sources,
+consistent with the demo-as-fixture pattern established in stage 006. The
+stage had no design-level uncertainties, no open questions, and no
+deferred items; it was a pure enhancement of demo content only.
 
 ## Important Roads Not Taken
 **Detection:**
