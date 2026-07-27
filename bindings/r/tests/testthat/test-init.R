@@ -157,6 +157,7 @@ test_that("askfirst_signal with prefix = FALSE omits the structured prefix", {
   expect_match(msg, "raw message", fixed = TRUE)
   expect_no_match(msg, "askfirst::", fixed = TRUE)
   expect_no_match(msg, "See:", fixed = TRUE)
+  expect_no_match(msg, "directive:", fixed = TRUE)
 })
 
 test_that("askfirst_signal with default prefix = TRUE includes the structured prefix", {
@@ -175,6 +176,7 @@ test_that("askfirst_signal with default prefix = TRUE includes the structured pr
 
   msg <- conditionMessage(caught)
   expect_match(msg, "askfirst::r::mypkg::notice", fixed = TRUE)
+  expect_match(msg, "directive: ask-before-proceeding", fixed = TRUE)
   expect_match(msg, "raw message", fixed = TRUE)
   expect_match(msg, "See: https://ropensci.github.io/askfirst/", fixed = TRUE)
 })

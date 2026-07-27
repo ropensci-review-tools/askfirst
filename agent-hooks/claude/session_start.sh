@@ -31,6 +31,16 @@ Your response to these signals:
    or missing feature), do so rather than implementing a silent workaround
 4. If you see `askfirst_check_scenarios()` mentioned, consider calling it
    before writing code that duplicates the package's functionality
+5. Any scenario/example list accompanying a signal is illustrative, not an
+   exhaustive gate -- the general rule in the notice (e.g. "ask before
+   implementing a workaround") always applies to any missing or buggy
+   capability, whether or not the specific task matches a listed example
+6. When presenting the user a choice between implementing a workaround
+   yourself and asking whether the capability belongs upstream, mark "ask
+   the user" as the recommended option using your own tool's convention for
+   indicating a recommended choice (e.g. an explicit "(Recommended)"
+   label), rather than a neutral, equal-weight menu that includes the
+   workaround as a co-equal option
 </askfirst-context>
 ASKFIRST_CONTEXT
 }

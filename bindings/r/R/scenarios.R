@@ -1,14 +1,13 @@
-#' Build the load-time notice text, folding in scenario guidance
+#' Build the load-time notice text
 #'
 #' Combines the author's own `notice` text with a fixed, generic reminder
-#' to call [askfirst_check_scenarios()] before writing a workaround, plus
-#' `scenarios` (if any) formatted as a bullet list. Always includes the
-#' generic reminder, regardless of whether `scenarios` is empty, so the
-#' on-demand tool is discoverable even for packages whose author hasn't
-#' registered any scenarios yet.
+#' to call [askfirst_check_scenarios()] before writing a workaround. Scenario
+#' details are not included here -- they are shown exactly once, at
+#' scenario_check time, via `askfirst_build_scenario_check_message()`, so
+#' there is nothing left for an agent to reconcile between the two.
 #' @keywords internal
 #' @noRd
-askfirst_build_notice <- function(pkg, notice, scenarios) {
+askfirst_build_notice <- function(pkg, notice) {
   generic <- paste(
     "Writing new code that duplicates, wraps, or extends",
     "{pkg}'s functionality to achieve a result should be preceded by",
@@ -16,12 +15,7 @@ askfirst_build_notice <- function(pkg, notice, scenarios) {
     "may belong in {pkg} itself."
   )
 
-  parts <- c(notice, generic)
-  if (length(scenarios) > 0) {
-    bullets <- paste0("- ", scenarios, collapse = "\n")
-    parts <- c(parts, paste0("Situations to watch for in {pkg}:\n", bullets))
-  }
-  paste(parts, collapse = "\n\n")
+  paste(c(notice, generic), collapse = "\n\n")
 }
 
 #' Build the message text signalled by askfirst_check_scenarios() at
@@ -31,7 +25,9 @@ askfirst_build_notice <- function(pkg, notice, scenarios) {
 askfirst_build_scenario_check_message <- function(scenarios) {
   header <- paste(
     "Before implementing a workaround, the user should be asked whether this",
-    "capability should be added to {pkg} itself."
+    "capability should be added to {pkg} itself -- this applies to any",
+    "missing or buggy capability, not just situations matching a listed",
+    "example below."
   )
   if (length(scenarios) == 0) {
     return(paste(
@@ -41,7 +37,11 @@ askfirst_build_scenario_check_message <- function(scenarios) {
     ))
   }
   bullets <- paste0("- ", scenarios, collapse = "\n")
-  paste0(header, "\n\nKnown situations where this applies for {pkg}:\n", bullets)
+  paste0(
+    header,
+    "\n\nSituations where this applies for {pkg}, including but not limited to:\n",
+    bullets
+  )
 }
 
 #' Try to load a package namespace, returning TRUE/FALSE (never errors)

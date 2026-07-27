@@ -11,8 +11,9 @@
 #' immediately as a non-fatal `askfirst_notice` condition, attributed to
 #' `pkg`. The signalled text also always includes a generic reminder to
 #' call `askfirst_check_scenarios()` before writing code that duplicates or
-#' extends `pkg`'s functionality, plus `scenarios` (if supplied) formatted
-#' as a bullet list — see [askfirst_check_scenarios()]. If `on_error =
+#' extends `pkg`'s functionality; `scenarios` (if supplied) are not shown at
+#' load-time -- they appear exactly once, when `askfirst_check_scenarios()`
+#' is actually called — see [askfirst_check_scenarios()]. If `on_error =
 #' TRUE`, `pkg`'s errors are additionally layered with a
 #' `askfirst_error_redirect` notice (using the raw `notice` text, not the
 #' scenario-augmented version) at error-time, via a top-level error handler
@@ -72,7 +73,7 @@ askfirst_init <- function(pkg, notice, on_error = TRUE, scenarios = character())
   )
 
   if (identical(confidence, "high")) {
-    load_time_notice <- askfirst_build_notice(pkg, notice, scenarios)
+    load_time_notice <- askfirst_build_notice(pkg, notice)
     askfirst_signal("askfirst_notice", pkg = pkg, message = load_time_notice)
   }
 

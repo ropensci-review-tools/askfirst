@@ -1,7 +1,7 @@
 ---
 created: 2026-07-27T12:32:25Z
 agent: claude-sonnet-5
-git_hash: f7de07ab72161414d559420192cfd0a5dd7a1e07
+git_hash: 65a2aa07f4fed431862d6542991f629bc64caf31
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,7 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Nine design stages are complete. Stage 009 made
+capability. Eleven design stages are complete. Stage 009 made
 `askfirst_check_scenarios()` self-initializing by auto-loading the target
 package's namespace when no `askfirst_init()` registration exists, so the
 function works from any R session without an explicit `init()` call first.
@@ -22,6 +22,16 @@ Stage 010 restricted all four agent-facing signal points to fire only at
 `"high"` confidence (known agent detected), suppressing them during
 medium-confidence sessions (CI, testing, package installation) while
 preserving the medium detection logic intact for future refinement.
+Stage 011 resolved a field-reported failure where an agent under-executed
+the "ask before workaround" rule because a task didn't literally match a
+registered example scenario: the load-time notice no longer repeats the
+scenario bullet list (now shown exactly once, at
+`askfirst_check_scenarios()` time, worded as explicitly non-exhaustive),
+every signalled message's structured prefix now carries an additional
+`directive: ask-before-proceeding` line, and the `agent-hooks/`
+SessionStart context was extended to instruct agents to treat scenario
+lists as illustrative rather than a matching gate and to present the
+ask-the-user option as recommended rather than a neutral, co-equal choice.
 The development vignette (`askfirst-development.Rmd`) now carries a
 concrete, realistic demo with a working `tokenpkg_parse_version()` function
 and version-parsing scenarios, replacing the abstract placeholder content
@@ -301,25 +311,43 @@ separate stage (rejected, since it would have left the new vignette
 infrastructure unverified in CI in the interim).
 **Stages:** 006
 
-### Messaging format: structured prefix over second-person embedded instructions
+### Messaging format: structured prefix over second-person embedded instructions, trust-boundary split preserved and strengthened
 **Outcome:** All askfirst condition signals now carry a
 `askfirst::<language>::<pkg>::<type>` prefix line (language, adopting package
-name, signal type) followed by the message body and a `See: <url>` line.
-Agent hooks (SessionStart and PostToolUse) pre-load context about this
-format so AI assistants recognise it as legitimate metadata.
-`tools/install-agent-hooks.sh` is a shared shell script for installing the
-hooks; the R function `askfirst_install_agent_hooks()` is a thin wrapper
-around it.
+name, signal type), a `directive: ask-before-proceeding` line (stage 011,
+applied uniformly across all four signal types), the message body, and a
+`See: <url>` line. Agent hooks (SessionStart and PostToolUse) pre-load
+context about this format so AI assistants recognise it as legitimate
+metadata; stage 011 extended the SessionStart context with explicit
+instruction to treat scenario/example lists as non-exhaustive and to mark
+"ask the user" as the recommended option (not a neutral co-equal choice)
+when presenting a workaround-vs-ask decision. `tools/install-agent-hooks.sh`
+is a shared shell script for installing the hooks; the R function
+`askfirst_install_agent_hooks()` is a thin wrapper around it. The scenario
+bullet list previously duplicated (with inconsistent wording) between the
+load-time notice and the on-demand scenario-check message now appears only
+in the latter, worded as explicitly non-exhaustive.
 **Rationale:** The previous second-person format ("If you are an AI coding
 agent...") was interpreted as a prompt injection by AI assistants, causing
 outright refusal. The structured prefix lets the tool's system context
 identify it as a known, safe signal, and the shared shell script avoids
-duplicating installation logic across future language bindings.
+duplicating installation logic across future language bindings. Stage 011
+found, via field feedback, that message text alone was too easily read as
+softly-applicable advice rather than a binding rule once a task didn't
+literally match a listed example scenario. Rather than reversing stage
+007's neutral-message-text decision, directive strength was routed through
+the already-trusted agent-hooks context (pre-loaded before any session
+starts, not subject to the same prompt-injection risk as an adopting
+package's own signal output), while message text itself gained only a
+structural (non-tonal) actionability marker.
 **Roads not taken:** Keeping the second-person embedded-instruction format
 (actively counterproductive — triggers prompt-injection guardrails);
 implementing hook installation as R-only logic (rejected mid-stage in favor
-of a shared shell script callable from any binding).
-**Stages:** 007
+of a shared shell script callable from any binding); reintroducing
+imperative/second-person message text directly in stage 011 (rejected —
+would have reversed stage 007's trust-boundary decision rather than
+extended it).
+**Stages:** 007, 011
 
 ### Demo content: vignette-scoped, realistic function replacing abstract placeholders
 **Outcome:** The `askfirst-development.Rmd` vignette's tokenpkg demo was
@@ -416,6 +444,36 @@ internal helper (`askfirst_try_load_namespace()`) was introduced for testability
 (since base functions cannot be mocked by testthat), and a pre-existing
 environment-dependent test fragility in `test-init.R` (the medium-confidence test
 relied on the CI runner lacking a TTY) was fixed by setting confidence explicitly.
+Stage 010 addressed the medium-tier boundary open question carried since
+stage 002: medium-confidence sessions (no TTY, no known agent) were
+producing false-positive signals during CI, testing, and package
+installation. All four signal points — `askfirst_init()` load-time notice,
+`askfirst_error_handler()` error-redirect, `askfirst_check_scenarios()`
+scenario-check, and `askfirst_capability_gap()` — were restricted to fire
+only at `"high"` confidence. The medium detection logic in `confidence.R`
+was left intact, preserving the enum for future selective opt-in. The
+change was purely mechanical: four condition-line edits across three
+files, plus corresponding test updates, with 57 tests passing. Stage 011
+was triggered by field feedback describing a concrete failure: an agent,
+having received both the load-time notice and an explicit
+`askfirst_check_scenarios()` result, treated the general "ask before
+implementing a workaround" rule as merely advisory once the actual task
+didn't literally match one of the three registered example scenarios, and
+offered the workaround as a co-equal option in a neutral menu. Reviewing
+git history showed the agent-hooks infrastructure and the neutral,
+non-imperative message-text decision (stage 007, Decision 4) shipped in
+the same commit — the softened message text was a deliberate trust-boundary
+choice (message text originates from a potentially untrusted, spoofable
+package call; hook context is pre-loaded and trusted), not a stopgap
+awaiting hooks. The fix therefore left that boundary intact and
+strengthened each side of it: agent-hooks context gained explicit
+instruction to treat scenario lists as non-exhaustive and to present the
+ask-the-user choice as recommended (not neutral); message text gained a
+structural `directive:` marker rather than imperative prose, since hooks
+remain opt-in infrastructure and message text is the only channel
+guaranteed to reach every agent. The redundant, inconsistently-worded
+scenario bullets previously repeated between the load-time notice and the
+on-demand scenario-check message were consolidated to the latter alone.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -486,4 +544,15 @@ relied on the CI runner lacking a TTY) was fixed by setting confidence explicitl
   in favor of namespace auto-loading, so the real author-supplied scenarios
   are always used rather than silently returning empty data.
 
-Stage 010 addressed the medium-tier boundary open question carried since stage 002: medium-confidence sessions (no TTY, no known agent) were producing false-positive signals during CI, testing, and package installation. All four signal points — `askfirst_init()` load-time notice, `askfirst_error_handler()` error-redirect, `askfirst_check_scenarios()` scenario-check, and `askfirst_capability_gap()` — were restricted to fire only at `"high"` confidence. The medium detection logic in `confidence.R` was left intact, preserving the enum for future selective opt-in. The change was purely mechanical: four condition-line edits across three files, plus corresponding test updates, with 57 tests passing.
+**Messaging (stage 011):**
+- Reintroducing imperative/second-person prose directly into message text
+  to make the workaround-vs-ask directive more forceful — rejected once git
+  history showed this would reverse stage 007's deliberate trust-boundary
+  decision (message text is potentially untrusted, hook context is not)
+  rather than extend it; directive strength was routed through agent-hooks
+  context instead.
+- Keeping scenario bullets in both the load-time notice and the on-demand
+  scenario-check message with unified wording — considered as an
+  alternative to dropping them from the notice entirely, rejected in favor
+  of a single location so there is nothing left to reconcile between the
+  two.

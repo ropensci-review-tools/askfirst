@@ -44,8 +44,9 @@ If the session is \code{"high"} confidence, \code{notice} is signalled
 immediately as a non-fatal \code{askfirst_notice} condition, attributed to
 \code{pkg}. The signalled text also always includes a generic reminder to
 call \code{askfirst_check_scenarios()} before writing code that duplicates or
-extends \code{pkg}'s functionality, plus \code{scenarios} (if supplied) formatted
-as a bullet list — see \code{\link[=askfirst_check_scenarios]{askfirst_check_scenarios()}}. If \code{on_error = TRUE}, \code{pkg}'s errors are additionally layered with a
+extends \code{pkg}'s functionality; \code{scenarios} (if supplied) are not shown at
+load-time -- they appear exactly once, when \code{askfirst_check_scenarios()}
+is actually called — see \code{\link[=askfirst_check_scenarios]{askfirst_check_scenarios()}}. If \code{on_error = TRUE}, \code{pkg}'s errors are additionally layered with a
 \code{askfirst_error_redirect} notice (using the raw \code{notice} text, not the
 scenario-augmented version) at error-time, via a top-level error handler
 installed internally (see the package source for how this works and its

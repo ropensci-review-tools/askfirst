@@ -22,7 +22,7 @@ test_that("askfirst_init defaults scenarios to an empty character vector", {
   expect_equal(.askfirst_state$packages[["mypkg"]]$scenarios, character())
 })
 
-test_that("the load-time notice includes the generic instruction and scenario bullets", {
+test_that("the load-time notice includes the generic instruction but not scenario bullets", {
   local_reset_askfirst_state()
   withr::local_envvar(c(CLAUDECODE = "1"))
 
@@ -41,8 +41,8 @@ test_that("the load-time notice includes the generic instruction and scenario bu
   msg <- conditionMessage(caught)
   expect_match(msg, "author notice text", fixed = TRUE)
   expect_match(msg, "askfirst_check_scenarios", fixed = TRUE)
-  expect_match(msg, "writing a custom date parser", fixed = TRUE)
-  expect_match(msg, "re-implementing grouping logic", fixed = TRUE)
+  expect_no_match(msg, "writing a custom date parser", fixed = TRUE)
+  expect_no_match(msg, "re-implementing grouping logic", fixed = TRUE)
 })
 
 test_that("the load-time notice still includes the generic instruction with no scenarios", {
@@ -85,6 +85,7 @@ test_that("askfirst_check_scenarios signals askfirst_scenario_check at high conf
   expect_equal(caught$pkg, "mypkg")
   expect_match(conditionMessage(caught), "scenario A", fixed = TRUE)
   expect_match(conditionMessage(caught), "should be asked", fixed = TRUE)
+  expect_match(conditionMessage(caught), "not limited to", fixed = TRUE)
   expect_equal(result, "scenario A")
 })
 
