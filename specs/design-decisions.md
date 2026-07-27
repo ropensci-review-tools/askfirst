@@ -1,7 +1,7 @@
 ---
 created: 2026-07-25T15:08:44Z
 agent: claude-sonnet-5
-git_hash: 1665282db9e3310c9b376db1e1c5b844058a4189
+git_hash: 660b6a49e4375626d2780a2d04dcded25e108bfb
 ---
 
 # Design Decisions: pkghooks
@@ -14,11 +14,17 @@ human user to contact the maintainer directly — instead of the agent
 silently working around a bug or missing capability. Two design stages are
 complete. Stage 001 produced research-only findings (no code). Stage 002
 produced the project's first concrete artifact: `agent-detect-spec/`, a
-language-agnostic contract consisting of vendored upstream detection data
-(`vendor/agents.json`, from `vercel/detect-agent`), a confidence-tiering
-model, an intervention-point model, a versioned manifest, and an automated
-GitHub Action that keeps the vendored data synced with upstream. No
-R-specific implementation code exists yet; that is the next stage's work.
+vendored, upstream-synced copy of `vercel/detect-agent`'s detection data
+(`vendor/agents.json`), with a versioned manifest and an automated GitHub
+Action that keeps it synced with upstream. The confidence-tiering and
+intervention-point models designed alongside it were initially shipped as
+standalone files in that directory, then — after the retrospective —
+removed and folded back into `specs/002-design-agnostic-spec/design.md`
+and `design-decisions.md` as documented design rationale, since they were
+unenforced prose rather than machine-read data. No R-specific
+implementation code exists yet; that is the next stage's work, and it will
+need to consult stage 002's design documents (not `agent-detect-spec/`
+itself) for the confidence and messaging reasoning.
 
 ## Key Decisions
 
@@ -45,34 +51,40 @@ rejected); designing an independent `pkghooks`-specific detection schema
 (reversed mid-stage 002 in favor of direct vendoring).
 **Stages:** 001, 002
 
-### Confidence: a closed, language-neutral tier enum layered on vendored data
-**Outcome:** `agent-detect-spec/confidence-model.md` defines
-`high`/`medium`/`low`/`cooperative` as a closed enum, with mapping rules
-from a raw detection outcome (vendored-data match, plus optional
-TTY/process-ancestry corroboration) onto a tier. `cooperative` is reserved
-for a future tool-initiated signal, currently unused.
+### Confidence: a closed, language-neutral tier enum, documented as design rationale
+**Outcome:** A closed `high`/`medium`/`low`/`cooperative` enum, with
+mapping rules from a raw detection outcome (vendored-data match, plus
+optional TTY/process-ancestry corroboration) onto a tier. `cooperative` is
+reserved for a future tool-initiated signal, currently unused. Documented
+in `specs/002-design-agnostic-spec/design.md` (T002-4) and
+`design-decisions.md`, not as a standalone file in `agent-detect-spec/`.
 **Rationale:** Vendored detection data carries no confidence concept of
 its own; this layer is `pkghooks`'s own contribution on top of it. A
 closed enum is simpler for every consuming implementation to reason about,
-and extending it later is additive rather than breaking.
+and extending it later is additive rather than breaking. Originally
+shipped as `agent-detect-spec/confidence-model.md`; moved to the stage's
+own design documents once it was recognized that unenforced prose in a
+"spec" directory implied a guarantee (consistency across implementations)
+it couldn't actually provide.
 **Roads not taken:** An open/extensible tier set (deferred as unnecessary
-complexity for v1); exposing confidence tiers only internally rather than
-as a documented contract (rejected, since future non-R implementations
-need the same mapping rules).
+complexity for v1); keeping it as a standalone file under
+`agent-detect-spec/` (reversed post-retrospective — see Scope decision
+below).
 **Stages:** 001, 002
 
-### Messaging: three independent intervention points, layered delivery, now language-neutral
+### Messaging: three independent intervention points, layered delivery, documented as design rationale
 **Outcome:** Redirect messages fire at three independent points —
 package-load (a general one-time notice), error-time (layered onto errors
 the package already raises), and capability-gap-time (a distinct point
-requiring explicit author instrumentation). These are now specified in
-`agent-detect-spec/intervention-model.md` as language-neutral concepts
-(trigger, default severity, cardinality), independent of any language's
-native delivery mechanism. R's own delivery mechanism (a custom condition
-class, non-fatal at load time, reserving halting errors for
-capability-gap/error-time) remains a stage-001 finding not yet
-re-specified at the language-neutral layer, since it is R-specific by
-nature.
+requiring explicit author instrumentation). These are specified as
+language-neutral concepts (trigger, default severity, cardinality),
+independent of any language's native delivery mechanism, in
+`specs/002-design-agnostic-spec/design.md` (T002-5) and
+`design-decisions.md` — not as a standalone file in `agent-detect-spec/`.
+R's own delivery mechanism (a custom condition class, non-fatal at load
+time, reserving halting errors for capability-gap/error-time) remains a
+stage-001 finding not yet re-specified at the language-neutral layer,
+since it is R-specific by nature.
 **Rationale:** Load-time is the cheapest, most reliable point and
 sidesteps per-call overhead entirely. Error-time reuses the existing
 error/condition system at no extra detection cost. Capability-gap-time
@@ -80,6 +92,9 @@ cannot piggyback on error-time because no condition is raised; only
 author-driven annotation satisfies the no-false-positive constraint.
 Extracting the abstract model (stage 002) lets future non-R
 implementations reuse the same three points without re-deriving them.
+Originally shipped as `agent-detect-spec/intervention-model.md`; moved to
+the stage's own design documents for the same reason as the Confidence
+decision above.
 **Roads not taken:** First-call and every-call intervention points (ruled
 out for overhead and message-fatigue reasons); help/documentation-access
 hooking (not readily hookable in R, deferred; future implementations
@@ -87,43 +102,58 @@ should re-evaluate for their own language); a registry-style
 capability-gap declaration (adds a rules-engine problem without clear v1
 payoff over inline marking); return-value attribute annotation as a
 primary channel (too easily dropped/ignored to serve as more than a
-secondary, structured channel).
+secondary, structured channel); keeping it as a standalone file under
+`agent-detect-spec/` (reversed post-retrospective).
 **Stages:** 001, 002
 
-### Scope: R-only package, portable contract as a separate directory
-**Outcome:** `pkghooks` ships and is branded as an R-only package. Its
-detection/confidence/messaging contract lives in a top-level
-`agent-detect-spec/` directory, independent of the R package's own `R/`,
-`man/`, `tests/` structure and understandable without reference to this
-project's internal stage history. `.onLoad()`/`.onAttach()` remain the
-concrete R integration point, not yet implemented.
-**Rationale:** The detection signals and messaging model are language-,
-not R-, specific facts; keeping them in a separate, self-contained
+### Scope: R-only package, vendored data kept separate, design rationale kept in specs/
+**Outcome:** `pkghooks` ships and is branded as an R-only package.
+`agent-detect-spec/` holds only the vendored, machine-read detection data
+(`vendor/agents.json`) plus its manifest and sync tooling — independent of
+the R package's own `R/`, `man/`, `tests/` structure. The confidence and
+messaging design reasoning that accompanies it lives in `specs/`'s stage
+documents instead of alongside the vendored data, since it is unenforced
+prose rather than something any code reads. `.onLoad()`/`.onAttach()`
+remain the concrete R integration point, not yet implemented.
+**Rationale:** Keeping *machine-read data* in a separate, self-contained
 directory (rather than entangled with R package internals, and rather than
 standing up a separate repo pre-emptively) eases both future non-R reuse
 and current R implementation, following a comparable project's precedent
 of splitting into independently-shippable units only once genuinely
-independent consumers exist.
+independent consumers exist. Design *reasoning* that has no machine
+consumer, however, was found to not need — and to overstate its own
+weight by pretending to be — a standalone "contract" file; it belongs in
+the project's own design record instead, to be consulted rather than
+enforced.
 **Roads not taken:** A fully language-agnostic multi-language project in
 this stage — still explicitly out of scope; the recommendation is a
 structuring choice for `pkghooks`'s internals, not a commitment to
 building beyond R now. A standalone repo for `agent-detect-spec/` from day
 one — deferred until a second, genuinely independent language
-implementation actually exists.
+implementation actually exists. Treating the confidence/intervention
+models as part of that same portable-directory contract — reversed
+post-retrospective, once it was recognized they lacked any enforcement
+mechanism `vendor/agents.json` actually has.
 **Stages:** 001, 002
 
 ## Architectural Evolution
 Stage 001 established the project's foundational research: what signals
 can identify an LLM-driven caller, how a redirect message could reach it,
 and where in an R session that message should fire. Stage 002 turned the
-portable parts of that research into a real, versioned artifact
-(`agent-detect-spec/`), while narrowing its own scope mid-stage once it
-became clear that re-deriving a detection schema already covered by
-`vercel/detect-agent` would be pure duplication. The project now has a
-complete, self-contained, language-agnostic contract, but still no R
-implementation code — that is the next stage's expected work, consuming
-`agent-detect-spec/manifest.json`, `confidence-model.md`, and
-`intervention-model.md` to build `pkghooks_init()`, `flag_capability_gap()`,
+portable, machine-read part of that research into a real, versioned
+artifact (`agent-detect-spec/`), narrowing its own scope twice: mid-stage,
+once it became clear that re-deriving a detection schema already covered
+by `vercel/detect-agent` would be pure duplication; and again
+post-retrospective, once the confidence-tiering and intervention-point
+models — shipped initially as standalone files alongside the vendored
+data — were recognized as unenforced design prose rather than a real
+contract, and folded back into the stage's own design documents. The
+project now has a narrow, honest `agent-detect-spec/` (vendored data only)
+plus a documented design rationale in `specs/002-design-agnostic-spec/`,
+but still no R implementation code — that is the next stage's expected
+work, consuming `agent-detect-spec/manifest.json` for the vendored data
+and stage 002's `design.md`/`design-decisions.md` for the confidence and
+messaging reasoning, to build `pkghooks_init()`, `flag_capability_gap()`,
 and the R condition-class delivery mechanism.
 
 ## Important Roads Not Taken
@@ -153,7 +183,12 @@ and the R condition-class delivery mechanism.
 
 **Scope:**
 - Building a language-agnostic implementation now, rather than R-only with
-  portable internals — still deferred as premature; only the contract
-  (`agent-detect-spec/`) is language-agnostic so far, not any actual code.
-- Standing up a separate repo for the portable contract immediately —
-  deferred until a second, independent language implementation exists.
+  portable internals — still deferred as premature; only the vendored
+  detection data is language-agnostic so far, not any actual code.
+- Standing up a separate repo for the vendored data immediately — deferred
+  until a second, independent language implementation exists.
+- Shipping the confidence-tiering and intervention-point models as
+  standalone files under `agent-detect-spec/` — reversed post-retrospective
+  once it was recognized that, unlike the vendored data, nothing in the
+  repo actually reads or enforces them; folded back into `specs/`'s design
+  documents instead.

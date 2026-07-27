@@ -1,18 +1,20 @@
 ---
 created: 2026-07-27T10:35:00Z
 agent: claude-sonnet-5
-git_hash: 1665282db9e3310c9b376db1e1c5b844058a4189
+git_hash: 660b6a49e4375626d2780a2d04dcded25e108bfb
 ---
 
 # Design Decisions: design-agnostic-spec
 
 ## Summary
-This stage produced `agent-detect-spec/`, a language-agnostic contract for
-LLM/AI-agent-caller detection and messaging. Its scope was revised
-mid-stage: rather than designing an independent detection-signal schema,
-it vendors `vercel/detect-agent`'s `agents.json` verbatim and adds only
-the confidence-tiering and intervention-point layers that upstream data
-doesn't provide.
+This stage produced `agent-detect-spec/`, a vendored, upstream-synced copy
+of `vercel/detect-agent`'s LLM/AI-agent-caller detection data. Its scope
+was revised twice: mid-stage, an independent detection-signal schema was
+dropped in favor of vendoring `agents.json` verbatim; post-retrospective,
+the confidence-tiering and intervention-point models originally shipped as
+standalone files in that directory were removed and folded into this
+document (and `design.md`) instead, since they were unenforced prose that
+any real implementation would translate directly into code.
 
 ## New Design Decisions
 
@@ -32,32 +34,43 @@ detection data) and its prior-art finding (T001-10 in that stage's
 research), taking the "model it the same way" recommendation one step
 further into "vendor it directly."
 
-### Decision 2: Confidence-tiering model as an explicit layer
-**Chosen:** `agent-detect-spec/confidence-model.md` defines a closed
-`high`/`medium`/`low`/`cooperative` enum, with mapping rules from a raw
-vendored-data match (plus optional TTY/process-ancestry corroboration)
-onto a tier. `cooperative` is reserved, currently unused, for a future
-tool-initiated signal.
+### Decision 2: Confidence-tiering model as documented design rationale
+**Chosen:** A closed `high`/`medium`/`low`/`cooperative` enum, with mapping
+rules from a raw vendored-data match (plus optional TTY/process-ancestry
+corroboration) onto a tier. `cooperative` is reserved, currently unused,
+for a future tool-initiated signal. Full content lives in `design.md`
+(T002-4), not as a standalone file.
 **Rationale:** Vendored data identifies *which* tool is calling but
 carries no confidence concept; a closed enum is simpler for every
 consuming implementation to reason about, and is additive to extend
-later.
+later. Originally shipped as `agent-detect-spec/confidence-model.md`, this
+was later folded back here: as unenforced prose (no code reads it), it
+added no more guarantee of cross-implementation consistency than
+documenting it in the design record and expecting the implementation
+stage to consult it.
 **Tradeoffs:** A closed enum may eventually need a breaking revision if
 future language implementations need finer-grained tiers than
-high/medium/low.
+high/medium/low. Folding it back into `design.md` means a future
+non-R implementation must find this document rather than reading a
+self-contained file in `agent-detect-spec/`.
 **Relates to:** Resolves stage 001's open question on confidence-tier
 exposure.
 
-### Decision 3: Intervention-point model as a separate, language-neutral layer
-**Chosen:** `agent-detect-spec/intervention-model.md` specifies three
-independent points — `load_time`, `error_time`, `capability_gap_time` —
-each with trigger, default severity, and cardinality, deliberately
-excluding any language-specific delivery mechanism.
+### Decision 3: Intervention-point model as documented design rationale
+**Chosen:** Three independent points — `load_time`, `error_time`,
+`capability_gap_time` — each with trigger, default severity, and
+cardinality, deliberately excluding any language-specific delivery
+mechanism. Full content lives in `design.md` (T002-5), not as a standalone
+file.
 **Rationale:** Extracts the language-neutral concepts behind stage 001's
 R-specific condition-class recommendation, so future non-R
 implementations can map the same three points onto their own native
-mechanisms.
-**Tradeoffs:** None significant; carries forward stage 001's rejection of
+mechanisms. Originally shipped as `agent-detect-spec/intervention-model.md`,
+folded back here for the same reason as Decision 2: no enforcement
+mechanism existed, and any implementation would encode this logic in code
+regardless of whether a prose file described it first.
+**Tradeoffs:** None significant beyond the ones noted in Decision 2;
+carries forward stage 001's rejection of
 `first_call`/`every_call`/`help_access` rather than re-litigating them.
 **Relates to:** Directly derived from stage 001's Decisions 3 and 4.
 
@@ -71,12 +84,31 @@ all consumers.
 **Tradeoffs:** Adds a recurring CI dependency and a third-party GitHub
 Action.
 
+### Decision 5: Confidence/intervention models removed from agent-detect-spec/
+**Chosen:** Deleted `agent-detect-spec/confidence-model.md` and
+`agent-detect-spec/intervention-model.md` after the retrospective; their
+content is preserved in this file (Decisions 2–3) and `design.md`
+(T002-4/T002-5) instead. `agent-detect-spec/` now contains only vendored
+data plus its manifest and sync tooling.
+**Rationale:** Unlike `vendor/agents.json`, which real code parses and
+evaluates, these two documents were prose describing principles that any
+implementation (R or otherwise) would translate directly into code, with
+nothing in the repo checking the two stayed in sync. Calling that
+directory a "contract" overstated what unenforced prose actually provides;
+keeping the reasoning as design record instead is honest about its role.
+**Tradeoffs:** A future non-R implementation must consult `specs/` for
+this reasoning rather than reading a self-contained file directly under
+`agent-detect-spec/`. Acceptable given no second implementation exists yet
+to be inconvenienced by this.
+**Proposed by:** mpadge
+
 ## Integration with Prior Work
 This stage operationalizes stage 001's research: its env-var/TTY/ancestry
 detection findings are now backed by real vendored data instead of a
 research table, and its three-intervention-point and confidence-tier
-recommendations are now written as concrete, versioned specification
-files rather than prose recommendations.
+recommendations are captured here as design rationale for a future R
+implementation to consult, rather than as prose files that overstated
+their own enforceability.
 
 ## Issues Resolved
 - Whether to model `pkghooks`'s own schema on `agents.json` or consume it
@@ -87,6 +119,9 @@ files rather than prose recommendations.
 - Detection-data shape (flat vs. namespaced): resolved as moot, since the
   vendored file's shape is inherited from upstream rather than designed
   independently.
+- Whether the confidence/intervention models belonged in `agent-detect-spec/`
+  as standalone files: resolved no, post-retrospective — folded into this
+  stage's own design documents instead.
 
 ## Deferred Items
 - `btw`-style cooperative signal implementation (the `cooperative` tier
@@ -105,3 +140,7 @@ files rather than prose recommendations.
   identifiers from every file under `agent-detect-spec/`, so the
   directory is understandable independent of this project's `specs/`
   history.
+- After the retrospective, a further question about the two model
+  documents' actual value led to removing them from `agent-detect-spec/`
+  entirely and folding their content back into this stage's own design
+  record (Decision 5).

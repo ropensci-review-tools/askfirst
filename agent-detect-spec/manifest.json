@@ -1,12 +1,10 @@
 {
   "name": "agent-detect-spec",
   "version": "0.1.0",
-  "description": "Language-agnostic confidence-tiering and intervention-point contract for detecting and responding to LLM/AI-agent callers, layered on top of vendored detection data. Versioned independently of the vendored data's own upstream provenance.",
+  "description": "A vendored, upstream-synced copy of vercel/detect-agent's language-agnostic AI-agent-caller detection data, kept current via automated sync.",
   "files": {
     "vendor_data": "vendor/agents.json",
-    "vendor_schema": "vendor/agents.schema.json",
-    "confidence_model": "confidence-model.md",
-    "intervention_model": "intervention-model.md"
+    "vendor_schema": "vendor/agents.schema.json"
   },
   "vendor_source": {
     "repo": "vercel/detect-agent",

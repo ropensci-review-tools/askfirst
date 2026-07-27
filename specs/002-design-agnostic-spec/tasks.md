@@ -13,6 +13,15 @@ provide — a confidence-tiering model and an intervention-point model.
 This removes the standalone schema/data tasks from the original task list
 in favor of a simpler vendor-and-layer approach.
 
+**Post-retrospective amendment:** T002-4 and T002-5 were completed as
+described below, but their output files
+(`agent-detect-spec/confidence-model.md`, `intervention-model.md`) were
+later removed and folded into `design.md`/`design-decisions.md` instead —
+see those files for the current location of this content and the
+rationale for the change. T002-2 and T002-6's descriptions of those files
+below are historical and no longer match the current state of
+`agent-detect-spec/manifest.json`/`README.md`.
+
 ## T002-1: Vendor upstream agents.json
 - [x] T002-1: Fetch the current
   https://raw.githubusercontent.com/vercel/detect-agent/main/agents.json
