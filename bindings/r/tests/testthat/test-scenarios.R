@@ -133,6 +133,33 @@ test_that("askfirst_check_scenarios errors informatively for an unregistered pac
 
   expect_error(
     askfirst_check_scenarios("neverregistered"),
-    "has not called askfirst_init"
+    "does not appear to adopt askfirst"
   )
+})
+
+test_that("askfirst_check_scenarios auto-loads namespace for unregistered package", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "high"
+
+  local_mocked_bindings(
+    askfirst_try_load_namespace = function(pkg) {
+      suppressMessages(
+        askfirst_init(pkg, "auto-loaded notice", scenarios = c("scenario A"))
+      )
+      TRUE
+    }
+  )
+
+  caught <- NULL
+  withCallingHandlers(
+    result <- askfirst_check_scenarios("autopkg"),
+    askfirst_scenario_check = function(cnd) {
+      caught <<- cnd
+      invokeRestart("muffleMessage")
+    }
+  )
+
+  expect_s3_class(caught, "askfirst_scenario_check")
+  expect_match(conditionMessage(caught), "scenario A", fixed = TRUE)
+  expect_equal(result, "scenario A")
 })

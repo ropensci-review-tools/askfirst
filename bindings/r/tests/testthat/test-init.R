@@ -19,10 +19,7 @@ test_that("askfirst_init signals a askfirst_notice under high confidence, attrib
 
 test_that("askfirst_init signals a askfirst_notice under medium confidence", {
   local_reset_askfirst_state()
-  known_vars <- all_known_signal_env_vars()
-  na_list <- stats::setNames(rep(NA, length(known_vars)), known_vars)
-  withr::local_envvar(na_list)
-  # non-interactive test runner: no TTY -> medium, so no further mocking needed
+  .askfirst_state$confidence <- "medium"
 
   caught <- NULL
   withCallingHandlers(

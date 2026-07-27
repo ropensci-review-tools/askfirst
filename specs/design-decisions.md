@@ -1,7 +1,7 @@
 ---
 created: 2026-07-27T12:32:25Z
 agent: claude-sonnet-5
-git_hash: 4ad61d730ecbc7fe73df85d64dc487e608b3320a
+git_hash: c1e68f9ef70c2c83ec853714377cbe6a543226c3
 ---
 
 # Design Decisions: askfirst
@@ -14,10 +14,14 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Seven design stages are complete. The development vignette
-(`askfirst-development.Rmd`) now carries a concrete, realistic demo with a
-working `tokenpkg_parse_version()` function and version-parsing scenarios,
-replacing the abstract placeholder content from earlier stages. Stage 001 produced
+capability. Eight design stages are complete. Stage 009 made
+`askfirst_check_scenarios()` self-initializing by auto-loading the target
+package's namespace when no `askfirst_init()` registration exists, so the
+function works from any R session without an explicit `init()` call first.
+The development vignette (`askfirst-development.Rmd`) now carries a
+concrete, realistic demo with a working `tokenpkg_parse_version()` function
+and version-parsing scenarios, replacing the abstract placeholder content
+from earlier stages. Stage 001 produced
 research-only findings (no code). Stage 002 produced `agent-detect-spec/`,
 a vendored, upstream-synced copy of `vercel/detect-agent`'s detection data,
 plus a confidence-tiering/intervention-point design that was ultimately
@@ -160,7 +164,7 @@ secondary, structured channel); keeping it as a standalone file under
 `agent-detect-spec/` (reversed post-retrospective).
 **Stages:** 001, 002, 003
 
-### Scenario-check: a fourth, agent-invoked intervention point
+### Scenario-check: a fourth, agent-invoked intervention point, with namespace auto-init
 **Outcome:** `askfirst_check_scenarios(pkg)`, a new exported function, is
 called by the LLM itself at any point in a session — not triggered by
 `askfirst` detecting anything. It signals a non-fatal
@@ -171,6 +175,11 @@ plus a reminder to ask the human before implementing a workaround. At
 `"low"` confidence it returns the scenario list plainly, with no nudge.
 The existing load-time notice always folds in a generic instruction to
 call this function, regardless of whether any scenarios were registered.
+In stage 009, the function was made self-initializing: if the target
+package hasn't called `askfirst_init()` in the current session, its
+namespace is automatically loaded via `requireNamespace()` to trigger the
+init call from the package's `.onLoad()`. If the package does not adopt
+askfirst, an informative error is raised.
 **Rationale:** Targets capability gaps the author hasn't anticipated well
 enough to instrument inline via `askfirst_capability_gap()` — cases where the
 LLM writes new code entirely outside the package to achieve a result, with
@@ -179,15 +188,18 @@ into. Mechanical detection of this (monkey-patching/namespace-manipulation
 calls) was investigated and rejected as both rare and, in the common
 case, invisible to the package at runtime. With no mechanical trigger
 available, an agent-invoked tool — discoverable via the load-time notice —
-is the only viable delivery path.
+is the only viable delivery path. The namespace auto-init (stage 009)
+removes the need for an explicit `init()` call in each fresh process.
 **Roads not taken:** Mechanical detection of in-progress workaround
 behavior (`assignInNamespace()`, `trace()`, etc.) — rejected outright, not
 merely deprioritized. Broadening the existing error-time message instead
 of adding a new mechanism — rejected, since the target case is
 error-free by definition. Halting severity (like `capability_gap_time`) —
 rejected in favor of non-fatal, given the heuristic/self-assessed nature
-of this check.
-**Stages:** 004
+of this check. Empty-scenario fallback instead of namespace loading
+(rejected in stage 009 — the real author-supplied scenarios must be used,
+not empty defaults).
+**Stages:** 004, 009
 
 ### Error-time mechanism: options(error = ...), not globalCallingHandlers()
 **Outcome:** `askfirst_init(..., on_error = TRUE)` installs error-time
@@ -382,6 +394,16 @@ confined to the vignette file rather than touching real package sources,
 consistent with the demo-as-fixture pattern established in stage 006. The
 stage had no design-level uncertainties, no open questions, and no
 deferred items; it was a pure enhancement of demo content only.
+Stage 009 addressed a practical limitation of the agent-invoked scenario check
+introduced in stage 004: `askfirst_check_scenarios()` failed when called from a
+fresh `Rscript` process where `askfirst_init()` hadn't been called yet. The fix
+auto-loaded the target package's namespace (`requireNamespace()`) when no
+registration was found, triggering the package's `.onLoad()` — where
+`askfirst_init()` is normally called — to register scenarios naturally. An
+internal helper (`askfirst_try_load_namespace()`) was introduced for testability
+(since base functions cannot be mocked by testthat), and a pre-existing
+environment-dependent test fragility in `test-init.R` (the medium-confidence test
+relied on the CI runner lacking a TTY) was fixed by setting confidence explicitly.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -446,3 +468,8 @@ deferred items; it was a pure enhancement of demo content only.
   after real-world testing showed AI assistants interpret it as prompt
   injection and refuse to follow it. The structured prefix and pre-loaded
   hook context approach was adopted as the replacement.
+
+**Scenario check:**
+- Empty-scenario fallback for unregistered packages — rejected in stage 009
+  in favor of namespace auto-loading, so the real author-supplied scenarios
+  are always used rather than silently returning empty data.

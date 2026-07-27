@@ -44,6 +44,16 @@ askfirst_build_scenario_check_message <- function(scenarios) {
   paste0(header, "\n\nKnown situations where this applies for {pkg}:\n", bullets)
 }
 
+#' Try to load a package namespace, returning TRUE/FALSE (never errors)
+#' @keywords internal
+#' @noRd
+askfirst_try_load_namespace <- function(pkg) {
+  tryCatch(
+    requireNamespace(pkg, quietly = TRUE),
+    error = function(e) FALSE
+  )
+}
+
 #' Check whether a task matches a known "capability gap" scenario for a package
 #'
 #' Call this at any point in a session -- it doesn't need to be tied to any
@@ -62,8 +72,10 @@ askfirst_build_scenario_check_message <- function(scenarios) {
 #' being a self-check the calling agent has to remember to perform, rather
 #' than something the package can force.
 #'
-#' @param pkg The name of a package that has already called
-#'   [askfirst_init()] in this session (a single string).
+#' @param pkg The name of a package that adopts askfirst (a single string).
+#'   If the package has not yet called [askfirst_init()] in this session, its
+#'   namespace is loaded automatically to trigger the init call from the
+#'   package's `.onLoad()`.
 #' @return Invisibly, the character vector of scenarios registered for
 #'   `pkg` via [askfirst_init()]'s `scenarios` argument (possibly empty).
 #'   At `"high"`/`"medium"` session confidence, also signals a non-fatal
@@ -86,10 +98,17 @@ askfirst_check_scenarios <- function(pkg) {
 
   info <- .askfirst_state$packages[[pkg]]
   if (is.null(info)) {
-    stop(
-      sprintf("'%s' has not called askfirst_init() in this session.", pkg),
-      call. = FALSE
-    )
+    askfirst_try_load_namespace(pkg)
+    info <- .askfirst_state$packages[[pkg]]
+    if (is.null(info)) {
+      stop(
+        sprintf(
+          "'%s' does not appear to adopt askfirst (no askfirst_init() call found after loading its namespace).",
+          pkg
+        ),
+        call. = FALSE
+      )
+    }
   }
   scenarios <- info$scenarios
 

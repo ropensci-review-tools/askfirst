@@ -1,0 +1,12 @@
+{
+  "agents": ["claude"],
+  "created": "2026-07-27T14:12:50Z",
+  "last_updated": "2026-07-27T14:12:50Z",
+  "sessions": 1,
+  "input_tokens": 84238,
+  "output_tokens": 47854,
+  "user_word_count": 113,
+  "lines_added": 354,
+  "lines_deleted": 148,
+  "files_changed": 0
+}
