@@ -1,13 +1,13 @@
 # Copies the repo-root agent-detect-spec/vendor/ files (the single source
-# of truth) into r/inst/agent-detect-spec/, so the pkghooks R package is
+# of truth) into bindings/r/inst/agent-detect-spec/, so the pkghooks R package is
 # self-contained and installable independently of this monorepo. Re-run
 # after agent-detect-spec/vendor/ changes (e.g. after the
 # sync-agent-detect-spec.yml Action updates it).
 #
-# Run from the repository root: Rscript r/data-raw/sync-vendor.R
+# Run from the repository root: Rscript bindings/r/data-raw/sync-vendor.R
 
 src_dir <- file.path("agent-detect-spec", "vendor")
-dest_dir <- file.path("r", "inst", "agent-detect-spec")
+dest_dir <- file.path("bindings", "r", "inst", "agent-detect-spec")
 
 stopifnot(
   "run this script from the repository root (src_dir not found)" =

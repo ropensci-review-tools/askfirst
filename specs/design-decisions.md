@@ -7,7 +7,7 @@ git_hash: 565f3fc188f446727f16a7cf72c7b1c082d16c94
 # Design Decisions: pkghooks
 
 ## Current Architecture
-`pkghooks` is an R package (rooted at `r/` in this monorepo) that lets R
+`pkghooks` is an R package (rooted at `bindings/r/` in this monorepo) that lets R
 package maintainers detect when their functions are being called from an
 LLM/AI coding agent rather than a human, and issue a message that
 redirects the agent to tell the human user to contact the maintainer
@@ -22,7 +22,7 @@ actual `pkghooks` R package: `pkghooks_init()` (session-cached detection,
 load-time notice, error-time wrapping) and `flag_capability_gap()`
 (capability-gap-time), backed by a `testthat` suite and a clean
 `R CMD check`, with a synced copy of the vendored data at
-`r/inst/agent-detect-spec/`.
+`bindings/r/inst/agent-detect-spec/`.
 
 ## Key Decisions
 
@@ -49,17 +49,17 @@ rejected); designing an independent `pkghooks`-specific detection schema
 (reversed mid-stage 002 in favor of direct vendoring).
 **Stages:** 001, 002, 003
 
-### R packaging: vendored data duplicated into r/inst/, synced automatically
-**Outcome:** `r/inst/agent-detect-spec/` holds a committed, byte-identical
+### R packaging: vendored data duplicated into bindings/r/inst/, synced automatically
+**Outcome:** `bindings/r/inst/agent-detect-spec/` holds a committed, byte-identical
 copy of root `agent-detect-spec/vendor/`, kept in sync by extending the
 same GitHub Action plus a CI drift-check script.
 **Rationale:** R packages must carry their own runtime data under `inst/`
 to be installable independently of this monorepo (CRAN, a release tarball,
-or a standalone checkout of `r/`); the repo-root location alone can't serve
+or a standalone checkout of `bindings/r/`); the repo-root location alone can't serve
 that purpose once the package is distributed on its own.
 **Roads not taken:** Reading the repo-root path directly at runtime
 (breaks once the package is installed outside this exact monorepo
-checkout); collapsing to a single `r/inst/`-only location (would lose the
+checkout); collapsing to a single `bindings/r/inst/`-only location (would lose the
 language-agnostic, R-independent home for the data that future non-R
 implementations are meant to consume).
 **Stages:** 003
@@ -194,8 +194,8 @@ post-retrospective, once the confidence-tiering and intervention-point
 models — shipped initially as standalone files alongside the vendored
 data — were recognized as unenforced design prose rather than a real
 contract, and folded back into the stage's own design documents. Stage 003
-built the actual `pkghooks` R package at `r/`, consuming
-`agent-detect-spec/manifest.json` (via a synced copy at `r/inst/`) for
+built the actual `pkghooks` R package at `bindings/r/`, consuming
+`agent-detect-spec/manifest.json` (via a synced copy at `bindings/r/inst/`) for
 detection data and stage 002's `design.md`/`design-decisions.md` for the
 confidence and messaging reasoning. Implementation surfaced one real
 correction to the plan: `globalCallingHandlers()`, the originally-planned
@@ -253,6 +253,6 @@ extension points, and no non-R implementation exists yet.
   repo actually reads or enforces them; folded back into `specs/`'s design
   documents instead.
 - Reading `agent-detect-spec/vendor/` directly from R at its repo-root
-  location, rather than vendoring a copy into `r/inst/` — would break once
+  location, rather than vendoring a copy into `bindings/r/inst/` — would break once
   the R package is installed or distributed independently of this
   monorepo.

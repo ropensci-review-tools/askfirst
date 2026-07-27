@@ -3,12 +3,12 @@ name: R CMD check
 on:
   push:
     paths:
-      - "r/**"
+      - "bindings/r/**"
       - "agent-detect-spec/**"
       - ".github/workflows/r-cmd-check.yml"
   pull_request:
     paths:
-      - "r/**"
+      - "bindings/r/**"
       - "agent-detect-spec/**"
       - ".github/workflows/r-cmd-check.yml"
 
@@ -25,8 +25,8 @@ jobs:
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
 
-      - name: Check r/inst/agent-detect-spec/ is in sync with agent-detect-spec/vendor/
-        run: Rscript r/data-raw/check-vendor-sync.R
+      - name: Check bindings/r/inst/agent-detect-spec/ is in sync with agent-detect-spec/vendor/
+        run: Rscript bindings/r/data-raw/check-vendor-sync.R
 
   r-cmd-check:
     runs-on: ubuntu-latest

@@ -7,7 +7,7 @@ git_hash: 565f3fc188f446727f16a7cf72c7b1c082d16c94
 # Design Decisions: implement-r-package
 
 ## Summary
-This stage built the `pkghooks` R package itself at `r/`, turning stages
+This stage built the `pkghooks` R package itself at `bindings/r/`, turning stages
 001–002's research and design output into working code: session-level
 LLM-caller detection, confidence tiering, and all three intervention
 points (load-time, error-time, capability-gap-time), backed by 33 passing
@@ -15,19 +15,19 @@ points (load-time, error-time, capability-gap-time), backed by 33 passing
 
 ## New Design Decisions
 
-### Decision 1: Vendor a synced copy of the detection data into r/inst/
+### Decision 1: Vendor a synced copy of the detection data into bindings/r/inst/
 **Chosen:** Root `agent-detect-spec/vendor/` remains the source of truth;
-`r/inst/agent-detect-spec/` holds a committed, byte-identical copy, kept
+`bindings/r/inst/agent-detect-spec/` holds a committed, byte-identical copy, kept
 current by extending the existing `sync-agent-detect-spec.yml` Action (it
 now updates both locations in one PR) plus a standalone drift-check script
-(`r/data-raw/check-vendor-sync.R`) wired into CI.
+(`bindings/r/data-raw/check-vendor-sync.R`) wired into CI.
 **Rationale:** Makes the R package installable independently of this
-monorepo (CRAN, a release tarball, or a checkout of `r/` alone), which the
+monorepo (CRAN, a release tarball, or a checkout of `bindings/r/` alone), which the
 detection data being scattered at the repo root would otherwise prevent.
 **Tradeoffs:** Two copies of the same data exist; mitigated by automation
 (sync Action + CI drift check) rather than manual discipline.
 **Relates to:** Directly implements stage 002's vendoring decision; the
-R-specific packaging concern (`r/inst/` vs. repo-root `agent-detect-spec/`)
+R-specific packaging concern (`bindings/r/inst/` vs. repo-root `agent-detect-spec/`)
 was this stage's own contribution.
 
 ### Decision 2: Global detection cache with explicit per-package attribution

@@ -80,5 +80,5 @@ when `my_function()` is called, under that tool.
       test runner or an agent tool's own error-catching wrapper) — confirm
       the redirect notice does **not** appear in this case. This is a
       known, accepted limitation of the `options(error = ...)` mechanism
-      (see `r/R/init.R`'s documentation of `pkghooks_install_error_handler()`),
+      (see `bindings/r/R/init.R`'s documentation of `pkghooks_install_error_handler()`),
       not something to try to "fix" here.

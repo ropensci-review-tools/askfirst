@@ -60,9 +60,9 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         uses: r-lib/actions/setup-r@v2
 
-      - name: Re-sync r/inst/agent-detect-spec/ from the updated vendor copy
+      - name: Re-sync bindings/r/inst/agent-detect-spec/ from the updated vendor copy
         if: steps.diff.outputs.changed == 'true'
-        run: Rscript r/data-raw/sync-vendor.R
+        run: Rscript bindings/r/data-raw/sync-vendor.R
 
       - name: Open pull request with updated vendor data
         if: steps.diff.outputs.changed == 'true'
@@ -76,12 +76,12 @@ jobs:
             `agent-detect-spec/vendor/` before merging — this vendored file is
             consumed as-is, so any new or changed entries take effect for every
             consumer of `agent-detect-spec` immediately upon merge. The `pkghooks`
-            R package's own copy under `r/inst/agent-detect-spec/` is updated in
+            R package's own copy under `bindings/r/inst/agent-detect-spec/` is updated in
             this same PR so the two never drift apart.
           branch: sync/agent-detect-spec-vendor-data
           add-paths: |
             agent-detect-spec/vendor/agents.json
             agent-detect-spec/vendor/agents.schema.json
             agent-detect-spec/manifest.json
-            r/inst/agent-detect-spec/agents.json
-            r/inst/agent-detect-spec/agents.schema.json
+            bindings/r/inst/agent-detect-spec/agents.json
+            bindings/r/inst/agent-detect-spec/agents.schema.json

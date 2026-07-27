@@ -8,7 +8,7 @@ git_hash: 8c5581344b39993671a30d0242b18083a81cda61
 
 ## Overview
 Build the `pkghooks` R package itself, as a proper R package rooted at
-`r/` in this monorepo (not at the repo root), so the repo can host
+`bindings/r/` in this monorepo (not at the repo root), so the repo can host
 `agent-detect-spec/`, `specs/`, and future non-R implementations as
 siblings of the R package rather than entangled with it. This stage turns
 stages 001–002's design output into real code: session-level LLM-caller
@@ -63,15 +63,15 @@ Relevant decisions carried forward:
   Goals below.
 
 ## Design Goals
-- Scaffold a standard R package named `pkghooks` at `r/` (`DESCRIPTION`,
+- Scaffold a standard R package named `pkghooks` at `bindings/r/` (`DESCRIPTION`,
   `NAMESPACE` via `roxygen2`, `R/`, `man/`, `tests/testthat/`, `inst/`),
   independent of the repo root so future non-R implementations can be
   added as siblings without restructuring this one.
 - Vendor `agent-detect-spec/vendor/agents.json` and `agents.schema.json`
-  into `r/inst/agent-detect-spec/` as byte-identical copies, so the R
+  into `bindings/r/inst/agent-detect-spec/` as byte-identical copies, so the R
   package is self-contained and installable independently of this
   monorepo (e.g. from CRAN or a release tarball, or from a checkout of
-  `r/` alone). Root `agent-detect-spec/vendor/` remains the single source
+  `bindings/r/` alone). Root `agent-detect-spec/vendor/` remains the single source
   of truth; a script/CI check keeps the two copies identical, and the
   existing `sync-agent-detect-spec.yml` Action is extended (or paired with
   a second step) to update both locations together rather than letting
@@ -134,19 +134,19 @@ Relevant decisions carried forward:
   extension points, not v1 requirements, per stages 001–002.
 
 ## Proposed Approach
-- **Location**: all package files live under `r/` (e.g. `r/DESCRIPTION`,
-  `r/R/`, `r/man/`, `r/tests/testthat/`, `r/inst/`) rather than at the
+- **Location**: all package files live under `bindings/r/` (e.g. `bindings/r/DESCRIPTION`,
+  `bindings/r/R/`, `bindings/r/man/`, `bindings/r/tests/testthat/`, `bindings/r/inst/`) rather than at the
   repo root, so `agent-detect-spec/` and `specs/` remain siblings rather
   than nested inside the R package.
-- **Vendoring**: a small script (e.g. `r/data-raw/sync-vendor.R` or a
+- **Vendoring**: a small script (e.g. `bindings/r/data-raw/sync-vendor.R` or a
   Makefile target) copies the root `agent-detect-spec/vendor/` files into
-  `r/inst/agent-detect-spec/`. The existing
+  `bindings/r/inst/agent-detect-spec/`. The existing
   `.github/workflows/sync-agent-detect-spec.yml` is extended directly
   (not replaced or paired with a second Action) so the same PR that
-  updates the root vendored copy also updates `r/inst/agent-detect-spec/`
+  updates the root vendored copy also updates `bindings/r/inst/agent-detect-spec/`
   in one commit, keeping the two locations from silently diverging.
 - **Detection**: an internal (non-exported) R function parses
-  `r/inst/agent-detect-spec/agents.json` via `jsonlite`, walks the
+  `bindings/r/inst/agent-detect-spec/agents.json` via `jsonlite`, walks the
   `match` condition tree per entry, and returns the first matching tool
   (or none) — mirroring `vercel/detect-agent`'s own "first-match-wins"
   evaluation semantics exactly, since the vendored data assumes that

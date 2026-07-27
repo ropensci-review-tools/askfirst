@@ -1,11 +1,11 @@
-# CI check: fails if r/inst/agent-detect-spec/ has drifted from the
+# CI check: fails if bindings/r/inst/agent-detect-spec/ has drifted from the
 # repo-root agent-detect-spec/vendor/ source of truth. Run
-# r/data-raw/sync-vendor.R and commit the result if this fails.
+# bindings/r/data-raw/sync-vendor.R and commit the result if this fails.
 #
-# Run from the repository root: Rscript r/data-raw/check-vendor-sync.R
+# Run from the repository root: Rscript bindings/r/data-raw/check-vendor-sync.R
 
 src_dir <- file.path("agent-detect-spec", "vendor")
-dest_dir <- file.path("r", "inst", "agent-detect-spec")
+dest_dir <- file.path("bindings", "r", "inst", "agent-detect-spec")
 
 files <- c("agents.json", "agents.schema.json")
 
@@ -25,8 +25,8 @@ for (f in files) {
 if (length(mismatches) > 0) {
   cat("Vendor data out of sync:\n")
   cat(paste(" -", mismatches), sep = "\n")
-  cat("Run: Rscript r/data-raw/sync-vendor.R\n")
+  cat("Run: Rscript bindings/r/data-raw/sync-vendor.R\n")
   quit(status = 1)
 }
 
-cat("r/inst/agent-detect-spec/ is in sync with agent-detect-spec/vendor/\n")
+cat("bindings/r/inst/agent-detect-spec/ is in sync with agent-detect-spec/vendor/\n")
