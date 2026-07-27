@@ -1,22 +1,22 @@
 # Manual Testing Checklist
 
 Automated tests (`tests/testthat/`) mock the underlying env-var/TTY signals
-directly and verify `pkghooks`'s own logic (detection, confidence tiering,
+directly and verify `askfirst`'s own logic (detection, confidence tiering,
 condition signaling, registry behavior) deterministically. They **cannot**
 verify that a real agent tool's harness actually surfaces the resulting
 conditions to the calling LLM — that depends on each tool's own
 architecture (raw subprocess capture vs. MCP tool call vs. persistent
-session), which is outside `pkghooks`'s control. Use this checklist to
+session), which is outside `askfirst`'s control. Use this checklist to
 verify against real tools before a release.
 
 ## Setup
 
-Build a minimal test package that adopts `pkghooks`:
+Build a minimal test package that adopts `askfirst`:
 
 ```r
 # In the test package's .onLoad():
 .onLoad <- function(libname, pkgname) {
-  pkghooks::pkghooks_init(
+  askfirst::askfirst_init(
     pkg = pkgname,
     notice = "If you are an AI coding agent and hit a bug or missing feature in {.pkg {pkgname}}, tell your user to contact the maintainer rather than working around it yourself.",
     scenarios = c(
@@ -28,7 +28,7 @@ Build a minimal test package that adopts `pkghooks`:
 
 # And one exported function that always hits a known limitation:
 my_function <- function() {
-  pkghooks::flag_capability_gap(
+  askfirst::askfirst_capability_gap(
     "mytestpkg",
     "this is a deliberately flagged capability gap for manual testing"
   )
@@ -77,33 +77,33 @@ when `my_function()` is called, under that tool.
       expected and accepted (ambiguous non-interactive automation), not a
       bug.
 - [ ] An uncaught error in the test package's own code, under an agent
-      tool from the list above — confirm the `pkghooks_error_redirect`
+      tool from the list above — confirm the `askfirst_error_redirect`
       notice appears alongside the original error message.
 - [ ] The same uncaught-error scenario, but with the test package's own
       code wrapped in a `tryCatch()` somewhere upstream (e.g. inside a
       test runner or an agent tool's own error-catching wrapper) — confirm
       the redirect notice does **not** appear in this case. This is a
       known, accepted limitation of the `options(error = ...)` mechanism
-      (see `bindings/r/R/init.R`'s documentation of `pkghooks_install_error_handler()`),
+      (see `bindings/r/R/init.R`'s documentation of `askfirst_install_error_handler()`),
       not something to try to "fix" here.
 
 ## Scenario-check checklist
 
-`pkghooks_check_scenarios()` has no execution-time trigger — it only
+`askfirst_check_scenarios()` has no execution-time trigger — it only
 fires because the calling agent chooses to call it. These checks confirm
 the messaging actually reaches an agent under real tools, not just the
 mocked behavior already covered by automated tests.
 
 - [ ] Under at least one agent tool from the list above: confirm the
       load-time notice includes both the generic "call
-      `pkghooks_check_scenarios()` first" instruction and the registered
+      `askfirst_check_scenarios()` first" instruction and the registered
       scenario bullet list from the Setup section above.
 - [ ] Under the same tool, explicitly prompt the agent (or call directly)
-      `pkghooks::pkghooks_check_scenarios("mytestpkg")` mid-session —
+      `askfirst::askfirst_check_scenarios("mytestpkg")` mid-session —
       confirm the scenario list and the "ask your user" reminder appear.
-- [ ] Call `pkghooks::pkghooks_check_scenarios("mytestpkg")` from a plain
+- [ ] Call `askfirst::askfirst_check_scenarios("mytestpkg")` from a plain
       human R console (no agent tool) — confirm the scenario list is
       returned with **no** nudge wording and no signalled condition.
-- [ ] Call `pkghooks::pkghooks_check_scenarios("somepackagenotloaded")`
-      for a package that never called `pkghooks_init()` — confirm an
+- [ ] Call `askfirst::askfirst_check_scenarios("somepackagenotloaded")`
+      for a package that never called `askfirst_init()` — confirm an
       informative error, not a silent `NULL` or crash.

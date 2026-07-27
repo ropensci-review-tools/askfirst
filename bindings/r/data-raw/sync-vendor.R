@@ -1,5 +1,5 @@
 # Copies the repo-root agent-detect-spec/vendor/ files (the single source
-# of truth) into bindings/r/inst/agent-detect-spec/, so the pkghooks R package is
+# of truth) into bindings/r/inst/agent-detect-spec/, so the askfirst R package is
 # self-contained and installable independently of this monorepo. Re-run
 # after agent-detect-spec/vendor/ changes (e.g. after the
 # sync-agent-detect-spec.yml Action updates it).

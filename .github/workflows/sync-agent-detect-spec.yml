@@ -75,7 +75,7 @@ jobs:
             `agents.schema.json`. Review the diff in
             `agent-detect-spec/vendor/` before merging — this vendored file is
             consumed as-is, so any new or changed entries take effect for every
-            consumer of `agent-detect-spec` immediately upon merge. The `pkghooks`
+            consumer of `agent-detect-spec` immediately upon merge. The `askfirst`
             R package's own copy under `bindings/r/inst/agent-detect-spec/` is updated in
             this same PR so the two never drift apart.
           branch: sync/agent-detect-spec-vendor-data

@@ -5,7 +5,7 @@
 #' @return `TRUE`/`FALSE`.
 #' @keywords internal
 #' @noRd
-pkghooks_eval_condition <- function(cond) {
+askfirst_eval_condition <- function(cond) {
   switch(
     cond$type,
     env_set = nzchar(Sys.getenv(cond$name, unset = "")),
@@ -16,24 +16,24 @@ pkghooks_eval_condition <- function(cond) {
     },
     file_exists = file.exists(cond$path),
     no_tty = !isatty(stdin()) || !isatty(stdout()),
-    anyOf = any(vapply(cond$conditions, pkghooks_eval_condition, logical(1))),
-    allOf = all(vapply(cond$conditions, pkghooks_eval_condition, logical(1))),
-    stop("pkghooks: unknown condition type in agents.json: ", cond$type, call. = FALSE)
+    anyOf = any(vapply(cond$conditions, askfirst_eval_condition, logical(1))),
+    allOf = all(vapply(cond$conditions, askfirst_eval_condition, logical(1))),
+    stop("askfirst: unknown condition type in agents.json: ", cond$type, call. = FALSE)
   )
 }
 
 #' Path to the vendored agent-detect-spec agents.json
 #' @keywords internal
 #' @noRd
-pkghooks_agents_path <- function() {
-  system.file("agent-detect-spec", "agents.json", package = "pkghooks")
+askfirst_agents_path <- function() {
+  system.file("agent-detect-spec", "agents.json", package = "askfirst")
 }
 
 #' Load and parse the vendored agents.json
 #' @keywords internal
 #' @noRd
-pkghooks_load_agents <- function() {
-  path <- pkghooks_agents_path()
+askfirst_load_agents <- function() {
+  path <- askfirst_agents_path()
   jsonlite::fromJSON(path, simplifyVector = FALSE)
 }
 
@@ -47,10 +47,10 @@ pkghooks_load_agents <- function() {
 #'   or `NULL` if none match.
 #' @keywords internal
 #' @noRd
-pkghooks_detect_tool <- function() {
-  spec <- pkghooks_load_agents()
+askfirst_detect_tool <- function() {
+  spec <- askfirst_load_agents()
   for (agent in spec$agents) {
-    if (isTRUE(pkghooks_eval_condition(agent$match))) {
+    if (isTRUE(askfirst_eval_condition(agent$match))) {
       return(list(key = agent$key, name = agent$name))
     }
   }

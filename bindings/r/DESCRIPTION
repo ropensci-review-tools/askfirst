@@ -1,4 +1,4 @@
-Package: pkghooks
+Package: askfirst
 Title: Detect and Redirect LLM/AI-Agent Callers
 Version: 0.0.0.9000
 Authors@R:

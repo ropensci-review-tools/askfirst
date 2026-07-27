@@ -16,7 +16,7 @@ collect_env_var_names <- function(cond) {
 }
 
 all_known_signal_env_vars <- function() {
-  spec <- pkghooks:::pkghooks_load_agents()
+  spec <- askfirst:::askfirst_load_agents()
   vars <- unlist(lapply(spec$agents, function(agent) collect_env_var_names(agent$match)))
   unique(c(vars, spec$aiAgentVar))
 }

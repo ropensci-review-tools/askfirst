@@ -10,14 +10,14 @@
 #'
 #' A no-op for human/low-confidence sessions (per the "no false positives
 #' for humans" constraint). For `"high"`/`"medium"` confidence sessions,
-#' halts execution with a `pkghooks_capability_gap` condition attributed to
+#' halts execution with a `askfirst_capability_gap` condition attributed to
 #' `pkg`, since — unlike the load-time notice or error-time redirect —
 #' halting is the deliberate intent here.
 #'
 #' @param pkg The name of the calling package (a single string). Passed
 #'   explicitly, not auto-detected, so the emitted condition is
 #'   attributable to a specific package even when several packages have
-#'   adopted `pkghooks` in the same session.
+#'   adopted `askfirst` in the same session.
 #' @param message Message text describing the capability gap, using
 #'   cli/glue-style `{}` interpolation.
 #' @return Invisibly, `NULL`, for human/low-confidence sessions. Does not
@@ -28,7 +28,7 @@
 #' # branch:
 #' my_function <- function(x, grouped = FALSE) {
 #'   if (grouped) {
-#'     pkghooks::flag_capability_gap(
+#'     askfirst::askfirst_capability_gap(
 #'       "mypackage",
 #'       "grouped input is not yet supported; falls back to ungrouped behavior"
 #'     )
@@ -37,20 +37,20 @@
 #' }
 #' }
 #' @export
-flag_capability_gap <- function(pkg, message) {
+askfirst_capability_gap <- function(pkg, message) {
   stopifnot(
     "pkg must be a single string" = is.character(pkg) && length(pkg) == 1,
     "message must be a single string" = is.character(message) && length(message) == 1
   )
 
-  confidence <- pkghooks_ensure_detection()
+  confidence <- askfirst_ensure_detection()
 
   if (identical(confidence, "low")) {
     return(invisible(NULL))
   }
 
-  pkghooks_signal(
-    "pkghooks_capability_gap",
+  askfirst_signal(
+    "askfirst_capability_gap",
     pkg = pkg,
     message = message,
     call_stop = TRUE,

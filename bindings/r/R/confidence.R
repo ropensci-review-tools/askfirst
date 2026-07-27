@@ -7,7 +7,7 @@
 #' code path producing it in this version — reserved for a future
 #' tool-initiated signal (e.g. a hypothetical `btw` MCP-server marker).
 #'
-#' @param tool The result of `pkghooks_detect_tool()` (a list with `key`/
+#' @param tool The result of `askfirst_detect_tool()` (a list with `key`/
 #'   `name`, or `NULL`).
 #' @param no_tty Whether stdin or stdout is not a TTY. Exposed as a
 #'   parameter (rather than always computed internally) so tests can
@@ -16,7 +16,7 @@
 #' @return A single string: one of `"high"`, `"medium"`, `"low"`.
 #' @keywords internal
 #' @noRd
-pkghooks_detect_confidence <- function(tool = pkghooks_detect_tool(),
+askfirst_detect_confidence <- function(tool = askfirst_detect_tool(),
                                         no_tty = !isatty(stdin()) || !isatty(stdout())) {
   if (!is.null(tool)) {
     return("high")

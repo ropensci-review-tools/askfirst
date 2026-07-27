@@ -18,12 +18,12 @@ symbol grep across `tests/`, not just `R/`) — `plan.md`'s survey covered
 `R/` but this helper lives in `tests/`.
 
 ## T005-1: Rename the DESCRIPTION Package field
-- [ ] T005-1: In `bindings/r/DESCRIPTION`, change `Package: pkghooks` to
+- [x] T005-1: In `bindings/r/DESCRIPTION`, change `Package: pkghooks` to
   `Package: askfirst`. Leave `Title:`/`Description:` text unchanged (they
   never literally said "pkghooks").
 
 ## T005-2: Rename all pkghooks_*-prefixed functions and the internal state object
-- [ ] T005-2: Across every file in `bindings/r/R/`, rename each of the
+- [x] T005-2: Across every file in `bindings/r/R/`, rename each of the
   following (definition sites and every call site) from `pkghooks_*`/
   `.pkghooks_state` to `askfirst_*`/`.askfirst_state`: `pkghooks_init`,
   `pkghooks_check_scenarios`, `pkghooks_signal`, `pkghooks_detect_tool`,
@@ -36,7 +36,7 @@ symbol grep across `tests/`, not just `R/`) — `plan.md`'s survey covered
   afterward with `grep -rn 'pkghooks' bindings/r/R/` returning nothing.
 
 ## T005-3: Rename flag_capability_gap() to askfirst_capability_gap()
-- [ ] T005-3: In `bindings/r/R/capability_gap.R`, rename the exported
+- [x] T005-3: In `bindings/r/R/capability_gap.R`, rename the exported
   function `flag_capability_gap` to `askfirst_capability_gap` (definition,
   roxygen `@export`/`@examples` content, and its own internal logic).
   Update every call site elsewhere in `bindings/r/R/` (there should be
@@ -45,7 +45,7 @@ symbol grep across `tests/`, not just `R/`) — `plan.md`'s survey covered
   source file names don't need to match exported function names.
 
 ## T005-4: Rename the five condition-class strings
-- [ ] T005-4: In `bindings/r/R/conditions.R`, `init.R`, and `scenarios.R`,
+- [x] T005-4: In `bindings/r/R/conditions.R`, `init.R`, and `scenarios.R`,
   rename every literal condition-class string passed to
   `askfirst_signal()` (post-T005-2 rename): `"pkghooks_condition"` →
   `"askfirst_condition"`, `"pkghooks_notice"` → `"askfirst_notice"`,
@@ -56,7 +56,7 @@ symbol grep across `tests/`, not just `R/`) — `plan.md`'s survey covered
   of these files that names the old class strings.
 
 ## T005-5: Rename the package-level doc file
-- [ ] T005-5: `git mv bindings/r/R/pkghooks-package.R
+- [x] T005-5: `git mv bindings/r/R/pkghooks-package.R
   bindings/r/R/askfirst-package.R`. Update its `"_PACKAGE"` roxygen block:
   the title line ("pkghooks: Detect and Redirect...") becomes ("askfirst:
   Detect and Redirect..."), and its references to `[pkghooks_init()]`/
@@ -64,7 +64,7 @@ symbol grep across `tests/`, not just `R/`) — `plan.md`'s survey covered
   `[askfirst_capability_gap()]`.
 
 ## T005-6: Update all test files
-- [ ] T005-6: Across `bindings/r/tests/testthat/*.R` (all 7 files:
+- [x] T005-6: Across `bindings/r/tests/testthat/*.R` (all 7 files:
   `test-detect.R`, `test-confidence.R`, `test-init.R`,
   `test-capability-gap.R`, `test-scenarios.R`,
   `helper-agents.R`, `helper-state.R`) and `bindings/r/tests/testthat.R`:
@@ -77,7 +77,7 @@ symbol grep across `tests/`, not just `R/`) — `plan.md`'s survey covered
   `grep -rn 'pkghooks' bindings/r/tests/` returning nothing.
 
 ## T005-7: Regenerate documentation and remove orphaned .Rd files
-- [ ] T005-7: Run `roxygen2::roxygenise()` from `bindings/r/` (run it
+- [x] T005-7: Run `roxygen2::roxygenise()` from `bindings/r/` (run it
   twice if the first pass warns about unresolved cross-references between
   newly-renamed topics, matching the pattern from stages 003–004). Delete
   the four now-orphaned files: `bindings/r/man/pkghooks_init.Rd`,
@@ -88,7 +88,7 @@ symbol grep across `tests/`, not just `R/`) — `plan.md`'s survey covered
   `askfirst_capability_gap`.
 
 ## T005-8: Update MANUAL_TESTING.md
-- [ ] T005-8: In `bindings/r/MANUAL_TESTING.md`, update the `.onLoad()`
+- [x] T005-8: In `bindings/r/MANUAL_TESTING.md`, update the `.onLoad()`
   example to call `askfirst::askfirst_init(...)`, the capability-gap
   example to call `askfirst::askfirst_capability_gap(...)`, and every
   mention of `pkghooks::pkghooks_check_scenarios()` to
@@ -96,14 +96,14 @@ symbol grep across `tests/`, not just `R/`) — `plan.md`'s survey covered
   to `bindings/r/R/init.R`'s internals if it names a renamed function.
 
 ## T005-9: Update CI workflow and agent-detect-spec README prose
-- [ ] T005-9: In `.github/workflows/sync-agent-detect-spec.yml`, change
+- [x] T005-9: In `.github/workflows/sync-agent-detect-spec.yml`, change
   the one prose mention ("The `pkghooks` R package's own copy...") to say
   `askfirst`. In `agent-detect-spec/README.md`, update its two prose
   mentions of `pkghooks` (the consumer description and the
   duplication-avoidance rationale) to say `askfirst`.
 
 ## T005-10: Update the root specs/design-decisions.md
-- [ ] T005-10: In `specs/design-decisions.md`, update the document title
+- [x] T005-10: In `specs/design-decisions.md`, update the document title
   and "Current Architecture" section to describe `askfirst` rather than
   `pkghooks`. In each `Key Decisions` entry, update `**Outcome:**`/
   `**Rationale:**` text that names a specific current `pkghooks_*`
@@ -116,7 +116,7 @@ symbol grep across `tests/`, not just `R/`) — `plan.md`'s survey covered
   description.
 
 ## T005-11: Verify no regressions
-- [ ] T005-11: Run `devtools::test("bindings/r")` — confirm all
+- [x] T005-11: Run `devtools::test("bindings/r")` — confirm all
   previously-passing tests (now referencing `askfirst_*` names) still
   pass with 0 failures. Run
   `rcmdcheck::rcmdcheck("bindings/r", args = c("--no-manual", "--as-cran"), error_on = "warning")`

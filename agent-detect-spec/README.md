@@ -3,7 +3,7 @@
 A vendored, automatically-synced copy of `vercel/detect-agent`'s
 language-agnostic AI-agent-caller detection data: which environment
 variables, environment values, or filesystem markers identify which AI
-coding tool is driving a calling process. `pkghooks` (the R package in
+coding tool is driving a calling process. `askfirst` (the R package in
 this repo) is the first consumer; this directory is kept independent of
 the R package's own `R/`, `man/`, `tests/` structure so the vendored data
 is unambiguously portable, not R-specific.
@@ -14,7 +14,7 @@ is unambiguously portable, not R-specific.
   unmodified copy of `vercel/detect-agent`'s detection-signal
   specification. Consumed as-is, using upstream's own schema — this repo
   does not define a parallel schema for detection signals, since
-  duplicating `agents.json` into a `pkghooks`-specific shape would just be
+  duplicating `agents.json` into an `askfirst`-specific shape would just be
   a second thing to keep in sync for no real benefit.
 - **`manifest.json`** — versioning and upstream provenance metadata (see
   below).

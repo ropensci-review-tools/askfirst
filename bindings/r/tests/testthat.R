@@ -1,4 +1,4 @@
 library(testthat)
-library(pkghooks)
+library(askfirst)
 
-test_check("pkghooks")
+test_check("askfirst")

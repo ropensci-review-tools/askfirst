@@ -1,6 +1,6 @@
-#' Signal a pkghooks condition
+#' Signal a askfirst condition
 #'
-#' Internal helper used by every `pkghooks` hook to construct and signal a
+#' Internal helper used by every `askfirst` hook to construct and signal a
 #' condition. Message text is formatted with [cli::format_inline()] (glue/cli
 #' -style `{pkg}` interpolation) *before* signalling, so the resulting
 #' condition always carries a fully-rendered `message` field. The triggering
@@ -10,22 +10,22 @@
 #'
 #' Three concrete classes are used elsewhere in this package, all built via
 #' this one helper:
-#' - `"pkghooks_notice"` — non-fatal, load-time (see [pkghooks_init()]).
-#' - `"pkghooks_error_redirect"` — non-fatal, signalled from a calling
+#' - `"askfirst_notice"` — non-fatal, load-time (see [askfirst_init()]).
+#' - `"askfirst_error_redirect"` — non-fatal, signalled from a calling
 #'   handler alongside an error already propagating from an adopting
 #'   package's own code (error-time); does not alter or replace the
 #'   original error.
-#' - `"pkghooks_capability_gap"` — halting (`call_stop = TRUE`), signalled
-#'   by [flag_capability_gap()] (capability-gap-time).
+#' - `"askfirst_capability_gap"` — halting (`call_stop = TRUE`), signalled
+#'   by [askfirst_capability_gap()] (capability-gap-time).
 #'
 #' Every signalled condition also carries the base class
-#' `"pkghooks_condition"`, so calling code (or an agent's own tooling) can
-#' catch any `pkghooks` condition generically without enumerating the three
+#' `"askfirst_condition"`, so calling code (or an agent's own tooling) can
+#' catch any `askfirst` condition generically without enumerating the three
 #' concrete classes.
 #'
 #' @param class The concrete subclass to use (a single string, one of
-#'   `"pkghooks_notice"`, `"pkghooks_error_redirect"`,
-#'   `"pkghooks_capability_gap"`).
+#'   `"askfirst_notice"`, `"askfirst_error_redirect"`,
+#'   `"askfirst_capability_gap"`).
 #' @param pkg The name of the adopting package this condition is attributed
 #'   to.
 #' @param message Message text, using cli/glue-style `{}` interpolation
@@ -35,15 +35,15 @@
 #'   otherwise via [rlang::inform()] (non-fatal, catchable/muffleable like
 #'   [base::message()]).
 #' @param .envir Environment used to evaluate `{}` interpolation in
-#'   `message`. Defaults to the caller of `pkghooks_signal()`.
+#'   `message`. Defaults to the caller of `askfirst_signal()`.
 #' @return Invisibly, `NULL` (non-fatal case); does not return in the
 #'   halting case.
 #' @keywords internal
 #' @noRd
-pkghooks_signal <- function(class, pkg, message, ..., call_stop = FALSE,
+askfirst_signal <- function(class, pkg, message, ..., call_stop = FALSE,
                              .envir = parent.frame()) {
   formatted <- cli::format_inline(message, .envir = .envir)
-  full_class <- c(class, "pkghooks_condition")
+  full_class <- c(class, "askfirst_condition")
 
   if (call_stop) {
     rlang::abort(formatted, class = full_class, pkg = pkg, ...)

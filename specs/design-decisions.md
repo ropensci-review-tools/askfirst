@@ -1,32 +1,35 @@
 ---
 created: 2026-07-25T15:08:44Z
 agent: claude-sonnet-5
-git_hash: 5a37264df26b0fa98265a841fc89c187940cb74b
+git_hash: 690e1293bd25d48a746652f6368d2321c4b6c524
 ---
 
-# Design Decisions: pkghooks
+# Design Decisions: askfirst
 
 ## Current Architecture
-`pkghooks` is an R package (rooted at `bindings/r/` in this monorepo) that lets R
+`askfirst` is an R package (rooted at `bindings/r/` in this monorepo) that lets R
 package maintainers detect when their functions are being called from an
 LLM/AI coding agent rather than a human, and issue a message that
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Four design stages are complete. Stage 001 produced
+capability. Five design stages are complete. Stage 001 produced
 research-only findings (no code). Stage 002 produced `agent-detect-spec/`,
 a vendored, upstream-synced copy of `vercel/detect-agent`'s detection data,
 plus a confidence-tiering/intervention-point design that was ultimately
 folded into stage 002's own `design.md`/`design-decisions.md` as documented
 rationale rather than shipped as standalone files. Stage 003 built the
-actual `pkghooks` R package: `pkghooks_init()` (session-cached detection,
-load-time notice, error-time wrapping) and `flag_capability_gap()`
+actual `askfirst` R package: `askfirst_init()` (session-cached detection,
+load-time notice, error-time wrapping) and `askfirst_capability_gap()`
 (capability-gap-time), backed by a `testthat` suite and a clean
 `R CMD check`, with a synced copy of the vendored data at
 `bindings/r/inst/agent-detect-spec/`. Stage 004 added
-`pkghooks_check_scenarios()`, an *agent-invoked* mechanism (the LLM calls
-it on its own initiative, rather than `pkghooks` triggering it) for gaps
+`askfirst_check_scenarios()`, an *agent-invoked* mechanism (the LLM calls
+it on its own initiative, rather than `askfirst` triggering it) for gaps
 the author hasn't anticipated well enough to instrument via
-`flag_capability_gap()`.
+`askfirst_capability_gap()`. Stage 005 renamed the project from
+`pkghooks` to `askfirst` throughout the repo's current contents (package,
+functions, condition classes, docs, CI) — the R package itself is
+otherwise unchanged by that stage.
 
 ## Key Decisions
 
@@ -34,7 +37,7 @@ the author hasn't anticipated well enough to instrument via
 **Outcome:** `agent-detect-spec/vendor/agents.json` and
 `agents.schema.json` are unmodified copies of `vercel/detect-agent`'s
 files, consumed as-is via a weekly, PR-gated GitHub Action sync. No
-`pkghooks`-specific detection schema or data file exists.
+`askfirst`-specific detection schema or data file exists.
 **Rationale:** Stage 001 found direct prior art outside R
 (`vercel/detect-agent`, `unjs/std-env`) implementing the same
 env-var/process detection pattern. Stage 002 initially planned to model a
@@ -49,7 +52,7 @@ human- and agent-driven calls, no usable signal); `commandArgs()` alone
 agent driving a persistent interactive session via piped input);
 cooperative-only detection via the `btw` package (would require an
 upstream change and only covers `btw`-mediated sessions — deferred, not
-rejected); designing an independent `pkghooks`-specific detection schema
+rejected); designing an independent `askfirst`-specific detection schema
 (reversed mid-stage 002 in favor of direct vendoring).
 **Stages:** 001, 002, 003
 
@@ -76,7 +79,7 @@ reserved for a future tool-initiated signal, currently unused. Documented
 in `specs/002-design-agnostic-spec/design.md` (T002-4) and
 `design-decisions.md`, not as a standalone file in `agent-detect-spec/`.
 **Rationale:** Vendored detection data carries no confidence concept of
-its own; this layer is `pkghooks`'s own contribution on top of it. A
+its own; this layer is `askfirst`'s own contribution on top of it. A
 closed enum is simpler for every consuming implementation to reason about,
 and extending it later is additive rather than breaking. Originally
 shipped as `agent-detect-spec/confidence-model.md`; moved to the stage's
@@ -90,18 +93,18 @@ below).
 **Stages:** 001, 002, 003
 
 ### Attribution: global detection cache, explicit per-package naming in every hook
-**Outcome:** `pkghooks_init()` computes the session's confidence/detection
+**Outcome:** `askfirst_init()` computes the session's confidence/detection
 result once, cached and shared across every adopting package. Every hook
 (the load-time notice, `on_error` wrapping, and
-`flag_capability_gap(pkg, message)`) explicitly takes a `pkg` argument,
+`askfirst_capability_gap(pkg, message)`) explicitly takes a `pkg` argument,
 attached as a real field on the signalled condition — not just interpolated
 into message text.
 **Rationale:** Avoids redundant re-detection while still producing
-attributable messages when multiple packages have adopted `pkghooks` in
+attributable messages when multiple packages have adopted `askfirst` in
 one session.
 **Roads not taken:** Auto-detecting the calling package via call-stack
 introspection instead of requiring an explicit `pkg` argument — rejected in
-favor of explicitness; `flag_capability_gap()`'s stage-001 sketch (no `pkg`
+favor of explicitness; `askfirst_capability_gap()`'s stage-001 sketch (no `pkg`
 argument) was revised accordingly.
 **Stages:** 003, 004
 
@@ -140,20 +143,20 @@ secondary, structured channel); keeping it as a standalone file under
 **Stages:** 001, 002, 003
 
 ### Scenario-check: a fourth, agent-invoked intervention point
-**Outcome:** `pkghooks_check_scenarios(pkg)`, a new exported function, is
+**Outcome:** `askfirst_check_scenarios(pkg)`, a new exported function, is
 called by the LLM itself at any point in a session — not triggered by
-`pkghooks` detecting anything. It signals a non-fatal
-`pkghooks_scenario_check` condition (at `"high"`/`"medium"` confidence)
+`askfirst` detecting anything. It signals a non-fatal
+`askfirst_scenario_check` condition (at `"high"`/`"medium"` confidence)
 carrying author-supplied "plausible extension scenario" descriptions
-(registered via a new `pkghooks_init(..., scenarios = ...)` parameter)
+(registered via a new `askfirst_init(..., scenarios = ...)` parameter)
 plus a reminder to ask the human before implementing a workaround. At
 `"low"` confidence it returns the scenario list plainly, with no nudge.
 The existing load-time notice always folds in a generic instruction to
 call this function, regardless of whether any scenarios were registered.
 **Rationale:** Targets capability gaps the author hasn't anticipated well
-enough to instrument inline via `flag_capability_gap()` — cases where the
+enough to instrument inline via `askfirst_capability_gap()` — cases where the
 LLM writes new code entirely outside the package to achieve a result, with
-nothing ever erroring and no execution-time event `pkghooks` could hook
+nothing ever erroring and no execution-time event `askfirst` could hook
 into. Mechanical detection of this (monkey-patching/namespace-manipulation
 calls) was investigated and rejected as both rare and, in the common
 case, invisible to the package at runtime. With no mechanical trigger
@@ -169,7 +172,7 @@ of this check.
 **Stages:** 004
 
 ### Error-time mechanism: options(error = ...), not globalCallingHandlers()
-**Outcome:** `pkghooks_init(..., on_error = TRUE)` installs error-time
+**Outcome:** `askfirst_init(..., on_error = TRUE)` installs error-time
 wrapping via `options(error = ...)` (preserving and chaining to any
 pre-existing value), not `globalCallingHandlers()`.
 **Rationale:** Discovered via an actual `R CMD INSTALL` failure:
@@ -186,7 +189,7 @@ up-front reasoning.
 **Stages:** 003
 
 ### Scope: R-only package, vendored data kept separate, design rationale kept in specs/
-**Outcome:** `pkghooks` ships and is branded as an R-only package.
+**Outcome:** `askfirst` ships and is branded as an R-only package.
 `agent-detect-spec/` holds only the vendored, machine-read detection data
 (`vendor/agents.json`) plus its manifest and sync tooling — independent of
 the R package's own `R/`, `man/`, `tests/` structure. The confidence and
@@ -206,7 +209,7 @@ the project's own design record instead, to be consulted rather than
 enforced.
 **Roads not taken:** A fully language-agnostic multi-language project in
 this stage — still explicitly out of scope; the recommendation is a
-structuring choice for `pkghooks`'s internals, not a commitment to
+structuring choice for `askfirst`'s internals, not a commitment to
 building beyond R now. A standalone repo for `agent-detect-spec/` from day
 one — deferred until a second, genuinely independent language
 implementation actually exists. Treating the confidence/intervention
@@ -214,6 +217,25 @@ models as part of that same portable-directory contract — reversed
 post-retrospective, once it was recognized they lacked any enforcement
 mechanism `vendor/agents.json` actually has.
 **Stages:** 001, 002, 003
+
+### Naming: askfirst, accepting an npm conflict
+**Outcome:** The project, R package, and every `pkghooks_*`-prefixed
+symbol were renamed to `askfirst`/`askfirst_*`. Historical stage documents
+(`specs/001-004`) keep referring to `pkghooks`, unchanged; only the root
+`specs/design-decisions.md` (continuously revised "Current Architecture")
+and the R package's own current-state content were updated.
+**Rationale:** `askahuman` (the initially obvious choice) was ruled out
+due to an existing, unrelated `github.com/askahuman` project. `askfirst`
+was confirmed unclaimed on GitHub/CRAN/PyPI but already taken on npm;
+proceeding anyway was a deliberate choice, since npm has heavy
+name-squatting for short, generic-sounding words and a scoped/suffixed
+variant is normal practice once a JS binding actually exists.
+**Roads not taken:** Searching further for a name simultaneously
+available across every registry — rejected as a much harder bar to clear
+than the actual near-term need; also renaming the external GitHub
+repository and local working directory in the same stage — deferred to
+the user as a separate, later step.
+**Stages:** 005
 
 ## Architectural Evolution
 Stage 001 established the project's foundational research: what signals
@@ -227,14 +249,14 @@ post-retrospective, once the confidence-tiering and intervention-point
 models — shipped initially as standalone files alongside the vendored
 data — were recognized as unenforced design prose rather than a real
 contract, and folded back into the stage's own design documents. Stage 003
-built the actual `pkghooks` R package at `bindings/r/`, consuming
+built the actual `askfirst` R package at `bindings/r/`, consuming
 `agent-detect-spec/manifest.json` (via a synced copy at `bindings/r/inst/`) for
 detection data and stage 002's `design.md`/`design-decisions.md` for the
 confidence and messaging reasoning. Implementation surfaced one real
 correction to the plan: `globalCallingHandlers()`, the originally-planned
 error-time mechanism, turned out to be unusable from a package's own load
 hooks, and was replaced with `options(error = ...)` — a discovery made by
-testing against a real package install, not by up-front design review. Stage 004 added a fourth intervention point, `pkghooks_check_scenarios()`,
+testing against a real package install, not by up-front design review. Stage 004 added a fourth intervention point, `askfirst_check_scenarios()`,
 conceptually different from the first three: it is *agent-invoked* rather
 than *system-triggered*, since investigation this stage confirmed there is
 no reliable execution-time signal for "the LLM is about to write code that
@@ -244,7 +266,11 @@ implementation covering four intervention points across two trigger
 categories; process-ancestry corroboration, the `cooperative` confidence
 tier, `btw` integration, and formalizing the agent-invoked category in
 stage 002's language-neutral model remain deliberately unbuilt/undecided
-extension points, and no non-R implementation exists yet.
+extension points, and no non-R implementation exists yet. Stage 005
+renamed the project to `askfirst`, confirming — by touching every file in
+`bindings/r/` at once — that the package structure established across
+stages 003–004 tolerates a full rename cleanly (53 tests and a clean
+`R CMD check` both still pass unchanged in substance, only in name).
 
 ## Important Roads Not Taken
 **Detection:**
@@ -255,7 +281,7 @@ extension points, and no non-R implementation exists yet.
 - TTY attachment or `commandArgs()` as standalone detectors — both
   false-positive on ordinary non-interactive human automation (CI,
   scripted runs).
-- An independent, `pkghooks`-specific detection schema — designed
+- An independent, `askfirst`-specific detection schema — designed
   initially in stage 002, then reversed mid-stage in favor of vendoring
   `vercel/detect-agent`'s data directly, once duplication with no coverage
   benefit was identified.
@@ -278,7 +304,7 @@ extension points, and no non-R implementation exists yet.
 - Auto-detecting the calling package via call-stack introspection instead
   of an explicit `pkg` argument on every hook — rejected in favor of
   explicit attribution, so messages remain correct when multiple packages
-  adopt `pkghooks` in one session.
+  adopt `askfirst` in one session.
 - Mechanical detection of in-progress workaround behavior (monkey-patching,
   namespace manipulation targeting an adopting package) as a trigger for a
   new capability-gap-style mechanism — rejected outright (stage 004): such
