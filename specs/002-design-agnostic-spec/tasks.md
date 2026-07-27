@@ -14,7 +14,7 @@ This removes the standalone schema/data tasks from the original task list
 in favor of a simpler vendor-and-layer approach.
 
 ## T002-1: Vendor upstream agents.json
-- [ ] T002-1: Fetch the current
+- [x] T002-1: Fetch the current
   https://raw.githubusercontent.com/vercel/detect-agent/main/agents.json
   and save it verbatim, unmodified, as
   `agent-detect-spec/vendor/agents.json`. This file is consumed directly
@@ -22,7 +22,7 @@ in favor of a simpler vendor-and-layer approach.
   parallel schema is created.
 
 ## T002-2: Write the spec manifest
-- [ ] T002-2: Write `agent-detect-spec/manifest.json` with: `name`
+- [x] T002-2: Write `agent-detect-spec/manifest.json` with: `name`
   (`agent-detect-spec`), `version` (`0.1.0`, semantic versioning, covering
   this stage's own contribution — the confidence model, intervention
   model, and sync tooling, not the vendored file's content), and
@@ -31,7 +31,7 @@ in favor of a simpler vendor-and-layer approach.
   changed).
 
 ## T002-3: Build the upstream sync GitHub Action
-- [ ] T002-3: Write `.github/workflows/sync-agent-detect-spec.yml`: a
+- [x] T002-3: Write `.github/workflows/sync-agent-detect-spec.yml`: a
   workflow triggered on both a weekly `schedule` (cron) and manual
   `workflow_dispatch`. Steps: fetch the current upstream `agents.json`;
   diff it against `agent-detect-spec/vendor/agents.json`; if they differ,
@@ -43,7 +43,7 @@ in favor of a simpler vendor-and-layer approach.
   hand-curated file.
 
 ## T002-4: Document the abstract confidence-tiering model
-- [ ] T002-4: Write `agent-detect-spec/confidence-model.md` describing a
+- [x] T002-4: Write `agent-detect-spec/confidence-model.md` describing a
   closed `high` / `medium` / `low` / `cooperative` enum as language-neutral
   mapping rules applied on top of a raw lookup against
   `vendor/agents.json`: `high` = the current environment matches any entry
@@ -58,7 +58,7 @@ in favor of a simpler vendor-and-layer approach.
   additive, not a breaking change to the enum.
 
 ## T002-5: Document the abstract intervention-point model
-- [ ] T002-5: Write `agent-detect-spec/intervention-model.md` describing
+- [x] T002-5: Write `agent-detect-spec/intervention-model.md` describing
   three named, independent intervention points as language-neutral
   concepts (no R, no code): `load_time` (trigger: package/module
   attach-or-import; cardinality: once per session; default severity:
@@ -76,7 +76,7 @@ in favor of a simpler vendor-and-layer approach.
   for their own ecosystem) rather than re-deriving it.
 
 ## T002-6: Write the spec directory's README
-- [ ] T002-6: Write `agent-detect-spec/README.md` explaining: the
+- [x] T002-6: Write `agent-detect-spec/README.md` explaining: the
   directory's purpose (a language-agnostic confidence + messaging
   contract layered on top of vendored, unmodified upstream detection data,
   R being only its first consumer); the file layout (`manifest.json`,
@@ -88,7 +88,7 @@ in favor of a simpler vendor-and-layer approach.
   (review the upstream diff, merge to update `vendor/agents.json`).
 
 ## T002-7: Synthesize this stage's design document
-- [ ] T002-7: Write `specs/002-design-agnostic-spec/design.md`, structured
+- [x] T002-7: Write `specs/002-design-agnostic-spec/design.md`, structured
   1:1 with tasks T002-1 through T002-6 (mirroring stage 001's `design.md`
   convention), summarizing what was actually built in each file, noting
   the mid-stage scope reduction (dropping an independent detection schema
