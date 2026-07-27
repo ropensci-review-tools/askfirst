@@ -1,0 +1,24 @@
+Package: pkghooks
+Title: Detect and Redirect LLM/AI-Agent Callers
+Version: 0.0.0.9000
+Authors@R:
+    person("ropensci-review-tools", role = c("aut", "cre"),
+           email = "maintainers@ropensci-review-tools.example")
+Description: Lets R package maintainers detect when their package's
+    functions are being called by an LLM/AI coding agent rather than a
+    human, and issue a message redirecting the agent to tell the human
+    user to contact the maintainer directly instead of silently working
+    around a bug or missing capability. Detection data is vendored from
+    the language-agnostic 'vercel/detect-agent' specification.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Imports:
+    cli,
+    jsonlite,
+    rlang
+Suggests:
+    testthat (>= 3.0.0),
+    withr
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0

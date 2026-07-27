@@ -15,7 +15,7 @@ and `pkghooks_capability_gap` (capability-gap-time, halt-capable). See
 T003-6.
 
 ## T003-1: Scaffold the r/ package skeleton
-- [ ] T003-1: Create a standard R package named `pkghooks` rooted at `r/`:
+- [x] T003-1: Create a standard R package named `pkghooks` rooted at `r/`:
   `r/DESCRIPTION` (Package: pkghooks; Imports: `cli`, `rlang`, `jsonlite`;
   Suggests: `testthat` (>= 3.0.0), `withr`; Config/testthat/edition: 3),
   `r/R/` (empty, populated by later tasks), `r/man/` (generated later),
@@ -25,7 +25,7 @@ T003-6.
   `specs/` remain untouched siblings of `r/`.
 
 ## T003-2: Vendor agent-detect-spec data into r/inst/
-- [ ] T003-2: Write a sync script (`r/data-raw/sync-vendor.R`) that copies
+- [x] T003-2: Write a sync script (`r/data-raw/sync-vendor.R`) that copies
   `agent-detect-spec/vendor/agents.json` and
   `agent-detect-spec/vendor/agents.schema.json` verbatim into
   `r/inst/agent-detect-spec/agents.json` and
@@ -36,7 +36,7 @@ T003-6.
   byte-for-byte.
 
 ## T003-3: Extend the upstream sync GitHub Action to update r/inst/ too
-- [ ] T003-3: Modify `.github/workflows/sync-agent-detect-spec.yml` so
+- [x] T003-3: Modify `.github/workflows/sync-agent-detect-spec.yml` so
   that, in the same job run that updates `agent-detect-spec/vendor/`, it
   also re-runs `r/data-raw/sync-vendor.R` (or an equivalent copy step) to
   update `r/inst/agent-detect-spec/`, and includes
@@ -45,7 +45,7 @@ T003-6.
   `add-paths` list, so both locations update atomically in one PR.
 
 ## T003-4: Implement detection logic
-- [ ] T003-4: Write `r/R/detect.R` with a non-exported function (e.g.
+- [x] T003-4: Write `r/R/detect.R` with a non-exported function (e.g.
   `pkghooks_detect_tool()`) that reads
   `system.file("agent-detect-spec", "agents.json", package = "pkghooks")`
   via `jsonlite::fromJSON(simplifyVector = FALSE)`, walks each entry's
@@ -57,7 +57,7 @@ T003-6.
   order) whose `match` evaluates `TRUE`, or `NULL` if none match.
 
 ## T003-5: Implement the confidence-tiering function
-- [ ] T003-5: Write `r/R/confidence.R` with a non-exported function (e.g.
+- [x] T003-5: Write `r/R/confidence.R` with a non-exported function (e.g.
   `pkghooks_detect_confidence()`) implementing stage 002 T002-4's ordered
   rules: `"high"` if `pkghooks_detect_tool()` (T003-4) returns a match;
   else `"medium"` if `!isatty(stdin()) || !isatty(stdout())`; else
@@ -66,7 +66,7 @@ T003-6.
   scope exclusion.
 
 ## T003-6: Define the condition-class hierarchy and signaling helper
-- [ ] T003-6: Write `r/R/conditions.R` defining an internal helper (e.g.
+- [x] T003-6: Write `r/R/conditions.R` defining an internal helper (e.g.
   `pkghooks_signal(class, pkg, message, ..., call_stop = FALSE)`) that
   constructs a condition of class `c(class, "pkghooks_condition",
   if (call_stop) "error" else "message", "condition")`, always including
@@ -82,7 +82,7 @@ T003-6.
   time).
 
 ## T003-7: Implement pkghooks_init()
-- [ ] T003-7: Write `r/R/init.R` exporting
+- [x] T003-7: Write `r/R/init.R` exporting
   `pkghooks_init(pkg, notice, on_error = TRUE)`. On first call in a
   session, compute and cache `pkghooks_detect_confidence()`'s result (and
   the matched tool, if any) once in an internal state environment (e.g.
@@ -99,7 +99,7 @@ T003-6.
   cached confidence is `"high"` or `"medium"`.
 
 ## T003-8: Implement flag_capability_gap()
-- [ ] T003-8: Write `r/R/capability_gap.R` exporting
+- [x] T003-8: Write `r/R/capability_gap.R` exporting
   `flag_capability_gap(pkg, message)`. No-op (returns `invisible(NULL)`)
   if the cached session confidence (from T003-7's state, computed via
   `pkghooks_init()` having already run) is `"low"`. Otherwise, signal a
@@ -108,7 +108,7 @@ T003-6.
   the call site per stage 002's `capability_gap_time` severity.
 
 ## T003-9: Document exported functions and regenerate package metadata
-- [ ] T003-9: Add roxygen2 documentation blocks to `pkghooks_init()` and
+- [x] T003-9: Add roxygen2 documentation blocks to `pkghooks_init()` and
   `flag_capability_gap()` (parameters, return value, at least one
   `@examples` block each demonstrating the `pkg`-naming requirement), plus
   a package-level doc file (`r/R/pkghooks-package.R`). Run
@@ -116,7 +116,7 @@ T003-6.
   `r/NAMESPACE` and `r/man/`.
 
 ## T003-10: Write automated tests with environment mocking
-- [ ] T003-10: Write `r/tests/testthat/test-detect.R` (using
+- [x] T003-10: Write `r/tests/testthat/test-detect.R` (using
   `withr::with_envvar()` to simulate each vendored tool's env-var
   signature from `r/inst/agent-detect-spec/agents.json` and assert the
   correct `key` is returned, plus a no-signal case returning `NULL`),
@@ -130,7 +130,7 @@ T003-6.
   `pkghooks_capability_gap` condition carrying `pkg` otherwise).
 
 ## T003-11: Write the manual testing checklist
-- [ ] T003-11: Write `r/MANUAL_TESTING.md`, listing one checklist item per
+- [x] T003-11: Write `r/MANUAL_TESTING.md`, listing one checklist item per
   tool in `r/inst/agent-detect-spec/agents.json` (e.g. "Run an R session
   via Claude Code / Cursor CLI / etc. with a `pkghooks`-adopting test
   package loaded; confirm the load-time notice appears"), plus a note that
@@ -139,7 +139,7 @@ T003-6.
   conditions to the calling LLM.
 
 ## T003-12: Add CI workflow for R CMD check and tests
-- [ ] T003-12: Write `.github/workflows/r-cmd-check.yml`: on push/PR
+- [x] T003-12: Write `.github/workflows/r-cmd-check.yml`: on push/PR
   touching `r/**`, set up R, install dependencies (`Imports`/`Suggests`
   from `r/DESCRIPTION`), run `R CMD check` on the `r/` package and fail on
   any `WARNING`/`ERROR`, run the `testthat` suite, and run the

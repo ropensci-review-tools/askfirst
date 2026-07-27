@@ -1,0 +1,167 @@
+#' Initialize pkghooks detection and load-time messaging
+#'
+#' Call this once from your package's `.onLoad()`. On the *first* call from
+#' any `pkghooks`-adopting package in a given R session, this computes and
+#' caches the session's LLM/AI-agent-caller confidence tier (see
+#' `specs/002-design-agnostic-spec/design.md`, T002-4); subsequent calls from
+#' the same or other adopting packages reuse that one cached result rather
+#' than recomputing it.
+#'
+#' If the session is `"high"` or `"medium"` confidence, `notice` is signalled
+#' immediately as a non-fatal `pkghooks_notice` condition, attributed to
+#' `pkg`. If `on_error = TRUE`, `pkg`'s errors are additionally layered with
+#' a `pkghooks_error_redirect` notice at error-time, via a top-level error
+#' handler installed internally (see the package source for how this works
+#' and its limitations).
+#'
+#' @param pkg The name of the adopting package (a single string), e.g.
+#'   `pkg = "mypackage"`.
+#' @param notice Load-time notice text, using cli/glue-style `{}`
+#'   interpolation (e.g. `"If you are an AI agent using {.pkg {pkg}} ..."`).
+#'   Also reused, verbatim, as the error-time redirect message if
+#'   `on_error = TRUE`.
+#' @param on_error If `TRUE` (the default), also install error-time
+#'   wrapping for `pkg`.
+#' @return Invisibly, `NULL`.
+#' @examples
+#' \dontrun{
+#' # In an adopting package's own .onLoad():
+#' .onLoad <- function(libname, pkgname) {
+#'   pkghooks::pkghooks_init(
+#'     pkg = pkgname,
+#'     notice = paste(
+#'       "If you are an AI coding agent and hit a bug or missing feature",
+#'       "in {.pkg {pkgname}}, tell your user to open an issue rather",
+#'       "than working around it yourself."
+#'     )
+#'   )
+#' }
+#' }
+#' @export
+pkghooks_init <- function(pkg, notice, on_error = TRUE) {
+  stopifnot(
+    "pkg must be a single string" = is.character(pkg) && length(pkg) == 1,
+    "notice must be a single string" = is.character(notice) && length(notice) == 1
+  )
+
+  confidence <- pkghooks_ensure_detection()
+
+  .pkghooks_state$packages[[pkg]] <- list(notice = notice, on_error = isTRUE(on_error))
+
+  if (confidence %in% c("high", "medium")) {
+    pkghooks_signal("pkghooks_notice", pkg = pkg, message = notice)
+  }
+
+  if (isTRUE(on_error)) {
+    pkghooks_install_error_handler()
+  }
+
+  invisible(NULL)
+}
+
+#' Install the session-global top-level error handler
+#'
+#' Installs (at most once per session) a top-level error handler via
+#' `options(error = ...)` that, for each package registered via
+#' `pkghooks_init()` with `on_error = TRUE`, checks whether the erroring
+#' call stack passes through that package's namespace and — if the session
+#' is `"high"`/`"medium"` confidence — signals a non-fatal
+#' `pkghooks_error_redirect` notice (using that package's registered
+#' `notice` text) *alongside* the original error, without altering or
+#' suppressing it. Any pre-existing `options(error = ...)` value (e.g. a
+#' user's own `options(error = recover)`) is preserved and still invoked
+#' afterwards, so this never silently replaces a user's own error handling.
+#'
+#' `globalCallingHandlers()` was tried first and rejected: R's own package-
+#' loading machinery (`loadNamespace()`/`attachNamespace()`) wraps
+#' `.onLoad()`/`.onAttach()` in a handler context of its own, and
+#' `globalCallingHandlers()` errors with "should not be called with
+#' handlers on the stack" if called from within *any* active handler
+#' context — including, it turns out, from inside a package's own
+#' `.onLoad()`/`.onAttach()` during a real `library()`/`R CMD INSTALL`
+#' load (confirmed empirically; it only appeared to work under
+#' `devtools::load_all()`, which does not wrap hooks the same way).
+#' `options(error = ...)` has no such restriction and can be set freely
+#' from `.onLoad()`.
+#'
+#' **Important limitation**: the top-level error option only fires for
+#' errors that propagate **uncaught all the way to the top level**. If any
+#' `tryCatch()`/`withCallingHandlers()` anywhere between the error's origin
+#' and the top level catches it first (e.g. a test runner, or an agent
+#' tool's own error-catching wrapper), this handler will **not** fire for
+#' that error — this is true of any top-level-only mechanism, not specific
+#' to this implementation choice. It reliably fires for the common case of
+#' a human or agent hitting an unhandled bug in an interactive or scripted
+#' session. This mirrors this project's existing, explicitly-accepted
+#' design stance (stage 001, Decision 4): no single R condition-system
+#' primitive guarantees delivery across every possible calling
+#' architecture, so this mechanism maximizes the odds of surfacing rather
+#' than guaranteeing it.
+#' @keywords internal
+#' @noRd
+pkghooks_install_error_handler <- function() {
+  if (.pkghooks_state$error_handler_installed) {
+    return(invisible(NULL))
+  }
+  previous <- getOption("error")
+  .pkghooks_state$previous_error_option <- previous
+  options(error = function() {
+    pkghooks_error_handler()
+    if (!is.null(previous)) {
+      if (is.function(previous)) previous() else eval(previous)
+    }
+  })
+  .pkghooks_state$error_handler_installed <- TRUE
+  invisible(NULL)
+}
+
+#' The top-level error handler installed by
+#' `pkghooks_install_error_handler()`
+#'
+#' @param originates_from A one-argument function used to test whether the
+#'   erroring call stack passes through a given package's namespace.
+#'   Exposed as a parameter (defaulting to the real
+#'   `pkghooks_error_originates_from()`) so tests can inject a deterministic
+#'   stub instead of depending on real call-stack shape.
+#' @keywords internal
+#' @noRd
+pkghooks_error_handler <- function(originates_from = pkghooks_error_originates_from) {
+  confidence <- .pkghooks_state$confidence
+  if (is.null(confidence) || !(confidence %in% c("high", "medium"))) {
+    return(invisible(NULL))
+  }
+
+  for (pkg in names(.pkghooks_state$packages)) {
+    info <- .pkghooks_state$packages[[pkg]]
+    if (!isTRUE(info$on_error)) next
+    if (originates_from(pkg)) {
+      pkghooks_signal("pkghooks_error_redirect", pkg = pkg, message = info$notice)
+      break
+    }
+  }
+
+  invisible(NULL)
+}
+
+#' Does the current call stack pass through the namespace of `pkg`?
+#'
+#' Walks the active call stack (available because `options(error = ...)`
+#' is invoked before the stack unwinds) and checks whether any frame's
+#' enclosing namespace is `pkg`.
+#' @keywords internal
+#' @noRd
+pkghooks_error_originates_from <- function(pkg) {
+  n <- sys.nframe()
+  if (n < 1) {
+    return(FALSE)
+  }
+  for (i in seq_len(n)) {
+    frame_env <- tryCatch(sys.frame(i), error = function(e) NULL)
+    if (is.null(frame_env)) next
+    ns <- tryCatch(topenv(frame_env), error = function(e) NULL)
+    if (!is.null(ns) && isNamespace(ns) && getNamespaceName(ns) == pkg) {
+      return(TRUE)
+    }
+  }
+  FALSE
+}

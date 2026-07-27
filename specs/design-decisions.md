@@ -1,30 +1,28 @@
 ---
 created: 2026-07-25T15:08:44Z
 agent: claude-sonnet-5
-git_hash: 660b6a49e4375626d2780a2d04dcded25e108bfb
+git_hash: 565f3fc188f446727f16a7cf72c7b1c082d16c94
 ---
 
 # Design Decisions: pkghooks
 
 ## Current Architecture
-`pkghooks` is an R package intended to let R package maintainers detect
-when their functions are being called from an LLM/AI coding agent rather
-than a human, and to issue a message that redirects the agent to tell the
-human user to contact the maintainer directly — instead of the agent
-silently working around a bug or missing capability. Two design stages are
-complete. Stage 001 produced research-only findings (no code). Stage 002
-produced the project's first concrete artifact: `agent-detect-spec/`, a
-vendored, upstream-synced copy of `vercel/detect-agent`'s detection data
-(`vendor/agents.json`), with a versioned manifest and an automated GitHub
-Action that keeps it synced with upstream. The confidence-tiering and
-intervention-point models designed alongside it were initially shipped as
-standalone files in that directory, then — after the retrospective —
-removed and folded back into `specs/002-design-agnostic-spec/design.md`
-and `design-decisions.md` as documented design rationale, since they were
-unenforced prose rather than machine-read data. No R-specific
-implementation code exists yet; that is the next stage's work, and it will
-need to consult stage 002's design documents (not `agent-detect-spec/`
-itself) for the confidence and messaging reasoning.
+`pkghooks` is an R package (rooted at `r/` in this monorepo) that lets R
+package maintainers detect when their functions are being called from an
+LLM/AI coding agent rather than a human, and issue a message that
+redirects the agent to tell the human user to contact the maintainer
+directly — instead of the agent silently working around a bug or missing
+capability. Three design stages are complete. Stage 001 produced
+research-only findings (no code). Stage 002 produced `agent-detect-spec/`,
+a vendored, upstream-synced copy of `vercel/detect-agent`'s detection data,
+plus a confidence-tiering/intervention-point design that was ultimately
+folded into stage 002's own `design.md`/`design-decisions.md` as documented
+rationale rather than shipped as standalone files. Stage 003 built the
+actual `pkghooks` R package: `pkghooks_init()` (session-cached detection,
+load-time notice, error-time wrapping) and `flag_capability_gap()`
+(capability-gap-time), backed by a `testthat` suite and a clean
+`R CMD check`, with a synced copy of the vendored data at
+`r/inst/agent-detect-spec/`.
 
 ## Key Decisions
 
@@ -49,7 +47,22 @@ cooperative-only detection via the `btw` package (would require an
 upstream change and only covers `btw`-mediated sessions — deferred, not
 rejected); designing an independent `pkghooks`-specific detection schema
 (reversed mid-stage 002 in favor of direct vendoring).
-**Stages:** 001, 002
+**Stages:** 001, 002, 003
+
+### R packaging: vendored data duplicated into r/inst/, synced automatically
+**Outcome:** `r/inst/agent-detect-spec/` holds a committed, byte-identical
+copy of root `agent-detect-spec/vendor/`, kept in sync by extending the
+same GitHub Action plus a CI drift-check script.
+**Rationale:** R packages must carry their own runtime data under `inst/`
+to be installable independently of this monorepo (CRAN, a release tarball,
+or a standalone checkout of `r/`); the repo-root location alone can't serve
+that purpose once the package is distributed on its own.
+**Roads not taken:** Reading the repo-root path directly at runtime
+(breaks once the package is installed outside this exact monorepo
+checkout); collapsing to a single `r/inst/`-only location (would lose the
+language-agnostic, R-independent home for the data that future non-R
+implementations are meant to consume).
+**Stages:** 003
 
 ### Confidence: a closed, language-neutral tier enum, documented as design rationale
 **Outcome:** A closed `high`/`medium`/`low`/`cooperative` enum, with
@@ -70,7 +83,23 @@ it couldn't actually provide.
 complexity for v1); keeping it as a standalone file under
 `agent-detect-spec/` (reversed post-retrospective — see Scope decision
 below).
-**Stages:** 001, 002
+**Stages:** 001, 002, 003
+
+### Attribution: global detection cache, explicit per-package naming in every hook
+**Outcome:** `pkghooks_init()` computes the session's confidence/detection
+result once, cached and shared across every adopting package. Every hook
+(the load-time notice, `on_error` wrapping, and
+`flag_capability_gap(pkg, message)`) explicitly takes a `pkg` argument,
+attached as a real field on the signalled condition — not just interpolated
+into message text.
+**Rationale:** Avoids redundant re-detection while still producing
+attributable messages when multiple packages have adopted `pkghooks` in
+one session.
+**Roads not taken:** Auto-detecting the calling package via call-stack
+introspection instead of requiring an explicit `pkg` argument — rejected in
+favor of explicitness; `flag_capability_gap()`'s stage-001 sketch (no `pkg`
+argument) was revised accordingly.
+**Stages:** 003
 
 ### Messaging: three independent intervention points, layered delivery, documented as design rationale
 **Outcome:** Redirect messages fire at three independent points —
@@ -104,7 +133,24 @@ payoff over inline marking); return-value attribute annotation as a
 primary channel (too easily dropped/ignored to serve as more than a
 secondary, structured channel); keeping it as a standalone file under
 `agent-detect-spec/` (reversed post-retrospective).
-**Stages:** 001, 002
+**Stages:** 001, 002, 003
+
+### Error-time mechanism: options(error = ...), not globalCallingHandlers()
+**Outcome:** `pkghooks_init(..., on_error = TRUE)` installs error-time
+wrapping via `options(error = ...)` (preserving and chaining to any
+pre-existing value), not `globalCallingHandlers()`.
+**Rationale:** Discovered via an actual `R CMD INSTALL` failure:
+`globalCallingHandlers()` cannot be called from inside `.onLoad()`/
+`.onAttach()`, because R's own `loadNamespace()`/`attachNamespace()` wrap
+those hooks in a handler context of their own, and `globalCallingHandlers()`
+refuses to install from within any active handler context.
+`options(error = ...)` has no such restriction. Both mechanisms share the
+same delivery limitation (only fire for errors that propagate uncaught to
+the top level), so switching cost nothing.
+**Roads not taken:** `globalCallingHandlers()` — planned initially,
+rejected only after empirical failure during implementation, not by
+up-front reasoning.
+**Stages:** 003
 
 ### Scope: R-only package, vendored data kept separate, design rationale kept in specs/
 **Outcome:** `pkghooks` ships and is branded as an R-only package.
@@ -134,7 +180,7 @@ implementation actually exists. Treating the confidence/intervention
 models as part of that same portable-directory contract — reversed
 post-retrospective, once it was recognized they lacked any enforcement
 mechanism `vendor/agents.json` actually has.
-**Stages:** 001, 002
+**Stages:** 001, 002, 003
 
 ## Architectural Evolution
 Stage 001 established the project's foundational research: what signals
@@ -147,14 +193,19 @@ by `vercel/detect-agent` would be pure duplication; and again
 post-retrospective, once the confidence-tiering and intervention-point
 models — shipped initially as standalone files alongside the vendored
 data — were recognized as unenforced design prose rather than a real
-contract, and folded back into the stage's own design documents. The
-project now has a narrow, honest `agent-detect-spec/` (vendored data only)
-plus a documented design rationale in `specs/002-design-agnostic-spec/`,
-but still no R implementation code — that is the next stage's expected
-work, consuming `agent-detect-spec/manifest.json` for the vendored data
-and stage 002's `design.md`/`design-decisions.md` for the confidence and
-messaging reasoning, to build `pkghooks_init()`, `flag_capability_gap()`,
-and the R condition-class delivery mechanism.
+contract, and folded back into the stage's own design documents. Stage 003
+built the actual `pkghooks` R package at `r/`, consuming
+`agent-detect-spec/manifest.json` (via a synced copy at `r/inst/`) for
+detection data and stage 002's `design.md`/`design-decisions.md` for the
+confidence and messaging reasoning. Implementation surfaced one real
+correction to the plan: `globalCallingHandlers()`, the originally-planned
+error-time mechanism, turned out to be unusable from a package's own load
+hooks, and was replaced with `options(error = ...)` — a discovery made by
+testing against a real package install, not by up-front design review. The
+project now has a working, tested R implementation covering all three
+intervention points; process-ancestry corroboration, the `cooperative`
+confidence tier, and `btw` integration remain deliberately unbuilt
+extension points, and no non-R implementation exists yet.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -180,6 +231,15 @@ and the R condition-class delivery mechanism.
   silently-ignored-argument detection, cross-call error-pattern matching)
   risked false positives or required reimplementing domain knowledge only
   the package author has.
+- `globalCallingHandlers()` for error-time wrapping — planned, then
+  rejected after an actual `R CMD INSTALL` failure showed it cannot be
+  called from within `.onLoad()`/`.onAttach()`; replaced with
+  `options(error = ...)`, which shares the same delivery limitation
+  without the installation restriction.
+- Auto-detecting the calling package via call-stack introspection instead
+  of an explicit `pkg` argument on every hook — rejected in favor of
+  explicit attribution, so messages remain correct when multiple packages
+  adopt `pkghooks` in one session.
 
 **Scope:**
 - Building a language-agnostic implementation now, rather than R-only with
@@ -192,3 +252,7 @@ and the R condition-class delivery mechanism.
   once it was recognized that, unlike the vendored data, nothing in the
   repo actually reads or enforces them; folded back into `specs/`'s design
   documents instead.
+- Reading `agent-detect-spec/vendor/` directly from R at its repo-root
+  location, rather than vendoring a copy into `r/inst/` — would break once
+  the R package is installed or distributed independently of this
+  monorepo.
