@@ -1,0 +1,20 @@
+{
+  "name": "agent-detect-spec",
+  "version": "0.1.0",
+  "description": "Language-agnostic confidence-tiering and intervention-point contract for detecting and responding to LLM/AI-agent callers, layered on top of vendored detection data. Versioned independently of the vendored data's own upstream provenance.",
+  "files": {
+    "vendor_data": "vendor/agents.json",
+    "vendor_schema": "vendor/agents.schema.json",
+    "confidence_model": "confidence-model.md",
+    "intervention_model": "intervention-model.md"
+  },
+  "vendor_source": {
+    "repo": "vercel/detect-agent",
+    "path": "agents.json",
+    "url": "https://raw.githubusercontent.com/vercel/detect-agent/main/agents.json",
+    "schema_url": "https://raw.githubusercontent.com/vercel/detect-agent/main/agents.schema.json",
+    "last_synced_commit": "db63e913876eebbe8526e67a21d5ab392a58908c",
+    "last_synced_commit_date": "2026-07-15T20:48:51Z",
+    "last_synced_at": "2026-07-27T08:07:43Z"
+  }
+}

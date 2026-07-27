@@ -1,0 +1,75 @@
+name: Sync agent-detect-spec vendor data
+
+on:
+  schedule:
+    # Every Monday at 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch latest upstream agents.json and agents.schema.json
+        run: |
+          curl -sL -o /tmp/agents.json \
+            https://raw.githubusercontent.com/vercel/detect-agent/main/agents.json
+          curl -sL -o /tmp/agents.schema.json \
+            https://raw.githubusercontent.com/vercel/detect-agent/main/agents.schema.json
+
+      - name: Diff against vendored copy
+        id: diff
+        run: |
+          if diff -q /tmp/agents.json agent-detect-spec/vendor/agents.json > /dev/null \
+              && diff -q /tmp/agents.schema.json agent-detect-spec/vendor/agents.schema.json > /dev/null; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Update vendored files and manifest metadata
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          cp /tmp/agents.json agent-detect-spec/vendor/agents.json
+          cp /tmp/agents.schema.json agent-detect-spec/vendor/agents.schema.json
+
+          commit=$(curl -sL "https://api.github.com/repos/vercel/detect-agent/commits?path=agents.json&per_page=1" \
+            | grep -m1 '"sha"' | sed -E 's/.*"sha": *"([^"]+)".*/\1/')
+          commit_date=$(curl -sL "https://api.github.com/repos/vercel/detect-agent/commits?path=agents.json&per_page=1" \
+            | grep -m1 '"date"' | sed -E 's/.*"date": *"([^"]+)".*/\1/')
+          now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          node -e "
+            const fs = require('fs');
+            const path = 'agent-detect-spec/manifest.json';
+            const m = JSON.parse(fs.readFileSync(path, 'utf8'));
+            m.vendor_source.last_synced_commit = '$commit';
+            m.vendor_source.last_synced_commit_date = '$commit_date';
+            m.vendor_source.last_synced_at = '$now';
+            fs.writeFileSync(path, JSON.stringify(m, null, 2) + '\n');
+          "
+
+      - name: Open pull request with updated vendor data
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(agent-detect-spec): sync vendored agents.json from upstream"
+          title: "chore(agent-detect-spec): sync vendored agents.json from upstream"
+          body: |
+            Automated sync from `vercel/detect-agent`'s `agents.json` /
+            `agents.schema.json`. Review the diff in
+            `agent-detect-spec/vendor/` before merging — this vendored file is
+            consumed as-is, so any new or changed entries take effect for every
+            consumer of `agent-detect-spec` immediately upon merge.
+          branch: sync/agent-detect-spec-vendor-data
+          add-paths: |
+            agent-detect-spec/vendor/agents.json
+            agent-detect-spec/vendor/agents.schema.json
+            agent-detect-spec/manifest.json
