@@ -10,7 +10,11 @@
 
 set -euo pipefail
 
-HOOKS_DIR="$(cd "$(dirname "$0")/../agent-hooks" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+HOOKS_DIR="$SCRIPT_DIR/agent-hooks"
+if [[ ! -d "$HOOKS_DIR" ]]; then
+  HOOKS_DIR="$(cd "$SCRIPT_DIR/../agent-hooks" && pwd 2>/dev/null)" || HOOKS_DIR=""
+fi
 OVERWRITE=false
 TOOL=""
 
