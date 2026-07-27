@@ -2,5 +2,6 @@
 
 export(askfirst_capability_gap)
 export(askfirst_check_scenarios)
+export(askfirst_detect_agent_tool)
 export(askfirst_init)
 export(askfirst_install_agent_hooks)

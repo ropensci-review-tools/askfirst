@@ -4,32 +4,32 @@
 \alias{askfirst_install_agent_hooks}
 \title{Install askfirst agent hooks for the current project}
 \usage{
-askfirst_install_agent_hooks(overwrite = FALSE, tool = NULL)
+askfirst_install_agent_hooks(tool, overwrite = FALSE)
 }
 \arguments{
+\item{tool}{A single string: \code{"claude"} or \code{"opencode"}.
+Required -- use \code{\link{askfirst_detect_agent_tool}} to discover
+available tools, then pass the result here.}
+
 \item{overwrite}{If \code{TRUE}, replace existing hook files. Default
 \code{FALSE} (skip existing files with a message).}
-
-\item{tool}{Optional tool name override (\code{"claude"} or
-\code{"opencode"}). If \code{NULL} (the default), auto-detect.}
 }
 \value{
 Invisibly, the exit status of the shell script (0 on success).
 }
 \description{
-Calls the shared \code{tools/install-agent-hooks.sh} script to detect the
-active agent tool (Claude Code or opencode) and install the askfirst
-SessionStart and PostToolUse hooks into the project's tool configuration.
+Installs SessionStart and PostToolUse hooks for the specified agent tool.
+Call \code{\link{askfirst_detect_agent_tool}} first if you are unsure
+which tool to use.
 }
 \details{
 The shell script is located via \code{system.file("install-agent-hooks.sh",
-package = "askfirst")} — it is symlinked into the package's \code{inst/}
+package = "askfirst")} -- it is symlinked into the package's \code{inst/}
 directory from the shared \code{tools/} at the repo root.
 }
 \examples{
 \dontrun{
-askfirst_install_agent_hooks()
-askfirst_install_agent_hooks(overwrite = TRUE)
-askfirst_install_agent_hooks(tool = "opencode")
+askfirst_install_agent_hooks("claude")
+askfirst_install_agent_hooks("opencode", overwrite = TRUE)
 }
 }

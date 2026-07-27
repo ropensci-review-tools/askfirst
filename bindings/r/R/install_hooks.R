@@ -24,11 +24,11 @@ askfirst_detect_agent_tool <- function() {
 #' which tool to use.
 #'
 #' The shell script is located via \code{system.file("install-agent-hooks.sh",
-#' package = "askfirst")} — it is symlinked into the package's \code{inst/}
+#' package = "askfirst")} -- it is symlinked into the package's \code{inst/}
 #' directory from the shared \code{tools/} at the repo root.
 #'
 #' @param tool A single string: \code{"claude"} or \code{"opencode"}.
-#'   Required — use \code{\link{askfirst_detect_agent_tool}} to discover
+#'   Required -- use \code{\link{askfirst_detect_agent_tool}} to discover
 #'   available tools, then pass the result here.
 #' @param overwrite If \code{TRUE}, replace existing hook files. Default
 #'   \code{FALSE} (skip existing files with a message).
@@ -41,7 +41,7 @@ askfirst_detect_agent_tool <- function() {
 #' }
 askfirst_install_agent_hooks <- function(tool, overwrite = FALSE) {
   stopifnot(
-    "`tool` is required — call askfirst_detect_agent_tool() first if unsure" = !missing(tool),
+    "`tool` is required -- call askfirst_detect_agent_tool() first if unsure" = !missing(tool),
     "`tool` must be a single string" = is.character(tool) && length(tool) == 1
   )
 
