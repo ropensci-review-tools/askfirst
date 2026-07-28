@@ -5,7 +5,12 @@
 #' caches the session's LLM/AI-agent-caller confidence tier (see
 #' `specs/002-design-agnostic-spec/design.md`, T002-4); subsequent calls from
 #' the same or other adopting packages reuse that one cached result rather
-#' than recomputing it.
+#' than recomputing it. It also checks (once per session, via
+#' [askfirst_hooks_status()]) whether this project has current
+#' `askfirst`-aware agent hooks installed, and if not, prints a one-time,
+#' human-directed nudge pointing at `tools/install-agent-hooks.sh` --
+#' independent of the confidence tier, since a human running the session is
+#' exactly who needs to see this, not an agent.
 #'
 #' If the session is `"high"` confidence, `notice` is signalled
 #' immediately as a non-fatal `askfirst_notice` condition, attributed to
@@ -86,6 +91,7 @@ askfirst_init <- function(pkg, notice, on_error = TRUE, scenarios = character(),
   )
 
   confidence <- askfirst_ensure_detection()
+  askfirst_maybe_nudge_hooks_install()
 
   .askfirst_state$packages[[pkg]] <- list(
     notice = notice,

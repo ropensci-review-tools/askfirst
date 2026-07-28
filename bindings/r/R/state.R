@@ -12,6 +12,8 @@
 .askfirst_state$packages <- list()
 .askfirst_state$error_handler_installed <- FALSE
 .askfirst_state$previous_error_option <- NULL
+.askfirst_state$hooks_status <- NULL
+.askfirst_state$hooks_nudge_shown <- FALSE
 
 #' Compute (once) and return the session's confidence tier
 #' @keywords internal
@@ -23,4 +25,14 @@ askfirst_ensure_detection <- function() {
     .askfirst_state$confidence <- askfirst_detect_confidence(tool)
   }
   .askfirst_state$confidence
+}
+
+#' Compute (once) and return the session's hooks-installation status
+#' @keywords internal
+#' @noRd
+askfirst_ensure_hooks_status <- function() {
+  if (is.null(.askfirst_state$hooks_status)) {
+    .askfirst_state$hooks_status <- askfirst_hooks_status()
+  }
+  .askfirst_state$hooks_status
 }

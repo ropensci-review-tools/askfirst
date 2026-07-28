@@ -217,4 +217,77 @@ test_that("askfirst_signal with default prefix = TRUE includes the structured pr
   expect_match(msg, "directive: notice", fixed = TRUE)
   expect_match(msg, "raw message", fixed = TRUE)
   expect_match(msg, "See: https://ropensci.github.io/askfirst/", fixed = TRUE)
+  expect_match(msg, "hard stop", fixed = TRUE)
+  expect_match(msg, "ask the developers of mypkg", fixed = TRUE)
+})
+
+test_that("askfirst_signal hard-stop shape includes the delimiter and imperative consequence for stop-and-ask classes", {
+  local_reset_askfirst_state()
+
+  caught <- tryCatch(
+    askfirst:::askfirst_signal(
+      "askfirst_capability_gap", "mypkg", "raw message", call_stop = TRUE
+    ),
+    askfirst_capability_gap = function(cnd) cnd
+  )
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "----- ASKFIRST AGENT STOP: DO NOT IMPLEMENT A WORKAROUND -----", fixed = TRUE)
+  expect_match(msg, "YOU ARE BEING INSTRUCTED TO STOP HERE.", fixed = TRUE)
+  expect_match(msg, "ask the developers of mypkg directly", fixed = TRUE)
+  expect_match(msg, "----- ASKFIRST AGENT: RESUME NORMAL PROCESSING -----", fixed = TRUE)
+  expect_match(msg, "askfirst::r::mypkg::capability_gap", fixed = TRUE)
+  expect_match(msg, "directive: stop-and-ask", fixed = TRUE)
+  expect_match(msg, "raw message", fixed = TRUE)
+  expect_match(msg, "See: https://ropensci.github.io/askfirst/", fixed = TRUE)
+})
+
+test_that("askfirst_signal with prefix = FALSE omits the hard-stop delimiter for stop-and-ask classes", {
+  local_reset_askfirst_state()
+
+  caught <- tryCatch(
+    askfirst:::askfirst_signal(
+      "askfirst_capability_gap", "mypkg", "raw message", call_stop = TRUE, prefix = FALSE
+    ),
+    askfirst_capability_gap = function(cnd) cnd
+  )
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "raw message", fixed = TRUE)
+  expect_no_match(msg, "ASKFIRST AGENT STOP", fixed = TRUE)
+  expect_no_match(msg, "YOU ARE BEING INSTRUCTED", fixed = TRUE)
+  expect_no_match(msg, "askfirst::", fixed = TRUE)
+  expect_no_match(msg, "See:", fixed = TRUE)
+  expect_no_match(msg, "directive:", fixed = TRUE)
+})
+
+test_that("askfirst_init prints a one-time hooks-install nudge when hooks are not current, independent of confidence", {
+  local_reset_askfirst_state()
+  withr::local_dir(withr::local_tempdir())
+  .askfirst_state$confidence <- "low"
+
+  expect_message(
+    askfirst_init("mypkg", "notice text"),
+    "no current agent hooks detected"
+  )
+})
+
+test_that("askfirst_init does not repeat the hooks-install nudge for a second package in the same session", {
+  local_reset_askfirst_state()
+  withr::local_dir(withr::local_tempdir())
+  .askfirst_state$confidence <- "low"
+
+  expect_message(askfirst_init("mypkg", "notice text"), "no current agent hooks detected")
+  expect_no_message(askfirst_init("otherpkg", "notice text"))
+})
+
+test_that("askfirst_init does not print the hooks-install nudge when hooks are current", {
+  local_reset_askfirst_state()
+  dir <- withr::local_tempdir()
+  withr::local_dir(dir)
+  dir.create(".claude/hooks", recursive = TRUE)
+  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 1"), ".claude/hooks/session_start.sh")
+  .askfirst_state$confidence <- "low"
+
+  expect_no_message(askfirst_init("mypkg", "notice text"))
 })

@@ -7,7 +7,9 @@ local_reset_askfirst_state <- function(env = parent.frame()) {
     tool = .askfirst_state$tool,
     packages = .askfirst_state$packages,
     error_handler_installed = .askfirst_state$error_handler_installed,
-    previous_error_option = .askfirst_state$previous_error_option
+    previous_error_option = .askfirst_state$previous_error_option,
+    hooks_status = .askfirst_state$hooks_status,
+    hooks_nudge_shown = .askfirst_state$hooks_nudge_shown
   )
   old_error_option <- getOption("error")
 
@@ -16,6 +18,8 @@ local_reset_askfirst_state <- function(env = parent.frame()) {
   .askfirst_state$packages <- list()
   .askfirst_state$error_handler_installed <- FALSE
   .askfirst_state$previous_error_option <- NULL
+  .askfirst_state$hooks_status <- NULL
+  .askfirst_state$hooks_nudge_shown <- FALSE
 
   withr::defer({
     .askfirst_state$confidence <- old$confidence
@@ -23,6 +27,8 @@ local_reset_askfirst_state <- function(env = parent.frame()) {
     .askfirst_state$packages <- old$packages
     .askfirst_state$error_handler_installed <- old$error_handler_installed
     .askfirst_state$previous_error_option <- old$previous_error_option
+    .askfirst_state$hooks_status <- old$hooks_status
+    .askfirst_state$hooks_nudge_shown <- old$hooks_nudge_shown
     options(error = old_error_option)
   }, envir = env)
 

@@ -1,6 +1,7 @@
 #!/bin/bash
 # askfirst PostToolUse hook — watches tool output for askfirst structured
 # signals and annotates them. Must never cause the agent turn to fail.
+# askfirst-hook-version: 1
 
 set -euo pipefail
 
