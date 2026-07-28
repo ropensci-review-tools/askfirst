@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: fa3d1232f97c92e36c3c00eba29433af7037cc4c
+git_hash: f026845aad2ff202bc7df190e31be8c8ae1f4b0f
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,33 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Seventeen design stages are complete. Stage 017 replaced the
+capability. Eighteen design stages are complete. Stage 018 removed three
+pieces of content that stage 017 had hand-duplicated across bash and JS —
+the `<askfirst-context>` prose, the escalation-reminder wording, and the
+`askfirst_state_dir()` mangling function (the latter also duplicated
+within Claude Code's own `post_tool_use.sh`/`user_prompt_submit.sh`) —
+by introducing three canonical source files under `agent-hooks/`
+(`askfirst-context.txt`, `askfirst-reminder-messages.txt` with neutral
+`{{PKG}}`/`{{COUNT}}` placeholders, `askfirst-state-dir.sh`), spliced into
+the per-tool canonical files by a new earlier pass in
+`agent-hooks/generate-install-hooks.sh`, ahead of its existing per-tool-
+file-into-installer splicing. Diffing the two existing context-prose
+copies before treating either as canonical found real, intentional stage-
+017 drift (the JS version had been reworded to match opencode's own
+throw-based mechanism); reconciled with wording accurate for both tools'
+actual mechanisms ("enforcement hook ... stop ... from succeeding" /
+"a subsequent failed tool call"). The JS port of the mangling function
+stays a manually-maintained translation, not a literal shared source
+(bash/JS can't execute the same function body), verified instead against
+a shared fixture (`askfirst-state-dir-fixture.txt`) consumed by both the R
+and JS test suites. The same stage merged the repo-root `tools/` directory
+(which held exactly the installer and generator, both existing solely to
+support `agent-hooks/`) into `agent-hooks/` itself, removing a redundant
+second top-level symlink from the R package's `inst/` as a direct
+consequence. A rename of `agent-hooks/`/the public "hooks" R API to
+something mechanism-neutral (given opencode's delivery format is called a
+"plugin") was considered and explicitly deferred, not pursued. Stage 017
+replaced the
 confirmed-dead `agent-hooks/opencode/*.sh` shell scripts (stage 016's finding)
 with a real, dependency-free JS plugin (`agent-hooks/opencode/askfirst-plugin.js`)
 built against opencode's actual `@opencode-ai/plugin` Hooks API, achieving full
@@ -33,7 +59,7 @@ any tool calls. The plugin is installed via `.opencode/plugins/` (auto-discovere
 no `opencode.json` registration needed), replacing the prior
 `register_hooks_opencode()`/`.opencode/settings.json` write entirely. The
 legacy shell scripts were deleted outright once the plugin was verified, per
-explicit no-fallback-kept decision. `tools/generate-install-hooks.sh` gained a
+explicit no-fallback-kept decision. `agent-hooks/generate-install-hooks.sh` gained a
 fourth spliced source (the plugin file, alongside the three Claude Code shell
 scripts, no longer byte-identical to opencode's file by design), and the
 hook-version marker convention was extended to recognize a `// askfirst-hook-version:
@@ -178,7 +204,7 @@ replace the prompt-injection-vulnerable second-person condition format with
 a structured `askfirst::<language>::<pkg>::<type>` prefix, introduced
 pre-configured agent-tool hooks (SessionStart and PostToolUse) at a shared
 `agent-hooks/` directory, and created a binding-agnostic installation script
-at `tools/install-agent-hooks.sh`.
+at `agent-hooks/install-agent-hooks.sh`.
 
 ## Key Decisions
 
@@ -442,10 +468,10 @@ lists as non-exhaustive, and stage 012 replaced stage 011's "mark ask-first
 as recommended" mitigation with a stronger rule: on a `stop-and-ask`
 signal, no workaround may be presented as an option — recommended or
 otherwise — until the user has answered the upstream question.
-`tools/install-agent-hooks.sh` is a shared shell script for installing the
+`agent-hooks/install-agent-hooks.sh` is a shared shell script for installing the
 hooks; the R function `askfirst_install_agent_hooks()` is a thin wrapper
 around it. Its embedded hook content is now regenerated from the canonical
-`agent-hooks/claude/*.sh` source via `tools/generate-install-hooks.sh`
+`agent-hooks/claude/*.sh` source via `agent-hooks/generate-install-hooks.sh`
 (stage 012), after investigation found the shipped installer had silently
 never received stage 011's fixes at all; a regression test now compares
 the two directly. The scenario bullet list previously duplicated (with
@@ -540,12 +566,12 @@ proves insufficient.
 ### Hooks-installation detection: language-agnostic manifest and version marker, human-directed nudge
 **Outcome:** A hand-maintained `agent-hooks/manifest.json` records, per known
 coding-agent tool, only the fixed `hooks_dir` where
-`tools/install-agent-hooks.sh` places its own hook scripts (no config-file
+`agent-hooks/install-agent-hooks.sh` places its own hook scripts (no config-file
 path is recorded, since only Claude Code's is fixed — see Roads not taken
 below), plus a single `hook_version` shared across tools. A matching
 `# askfirst-hook-version: <N>` comment line was added to the canonical
 `agent-hooks/claude/session_start.sh`/`post_tool_use.sh` scripts (propagated
-through `tools/generate-install-hooks.sh` with no logic change needed, since
+through `agent-hooks/generate-install-hooks.sh` with no logic change needed, since
 it already splices file content verbatim). `askfirst_hooks_status()` (R)
 embeds a compiled-in copy of this same manifest data (the installed package
 doesn't ship the repo-relative `agent-hooks/` directory) and reports
@@ -554,7 +580,7 @@ existing confidence-detection result. `askfirst_init()` calls it once per
 session, independent of AI-agent confidence, and prints a one-time,
 human-directed (not agent-directed, and not routed through
 `askfirst_signal()`'s condition machinery) nudge toward
-`tools/install-agent-hooks.sh` when hooks are missing or out of date.
+`agent-hooks/install-agent-hooks.sh` when hooks are missing or out of date.
 **Rationale:** Complements stage 014's message-text self-sufficiency work by
 addressing the root cause on the other side — hooks not being installed in
 the first place — while keeping the path/version-marker convention portable
@@ -569,7 +595,7 @@ global config directory, etc. — see
 `https://opencode.ai/docs/config#precedence-order`), not a single fixed
 path, so the manifest and `askfirst_hooks_status()` only ever check
 `hooks_dir` (askfirst's own fixed script-install location), never a config
-path, for opencode. The pre-existing `tools/install-agent-hooks.sh` installer
+path, for opencode. The pre-existing `agent-hooks/install-agent-hooks.sh` installer
 had, independently, been auto-detecting opencode by checking for a
 `.opencode/settings.json` file that can never actually exist under real
 opencode config discovery; that always-false detection branch was removed
@@ -734,6 +760,59 @@ invokes it.
 **Proposed by:** agent (discovered via live testing, not documented anywhere)
 **Stages:** 017
 
+### Repo hygiene: canonical shared sources for hook/plugin content, tools/ merged into agent-hooks/
+**Outcome:** Three pieces of content stage 017 hand-duplicated across bash
+and JS now have one canonical source each under `agent-hooks/`:
+`askfirst-context.txt` (the `<askfirst-context>` prose),
+`askfirst-reminder-messages.txt` (escalation wording, `{{PKG}}`/`{{COUNT}}`
+placeholders), and `askfirst-state-dir.sh` (the mangling function, also
+closing a same-language duplication within Claude Code's own
+`post_tool_use.sh`/`user_prompt_submit.sh`). `agent-hooks/generate-install-hooks.sh`
+gained an earlier splicing pass, translating each canonical source into
+every target's native syntax, ahead of its existing per-tool-file-into-
+installer pass. The JS port of the mangling function is not
+code-generated from the bash source (bash/JS can't execute the same
+function body); it stays a manually-maintained translation, verified
+against a shared fixture (`askfirst-state-dir-fixture.txt`) consumed by
+both the R and JS test suites instead. Separately, the repo-root `tools/`
+directory (exactly two files, both existing solely to support
+`agent-hooks/`) was merged into `agent-hooks/` itself, letting a redundant
+second symlink in the R package's `bindings/r/inst/` be removed entirely
+(one whole-directory symlink now covers everything previously split
+across two).
+**Rationale:** Diffing the two existing context-prose copies before
+assuming either was canonical found real, intentional drift: stage 017's
+JS version had been reworded ("PostToolUse hook"/"block" → "tool-
+execution hook"/"reject") to match opencode's own mechanism. A single
+canonical source can't preserve either tool's own specific terminology, so
+the canonical text now uses wording accurate for both ("enforcement hook
+... stop ... from succeeding" / "a subsequent failed tool call"). `tools/`
+as a directory had no purpose beyond hosting these two files; folding it
+into `agent-hooks/` removed a directory whose separateness had become
+accidental rather than meaningful.
+**Tradeoffs:** Reminder-wording source is reformatted (single-line
+generated `printf`/template calls vs. the original hand-written multi-
+line form) — held to identical *rendered* output, not source-level byte-
+identity. A real bug was found while building the JS fixture test: the
+`/` → `""` mangling edge case collapses to the shared tmp state-root
+itself, so naively deleting it in test cleanup would have been
+destructive to shared test infrastructure — excluded from the JS test
+(still covered safely by the R-side test). A broader rename of
+`agent-hooks/`/the "hooks" R API terminology to something mechanism-
+neutral was raised and explicitly deferred, not pursued — "hooks" isn't
+inaccurate for what either Claude Code or opencode's plugin actually
+implement today (opencode's own SDK types the object every plugin returns
+as `Hooks`), and the blast radius of a rename (the whole public API, not
+just a directory name) warrants its own future stage if a genuinely non-
+hook-shaped tool integration ever changes that.
+**Proposed by:** git-user (scope and directory merge), agent (content
+drift discovery and generation mechanism)
+**Relates to:** Stage 007 (the `agent-hooks/` root-level-plus-symlink
+pattern this extends); Stage 012 (the dev-time generation pattern this
+extends one layer earlier); Stage 017 (the content divergence this
+reconciles)
+**Stages:** 018
+
 ### Notice suppression: opt-in ASKFIRST_SILENCE_NOTICE, replacing ad hoc filtering
 **Outcome:** A comma-separated `ASKFIRST_SILENCE_NOTICE` environment
 variable (package names, or the literal `all`) suppresses `notice`-level
@@ -824,7 +903,7 @@ engage. The fix had two parts: (a) a structured
 AI assistants can be taught to recognise as legitimate metadata, and (b)
 agent-tool hooks (SessionStart and PostToolUse for Claude Code and
 opencode) that pre-load context about the format, installed via a shared
-shell script at `tools/install-agent-hooks.sh` with a thin R wrapper.
+shell script at `agent-hooks/install-agent-hooks.sh` with a thin R wrapper.
 The hook scripts live at a root-level `agent-hooks/` directory, shared
 across all language bindings via symlinks, following the same
 root-level-plus-symlink pattern established for the vendored detection data
@@ -893,7 +972,7 @@ package's own code), and rewrote hook guidance so a `stop-and-ask` signal
 permits no workaround-as-option framing at all until the user has
 answered. Investigation during this stage also surfaced an unrelated,
 previously silent bug: the shipped R-package installer
-(`tools/install-agent-hooks.sh`) embedded an independent, hand-maintained
+(`agent-hooks/install-agent-hooks.sh`) embedded an independent, hand-maintained
 copy of the hook text that had never received stage 011's fixes — real
 installs had been stale since the moment those fixes shipped. The initial
 fix considered was restoring stage 007's original runtime relative-path
@@ -953,7 +1032,7 @@ the imperative consequence text's first draft asked the human to judge
 whether a capability belonged upstream, corrected to direct the human to
 ask the package's own developers instead, since they — not the human user —
 are the ones positioned to know. A related, pre-existing inaccuracy was
-also corrected: `tools/install-agent-hooks.sh` had been auto-detecting
+also corrected: `agent-hooks/install-agent-hooks.sh` had been auto-detecting
 opencode via a `.opencode/settings.json` check that can never succeed under
 opencode's real, precedence-based config discovery; that dead detection
 branch was removed, leaving opencode selectable only via explicit `--tool
@@ -1056,6 +1135,40 @@ parity with Claude Code's three-hook mechanism, and the legacy
 016 — were deleted outright once that parity was verified, consistent with
 the project's practice of not keeping known-dead fallback code once a real
 fix supersedes it.
+Stage 018 was a repo-hygiene follow-up, triggered directly by stage 017's
+own artifact: writing a JS port of Claude Code's hook content by hand had
+introduced exactly the kind of duplication earlier stages' generation
+tooling (stage 012) already existed to prevent, just not yet extended to
+this new case. Reviewing the duplication surfaced it was three separate
+pieces of content, not one, and — while diffing the two existing copies of
+the largest (the context prose) before assuming either was safe to treat
+as canonical — found the two had genuinely, intentionally diverged during
+stage 017 (the JS version's mechanism-describing wording was reworded to
+match opencode's throw-based blocking, not just copy-pasted). This
+reframed the task from "pick one existing copy as canonical" to
+"reconcile the two into wording accurate for both," which the stage did
+before writing the shared source file, rather than freezing an
+already-inconsistent state into the new canonical source. A second,
+unplanned expansion happened mid-planning: reviewing why `agent-hooks/`
+and a separate top-level `tools/` directory existed as siblings found
+`tools/` held exactly two files, both existing only to support
+`agent-hooks/`; the merge was folded into the same stage since it touched
+the same files the text-consolidation work was already touching, rather
+than deferred to a separate pass over the same file set. A related
+naming question — whether `agent-hooks/`'s "hooks" terminology remains
+accurate now that opencode's own delivery format is called a "plugin" —
+was raised, discussed, and explicitly deferred rather than acted on,
+once it was recognized the rename's blast radius (the whole public R API)
+was disproportionate to fold into a stage about internal deduplication.
+Implementation surfaced two further, unplanned findings: a genuine bug in
+the extended generator script itself (`set -e` combined with `[[ condition
+]] && command` aborting the whole script whenever the condition was
+false, not just when the command failed), and — while building a
+fixture-driven test for the JS mangling port — a destructive-cleanup risk
+in the test itself (the `/` → `""` mangling edge case collapses to the
+shared tmp state-root, so naive cleanup would have deleted shared test
+infrastructure), both found and fixed before the stage was considered
+complete.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -1193,7 +1306,7 @@ fix supersedes it.
   hooks-detection manifest — out of scope; only `hooks_dir` (askfirst's own
   fixed script-install location) is tracked, not a config path, for
   opencode.
-- Fixing `tools/install-agent-hooks.sh`'s pre-existing opencode
+- Fixing `agent-hooks/install-agent-hooks.sh`'s pre-existing opencode
   config-registration path (`TARGET_CONFIG=".opencode/settings.json"`,
   written after install but never actually read by real opencode config
   discovery) — left unchanged as a known, out-of-scope inaccuracy; only the
@@ -1294,3 +1407,31 @@ fix supersedes it.
   needed at all, so the prior (already-suspected-inert)
   `register_hooks_opencode()`/`.opencode/settings.json` write was removed
   entirely rather than replaced with a new registration mechanism.
+
+**Repo hygiene (stage 018):**
+- Genuine cross-language code generation for the JS mangling port (rather
+  than a manually-maintained translation verified via a shared fixture) —
+  rejected as disproportionate machinery for a ~3-line utility function;
+  bash and JS can't execute the same function body regardless, so the real
+  choice was "codegen a JS AST" vs. "hand-port and verify equivalence,"
+  and the latter was judged sufficient.
+- Renaming `agent-hooks/` and the public R API's "hooks" terminology
+  (`askfirst_install_agent_hooks()`, `askfirst_hooks_status()`,
+  `askfirst_hooks_manifest()`) to something mechanism-neutral, given
+  opencode's delivery format is called a "plugin" — considered and
+  explicitly deferred, not rejected outright; "hooks" isn't inaccurate for
+  what either tool actually implements today, and the blast radius (the
+  whole public API) was judged to warrant its own dedicated future stage
+  rather than folding into a stage about internal deduplication.
+- Keeping the reminder-wording splice's generated source in the original
+  multi-line, backslash-continued `printf`/argument-list form — the
+  generator instead produces a single-line equivalent; held to identical
+  *rendered* output (verified by executing both forms with sample values),
+  not source-level formatting, since reproducing the exact original line-
+  wrapping added complexity with no behavioral benefit.
+- Treating `<askfirst-context>`/`</askfirst-context>` as needing a new
+  synthetic marker-comment pair, the same way the reminder wording and
+  mangling function needed new `ASKFIRST_*_START`/`_END` markers —
+  rejected once it was recognized the tags are already unique literal
+  content present in both target files, so they serve directly as splice
+  boundaries with no new marker syntax needed.

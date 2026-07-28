@@ -7,14 +7,21 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
 # Tasks: consolidate-agent-hooks-text
 
 ## T018-1: Move tools/ files into agent-hooks/, remove tools/
-- [ ] T018-1: Move `tools/install-agent-hooks.sh` to
+- [x] T018-1: Moved via `git mv` (history preserved), `tools/` removed.
+  `agent-hooks/` now contains `claude/`, `opencode/`, `manifest.json`,
+  `install-agent-hooks.sh`, `generate-install-hooks.sh`. No content
+  changes made in this task. Move `tools/install-agent-hooks.sh` to
   `agent-hooks/install-agent-hooks.sh` and `tools/generate-install-hooks.sh`
   to `agent-hooks/generate-install-hooks.sh` (`git mv` to preserve history).
   Remove the now-empty `tools/` directory. Do not edit either file's
   contents in this task — that happens in later tasks.
 
 ## T018-2: Update generate-install-hooks.sh's internal paths for the merge
-- [ ] T018-2: In the relocated `agent-hooks/generate-install-hooks.sh`,
+- [x] T018-2: `INSTALLER` updated to `$REPO_ROOT/agent-hooks/install-agent-hooks.sh`;
+  header comment updated. Ran it once: regenerated installer is
+  byte-identical to the pre-change version (confirmed via diff), so the
+  path move alone changed nothing observable. In the relocated
+  `agent-hooks/generate-install-hooks.sh`,
   update `REPO_ROOT`-relative path variables (`INSTALLER`, `SESSION_SRC`,
   `POST_SRC`, `USER_PROMPT_SRC`, `PLUGIN_SRC`) so `INSTALLER` now points at
   `$REPO_ROOT/agent-hooks/install-agent-hooks.sh` instead of
@@ -27,7 +34,20 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   content).
 
 ## T018-3: Update every literal path reference to the moved installer
-- [ ] T018-3: Update all literal `tools/install-agent-hooks.sh` /
+- [x] T018-3: All confirmed locations updated via `sed`, plus two the
+  initial grep missed (only caught by a second, broader repo-wide sweep):
+  `agent-hooks/install-agent-hooks.sh`'s own header comment
+  (self-referencing `agent-hooks/generate-install-hooks.sh`, outside any
+  spliced heredoc region, so hand-edited directly) and
+  `bindings/r/tests/testthat/test-install-agent-hooks.R`'s `file.path(dir,
+  "tools", "install-agent-hooks.sh")`-style calls (separate path
+  components, not a literal joined string, so the sed pass missed them --
+  fixed by hand, and `find_repo_root()` simplified to a single existence
+  check per the task's own suggestion). Regenerated `.Rd` files via
+  `devtools::document()`. Final repo-wide grep confirms zero remaining
+  `tools/install-agent-hooks`/`tools/generate-install-hooks` references
+  anywhere outside `specs/` (historical stage records correctly left
+  untouched). Update all literal `tools/install-agent-hooks.sh` /
   `tools/generate-install-hooks.sh` references (confirmed locations via
   repo-wide grep) to `agent-hooks/install-agent-hooks.sh` /
   `agent-hooks/generate-install-hooks.sh`:
@@ -51,7 +71,12 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   `tools/generate-install-hooks` that no reference remains.
 
 ## T018-4: Simplify the R package's inst/ symlink structure
-- [ ] T018-4: Remove the `bindings/r/inst/install-agent-hooks.sh` symlink
+- [x] T018-4: Symlink removed; confirmed `bindings/r/inst/agent-hooks/install-agent-hooks.sh`
+  resolves correctly through the existing whole-directory symlink. Both
+  `system.file()` calls updated to
+  `system.file("agent-hooks", "install-agent-hooks.sh", package =
+  "askfirst", mustWork = TRUE)`; verified live it resolves to the correct,
+  existing path. Remove the `bindings/r/inst/install-agent-hooks.sh` symlink
   entirely (it pointed at `../../../tools/install-agent-hooks.sh`, which
   no longer exists at that path; the file it should resolve to now lives
   inside `agent-hooks/`, already covered by the existing
@@ -64,7 +89,13 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   comment describing the symlink setup to match.
 
 ## T018-5: Verify the directory merge with the full test suite
-- [ ] T018-5: Run `devtools::test()` and `devtools::check()` from
+- [x] T018-5: `devtools::test()`: 162/162 pass. `devtools::check()`: 0
+  errors, 0 warnings, 0 notes. Manually re-ran the installer for both
+  `--tool opencode` and `--tool claude` in a scratch directory: both
+  installed correctly (opencode's plugin auto-discovered, Claude Code's
+  three hooks installed and registered). Directory merge confirmed clean
+  before starting the text-consolidation work. Run `devtools::test()` and
+  `devtools::check()` from
   `bindings/r/` to confirm the directory merge (T018-1 through T018-4)
   introduced no regressions before layering the text-consolidation work
   (T018-6 onward) on top. Also manually re-run the installer
@@ -73,7 +104,25 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   correctly from its new location.
 
 ## T018-6: Create the canonical askfirst-context.txt source
-- [ ] T018-6: Create `agent-hooks/askfirst-context.txt` containing the
+- [x] T018-6: **Found real drift, not just accidental duplication.**
+  Diffing the two extracted copies found: (a) bash's heredoc content had a
+  leading blank line the JS template literal didn't -- traced to
+  `session_start.sh`'s own output structure (separating a passthrough
+  `cat` of the hook payload from the appended context block), not actual
+  prose content, so excluded from the canonical file and left as
+  `session_start.sh`'s own static formatting around the splice point; (b)
+  a genuine, intentional stage-017 divergence: bash said "this coding
+  tool's own **PostToolUse hook** will actively **block** every
+  subsequent tool call" / "treat a subsequent **blocked** tool call",
+  while the JS version (deliberately reworded during stage 017 to match
+  opencode's actual throw-based mechanism) said "**tool-execution hook**"
+  / "actively **reject**" / "**rejected** tool call". Reconciled with
+  tool-neutral wording in the canonical file: "enforcement hook ... will
+  actively **stop** every subsequent tool call ... **from succeeding**"
+  and "a subsequent **failed** tool call" -- accurate for both Claude
+  Code's exit-code blocking and opencode's thrown-error rejection, so one
+  canonical text now serves both without picking either mechanism's own
+  terminology. Created `agent-hooks/askfirst-context.txt` containing the
   `<askfirst-context>...</askfirst-context>` prose block verbatim, copied
   from its current form in `agent-hooks/claude/session_start.sh`'s
   `ASKFIRST_CONTEXT` heredoc (confirm it is byte-identical to
@@ -84,7 +133,13 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   they're identical).
 
 ## T018-7: Create the canonical askfirst-reminder-messages.txt source
-- [ ] T018-7: Create `agent-hooks/askfirst-reminder-messages.txt` with two
+- [x] T018-7: No drift found -- bash and JS wording matched exactly
+  (modulo placeholder syntax). Created
+  `agent-hooks/askfirst-reminder-messages.txt` with `--- LEVEL1 ---`/
+  `--- LEVEL2 ---` sections, `{{PKG}}`/`{{COUNT}}` placeholders, and the
+  trailing `\n\n` kept literally (both bash `printf` and JS template
+  literals already interpret a literal `\n` the same way, so this needs
+  no reinterpretation during splicing). Create with two
   clearly-delimited sections (e.g. `--- LEVEL1 ---` / `--- LEVEL2 ---`
   section markers), containing the level-1 and "REPEATED" level-2
   escalation wording currently duplicated between
@@ -97,7 +152,8 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   each target's native substitution syntax.
 
 ## T018-8: Create the canonical askfirst-state-dir.sh source
-- [ ] T018-8: Create `agent-hooks/askfirst-state-dir.sh` containing the
+- [x] T018-8: Confirmed the two bash copies are byte-identical (diff,
+  clean). Created `agent-hooks/askfirst-state-dir.sh` containing the
   canonical `askfirst_state_dir()` bash function body (currently
   identical in both `agent-hooks/claude/post_tool_use.sh` and
   `agent-hooks/claude/user_prompt_submit.sh`): strip a leading `/`,
@@ -109,27 +165,40 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   T018-12).
 
 ## T018-9: Add intra-file splice markers to the four canonical per-tool files
-- [ ] T018-9: Add splice-point markers the generator (T018-10) can locate:
-  - `agent-hooks/claude/session_start.sh`: no new marker needed -- its
-    existing `cat <<'ASKFIRST_CONTEXT'` / `ASKFIRST_CONTEXT` heredoc pair
-    already brackets the prose block exactly.
-  - `agent-hooks/opencode/askfirst-plugin.js`: add `// ASKFIRST_CONTEXT_START`
-    immediately before and `// ASKFIRST_CONTEXT_END` immediately after the
-    `const ASKFIRST_CONTEXT = \`...\`;` assignment.
-  - `agent-hooks/claude/post_tool_use.sh`: add `# ASKFIRST_REMINDER_LEVEL1`
-    directly above the level-1 `printf` call and `# ASKFIRST_REMINDER_LEVEL2`
-    directly above the level-2/"REPEATED" `printf` call; add
-    `# ASKFIRST_STATE_DIR_START` / `# ASKFIRST_STATE_DIR_END` bracketing
-    the `askfirst_state_dir() { ... }` function body.
-  - `agent-hooks/opencode/askfirst-plugin.js`: add
-    `// ASKFIRST_REMINDER_LEVEL1` / `// ASKFIRST_REMINDER_LEVEL2` directly
-    above each corresponding `reminder +=` line.
-  - `agent-hooks/claude/user_prompt_submit.sh`: add
-    `# ASKFIRST_STATE_DIR_START` / `# ASKFIRST_STATE_DIR_END` bracketing
-    its own (currently duplicate) `askfirst_state_dir() { ... }` body.
+- [x] T018-9: **Simplified during implementation**: the context block
+  needs no new markers at all in *either* file -- `<askfirst-context>`/
+  `</askfirst-context>` are already unique literal tags present in both
+  `session_start.sh`'s heredoc and `askfirst-plugin.js`'s template
+  literal, so they serve directly as splice boundaries (matched on
+  content, not a synthetic marker comment). Added paired `_START`/`_END`
+  comment markers (more robust for the awk splicer than single-line
+  markers, since the bracketed content spans multiple lines) for
+  everything else: `# ASKFIRST_STATE_DIR_START`/`_END` around
+  `askfirst_state_dir()` in both `post_tool_use.sh` and
+  `user_prompt_submit.sh`; `# ASKFIRST_REMINDER_LEVEL1_START`/`_END` and
+  `# ASKFIRST_REMINDER_LEVEL2_START`/`_END` around each `printf` call in
+  `post_tool_use.sh`; the JS-comment equivalents (`//
+  ASKFIRST_REMINDER_LEVEL1_START`/`_END`, `_LEVEL2_START`/`_END`) around
+  each `reminder +=` line in `askfirst-plugin.js`. Also added a code
+  comment on `askfirstMangleTermPath()` documenting it as a
+  manually-maintained JS port of `agent-hooks/askfirst-state-dir.sh`, not
+  a literal shared source (Design Goal 4). Verified: bash syntax checks
+  pass, `bun build`/`bun test` (12/12) still pass unchanged after adding
+  the comment markers.
 
 ## T018-10: Extend generate-install-hooks.sh with the earlier splicing pass
-- [ ] T018-10: In `agent-hooks/generate-install-hooks.sh`, add a new
+- [x] T018-10: Implemented via a generic `splice_between_markers()`
+  awk-based helper (handles both "inclusive" mode for the
+  `<askfirst-context>` tags and "exclusive" mode for synthetic
+  `ASKFIRST_*_START`/`_END` comment markers, auto-detecting and
+  reproducing each marker line's own indentation), plus
+  `render_reminder_bash_line()`/`render_reminder_js_line()` which
+  translate `{{PKG}}`/`{{COUNT}}` into each target's native substitution
+  syntax by rebuilding the argument list in placeholder-appearance order
+  (bash) or direct named interpolation (JS). Backtick-escaping for the JS
+  context target implemented via a `sed 's/`/\\`/g'` pre-pass on a temp
+  copy. Syntax-checked clean; full output-correctness verification is
+  T018-11's job. In `agent-hooks/generate-install-hooks.sh`, add a new
   splicing pass that runs *before* the existing
   SESSION_HOOK/POST_HOOK/USER_PROMPT_HOOK/PLUGIN_HOOK pass into the
   installer:
@@ -157,7 +226,24 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   step.
 
 ## T018-11: Regenerate and verify byte-for-byte equivalence
-- [ ] T018-11: Run the extended `agent-hooks/generate-install-hooks.sh`.
+- [x] T018-11: **Found and fixed a real bug during first run**: the
+  generator aborted mid-Pass-1 because `[[ "$target" == *.sh ]] &&
+  chmod +x "$target"` evaluates to a false (non-zero) status whenever the
+  condition is false (i.e. for `askfirst-plugin.js`), which trips
+  `set -e` and kills the whole script even though nothing actually went
+  wrong -- fixed by converting to an explicit `if`/`fi` block. After the
+  fix: full end-to-end run succeeded (exit 0), confirmed via all four
+  checks: (a) both context blocks render the reconciled wording correctly
+  (`grep`/live JS `import` check, both positive); (b) reminder wording --
+  *executed* both the original two-line and new single-line `printf`
+  calls with sample values and diffed the actual rendered output (not
+  just source text): identical for both level-1 and level-2; JS template
+  literals diffed byte-for-byte against the pre-stage backup: identical;
+  (c) `askfirst_state_dir()` function body diffed against backup
+  (modulo the new marker comments): identical; (d)
+  `test-install-agent-hooks.R`'s embedded-content checks: 10/10 pass.
+  Full suite re-run after: `bun test`: 12/12 pass; `devtools::test()`:
+  162/162 pass. Run the extended `agent-hooks/generate-install-hooks.sh`.
   Confirm: (a) `agent-hooks/claude/session_start.sh`'s and
   `agent-hooks/opencode/askfirst-plugin.js`'s context blocks are
   byte-identical to what they contained before this stage (modulo the new
@@ -174,7 +260,26 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   freshly-regenerated canonical files).
 
 ## T018-12: Add a shared behavioral-contract fixture for the JS mangling port
-- [ ] T018-12: Per the plan's Design Goal 4, add a small fixture (e.g.
+- [x] T018-12: Created `agent-hooks/askfirst-state-dir-fixture.txt` (4
+  cases: multi-segment path, 3-segment path, `/` alone → empty string,
+  single segment). Extracted `find_repo_root()` (previously duplicated
+  only in `test-install-agent-hooks.R`) into a new shared
+  `helper-repo-root.R`, since `test-log.R` now needs it too. Added a
+  fixture-driven test to `test-log.R` asserting `askfirst_mangle_path()`
+  against every fixture line. Added a fixture-driven test to
+  `askfirst-plugin.test.js` verifying indirectly (via a real
+  `tool.execute.after` log-flush, using the *fixture's own* expected
+  value to place the marker file, not this test file's separate
+  `mangle()` setup helper — so it would catch drift between the real
+  implementation and the fixture even if that setup helper also drifted).
+  **Caught a real bug before it ran**: the `/` → `""` fixture case
+  mangles to the shared state-tmp-root itself
+  (`${TMPDIR}/askfirst`), so the JS test's cleanup would have recursively
+  deleted that shared directory — excluded that one case from the JS test
+  (still covered safely, with no filesystem side effects, by the R test)
+  rather than risk it. R: 33/33 pass (`test-log.R`), 10/10 pass
+  (`test-install-agent-hooks.R`, unaffected by the helper extraction). JS:
+  13/13 pass. Per the plan's Design Goal 4, add a small fixture (e.g.
   `agent-hooks/askfirst-state-dir-fixture.txt`, or inline in each test
   file if simpler) of example absolute-path → mangled-path pairs (a
   handful of representative cases: no trailing slash, multiple path
@@ -188,7 +293,13 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   version has a literal shared source file (T018-8).
 
 ## T018-13: Update dev-workflow documentation
-- [ ] T018-13: Update `agent-hooks/generate-install-hooks.sh`'s own header
+- [x] T018-13: `generate-install-hooks.sh`'s header comment was already
+  rewritten during T018-10 to describe the two-layer pipeline. Added a new
+  "Editing hook content" paragraph to
+  `bindings/r/vignettes/askfirst-development.Rmd`'s "Pre-configure agent
+  hooks" section, naming all three canonical source files, the splice
+  markers, and the edit → regenerate → commit workflow. Vignette confirmed
+  to still knit cleanly. Update `agent-hooks/generate-install-hooks.sh`'s own header
   comment to describe the new two-layer splicing pipeline (shared
   sources → per-tool canonical files → installer), and note in
   `bindings/r/vignettes/askfirst-development.Rmd` (wherever it describes
@@ -199,8 +310,10 @@ git_hash: 410c1b799c3ef5a7210681bbe1743ed4b7dd1e67
   `session_start.sh`/`askfirst-plugin.js`/`post_tool_use.sh` directly.
 
 ## T018-14: Full test suite and package check
-- [ ] T018-14: Run `devtools::test()` and `devtools::check()` from
-  `bindings/r/`, and `bun test agent-hooks/opencode/askfirst-plugin.test.js`,
-  confirming no regressions from this stage's full scope (directory merge
-  plus text consolidation). Fix any failures before this stage is
-  considered done.
+- [x] T018-14: `devtools::document()`: no warnings. `devtools::test()`:
+  166/166 pass. `devtools::check()`: 0 errors, 0 warnings, 0 notes.
+  `bun test`: 13/13 pass. Final end-to-end sanity check: ran the installer
+  fresh for both tools in a scratch directory and confirmed both
+  installed artifacts (`.opencode/plugins/askfirst-plugin.js`,
+  `.claude/hooks/session_start.sh`) carry the reconciled canonical
+  context text. No regressions found across this stage's full scope.
