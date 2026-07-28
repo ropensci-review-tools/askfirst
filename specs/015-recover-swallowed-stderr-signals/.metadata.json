@@ -3,13 +3,12 @@
     "claude-sonnet-5"
   ],
   "created": "2026-07-28T09:43:56Z",
-  "last_updated": "2026-07-28T11:23:41Z",
-  "last_session_id": "d43cb1c3-26d6-43fe-8e2d-4fe20f09785e",
-  "sessions": 2,
-  "input_tokens": 9533360,
-  "output_tokens": 115508,
-  "user_word_count": 1174,
-  "lines_added": 197,
-  "lines_deleted": 0,
-  "files_changed": 3
+  "last_updated": "2026-07-28T12:25:00Z",
+  "sessions": 4,
+  "input_tokens": null,
+  "output_tokens": null,
+  "user_word_count": null,
+  "lines_added": null,
+  "lines_deleted": null,
+  "files_changed": null
 }

@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: 6999676a3066babc769b0b934d8a493cd707f900
+git_hash: b07e93ec14bf083b339d05d93d2267ed81cf883a
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,30 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Fourteen design stages are complete. Stage 014 reopened stage
+capability. Fifteen design stages are complete. Stage 015 addressed a second
+field report describing signals that reach an agent's output but still get
+missed — buried by scrolling/habituation, stripped by the agent's own ad hoc
+`grep -v askfirst...` filtering, or acted on too late — combined with the
+original scope of stderr being silently discarded outright by
+`Rscript ... 2>/dev/null`. The structured prefix now folds directive severity
+into its own last segment (`askfirst::<language>::<pkg>::<directive>`, i.e.
+`stop-and-ask` or `notice`, as the literal first line), with a `type:` line
+carrying the finer-grained signal class immediately after; the prose
+delimiter lines from stage 014 are replaced by compact
+`<<<ASKFIRST:HALT>>>`/`<<<ASKFIRST:RESUME>>>` tokens, with the imperative
+consequence wording itself unchanged. Every `stop-and-ask` signal now also
+writes its full message to stdout (in addition to the existing stderr
+delivery) and to a persistent, per-`{pkg}-{type}` sentinel file under
+`.askfirst/pending/`; a reworked `post_tool_use.sh` actively blocks every
+subsequent tool call (Claude Code's exit-code-2 convention) while any
+sentinel remains, and a new `user_prompt_submit.sh` hook clears
+`.askfirst/pending/` at the start of each new user turn. `notice` signals
+keep a lighter-weight one-shot `.askfirst/log`, and a new
+`ASKFIRST_SILENCE_NOTICE` environment variable lets a package or user
+suppress notice-level logging (never `stop-and-ask`) without resorting to
+output filtering. `hook_version` moved to 2 across `agent-hooks/manifest.json`
+and the canonical hook scripts to account for the new third hook file and the
+`post_tool_use.sh` behavioral change. Stage 014 reopened stage
 007/011's neutral-message-text trust boundary for `directive: stop-and-ask`
 signals specifically: `askfirst_signal()` now embeds a fixed, imperative
 hard-stop block directly in message text — start/end delimiter lines
@@ -394,7 +417,16 @@ short, non-halting forward-reference sentence naming the same markers. The
 fixed text interpolates `{pkg}` via `sprintf()` inside `askfirst_signal()`
 itself rather than glue syntax, since `askfirst_capability_gap()` resolves
 glue interpolation against the *adopting function's own frame*, which
-generally has no variable named `pkg`.
+generally has no variable named `pkg`. Stage 015 reworked the structured
+prefix and delimiter tokens without touching the imperative consequence
+wording: the prefix's last segment now carries the directive itself
+(`askfirst::<language>::<pkg>::<directive>`), a new `type:` line (replacing
+the old `directive:` line's position) carries the finer-grained signal
+class, and `<<<ASKFIRST:HALT>>>`/`<<<ASKFIRST:RESUME>>>` compact tokens
+replace the prose `----- ASKFIRST AGENT STOP/RESUME ... -----` delimiter
+lines. `stop-and-ask` signals are now also written to stdout,
+unconditionally, in addition to the existing stderr condition-system
+delivery — `notice` signals are not duplicated this way.
 **Rationale:** The previous second-person format ("If you are an AI coding
 agent...") was interpreted as a prompt injection by AI assistants, causing
 outright refusal. The structured prefix lets the tool's system context
@@ -445,8 +477,12 @@ second-person "you" in the new stage-013 contribute-invitation text
 reader of that text); conditioning stage 014's hard-stop message strength on
 detected hook-installation status, escalating only once hooks are confirmed
 current (rejected in favor of unconditional emission, to avoid a runtime
-dependency between two otherwise-separate mechanisms).
-**Stages:** 007, 011, 012, 013, 014
+dependency between two otherwise-separate mechanisms); prefixing every body
+line (not just bounding start/end tokens) with a marker, as a stage 015
+field report also suggested — deferred as added complexity against
+`cli::format_inline()`'s reflowed output, revisit only if the token pair
+proves insufficient.
+**Stages:** 007, 011, 012, 013, 014, 015
 
 ### Hooks-installation detection: language-agnostic manifest and version marker, human-directed nudge
 **Outcome:** A hand-maintained `agent-hooks/manifest.json` records, per known
@@ -492,6 +528,57 @@ unchanged and remains a known inaccuracy, out of scope for this fix).
 **Relates to:** Stage 007 (Decision 2, `agent-hooks/` as the shared,
 language-agnostic source this manifest extends)
 **Stages:** 014
+
+### Enforcement: persistent pending sentinel with active PostToolUse blocking
+**Outcome:** Every `stop-and-ask` signal writes a per-`{pkg}-{type}` file
+under `.askfirst/pending/` (filename doubling as de-duplication — a repeat
+signal from the same package/type overwrites rather than accumulates).
+`post_tool_use.sh` (both Claude Code and opencode copies) now checks for any
+pending file on *every* tool call, not just the triggering one, and returns
+a blocking response (Claude Code's exit-code-2/stderr-as-reason convention)
+if any exist — the agent cannot proceed on any topic until the sentinel is
+cleared. A new `user_prompt_submit.sh` hook clears `.askfirst/pending/` at
+the start of each new user turn, the only available proxy for "the human has
+had a chance to respond," since askfirst cannot detect an actual answer.
+`notice` signals keep the pre-existing, lighter-weight `.askfirst/log` —
+annotated non-blockingly by `post_tool_use.sh` and cleared after being read,
+unchanged in kind from stage 014's plan.
+**Rationale:** Directly answers a field report's "delayed consequence"
+failure mode: a stop-and-ask signal fired several tool calls before the
+agent actually began implementing a workaround, with no mechanism to
+retroactively re-surface it. A passive, one-shot log (as stage 014's
+`askfirst_hooks_status()` companion work implied for notices) cannot enforce
+anything past the immediately-following tool call; only an actively
+blocking check on every subsequent call closes that gap.
+**Tradeoffs:** opencode has no documented shell-hook config equivalent to
+Claude Code's `settings.json` hooks at all — its plugin API is a separate
+`tool.execute.before/after` JS/TS interface with no documented
+blocking-result semantics as of this stage. The opencode hook files use the
+Claude Code convention as an explicitly-flagged, unverified fallback rather
+than block implementation on opencode's own documentation catching up.
+**Proposed by:** git-user
+**Relates to:** Stage 014 (Decision 3, the `agent-hooks/manifest.json`/
+version-marker scheme extended here to a third hook file, `hook_version`
+bumped to 2)
+**Stages:** 015
+
+### Notice suppression: opt-in ASKFIRST_SILENCE_NOTICE, replacing ad hoc filtering
+**Outcome:** A comma-separated `ASKFIRST_SILENCE_NOTICE` environment
+variable (package names, or the literal `all`) suppresses `notice`-level
+logging to `.askfirst/log` only, checked inside `askfirst_signal()`.
+`stop-and-ask` signals never consult it — there is no way to silence them.
+**Rationale:** A field report's agent resorted to `grep -v
+"askfirst|notice|directive|..."` specifically because no sanctioned way
+existed to reduce repeated-notice noise across many tool calls — that ad hoc
+filtering is what stripped its own stop-and-ask signal along with the
+noise it was trying to remove. A supported, explicit, notice-only
+suppression mechanism removes the reason to ever pipe askfirst output
+through a content filter.
+**Roads not taken:** Extending suppression to `stop-and-ask` signals —
+rejected outright; a halting, rare signal should never be silenceable by
+either a package or a session-level environment variable.
+**Proposed by:** joint
+**Stages:** 015
 
 ### Demo content: vignette-scoped, realistic function replacing abstract placeholders
 **Outcome:** The `askfirst-development.Rmd` vignette's tokenpkg demo was
@@ -699,6 +786,33 @@ opencode via a `.opencode/settings.json` check that can never succeed under
 opencode's real, precedence-based config discovery; that dead detection
 branch was removed, leaving opencode selectable only via explicit `--tool
 opencode`.
+Stage 015 was triggered by a second field report describing a different
+shape of the same underlying problem: signals that were not discarded but
+still missed, because they were buried by scrolling/habituation, stripped by
+the agent's own `grep -v askfirst...` filtering, or acted on several tool
+calls after they fired. Reconciling this against the original,
+narrower-scoped stage goal (recovering signals lost to `2>/dev/null`) found
+both failure modes end the same way — the signal never reaching the agent —
+so the two were combined into one stage rather than deferred to separate
+ones. The fix layered four independent mechanisms rather than picking one:
+unconditional stdout duplication for `stop-and-ask` (defeating outright
+stderr discarding), a severity-first prefix with compact halt/resume tokens
+(defeating visual habituation and slow marker recognition), a persistent
+`.askfirst/pending/` sentinel with active `PostToolUse` blocking cleared
+only on the next user turn (defeating delayed-consequence loss), and an
+opt-in `ASKFIRST_SILENCE_NOTICE` variable (removing the motivation for
+self-filtering that stripped a real signal in the field report). Checking
+opencode's own hook/plugin documentation — an open question carried into
+implementation — found no shell-hook config equivalent to Claude Code's
+`settings.json` hooks at all; the opencode hook files fall back to the
+Claude Code blocking convention with an explicit unverified-fallback
+comment rather than treating the documentation gap as a blocker. A
+test-hygiene consequence followed directly from the new filesystem side
+effects: `askfirst_signal()` now writes real files under `.askfirst/` for
+both notice and stop-and-ask paths at high confidence, so the shared test
+helper `local_reset_askfirst_state()` was extended to sandbox every test's
+working directory into a fresh tempdir, rather than adding per-test
+sandboxing calls across the three test files that use it.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -846,3 +960,27 @@ opencode`.
   some guarantee of message-text legitimacy now that hard-stop text carries
   real instructional weight without hooks to vouch for it in the no-hooks
   case — flagged as a candidate for a future stage, not attempted here.
+
+**Messaging (stage 015):**
+- Extending `ASKFIRST_SILENCE_NOTICE` to cover `stop-and-ask` signals —
+  rejected outright; a halting, rare signal must never be silenceable by a
+  package or session-level environment variable, regardless of noise
+  complaints.
+- Prefixing every reflowed body line (not just the bounding start/end
+  tokens) with a marker, as the field report also suggested — deferred as
+  added complexity against `cli::format_inline()`'s output; revisit only if
+  a future report shows the token pair alone still isn't enough.
+- Adding `.askfirst/` to a project's `.gitignore` automatically — deferred,
+  though both `log` and `pending/` are now confirmed pure runtime artifacts
+  with no reason to be committed.
+- Requiring an explicit acknowledgment action to clear `.askfirst/pending/`,
+  instead of clearing it implicitly on the next `UserPromptSubmit` event —
+  chosen as the simplest mechanism available without adding a new exported
+  "clear" function, but explicitly flagged as not battle-tested; a new user
+  message is only a proxy for "the user had the chance to respond," not
+  confirmation they actually did.
+- Blocking on implementing `post_tool_use.sh`'s active-blocking change until
+  opencode's own hook documentation confirmed blocking-result support —
+  rejected; the documentation gap was treated as an unresolved question to
+  flag transparently (via a code comment noting the fallback is unverified),
+  not a reason to withhold the mechanism from opencode users entirely.
