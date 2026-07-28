@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: 8b47d990537d5e607601a4827065ef1e61e85e89
+git_hash: fa3d1232f97c92e36c3c00eba29433af7037cc4c
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,34 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Sixteen design stages are complete. Stage 016 was triggered by a
+capability. Seventeen design stages are complete. Stage 017 replaced the
+confirmed-dead `agent-hooks/opencode/*.sh` shell scripts (stage 016's finding)
+with a real, dependency-free JS plugin (`agent-hooks/opencode/askfirst-plugin.js`)
+built against opencode's actual `@opencode-ai/plugin` Hooks API, achieving full
+parity with Claude Code's mechanism: `experimental.chat.system.transform` for
+context injection, `tool.execute.after` for the notice-log/escalation
+annotations, `tool.execute.before` (throwing to abort a call) for the blocking
+stop-and-ask gate, and `"chat.message"` for clearing the pending sentinel on a
+new turn. Every hook point was verified against a real, authenticated opencode
+session rather than assumed from documentation: the model correctly recited
+the injected context verbatim; a real `edit` tool call correctly triggered the
+escalation counter; a `pending/` sentinel injected mid-turn genuinely rejected
+the next tool call via the thrown error, resolving in the affirmative whether
+`tool.execute.before`'s abort covers every tool call unconditionally; and
+`"chat.message"` was confirmed to fire exactly once per new user turn, before
+any tool calls. The plugin is installed via `.opencode/plugins/` (auto-discovered,
+no `opencode.json` registration needed), replacing the prior
+`register_hooks_opencode()`/`.opencode/settings.json` write entirely. The
+legacy shell scripts were deleted outright once the plugin was verified, per
+explicit no-fallback-kept decision. `tools/generate-install-hooks.sh` gained a
+fourth spliced source (the plugin file, alongside the three Claude Code shell
+scripts, no longer byte-identical to opencode's file by design), and the
+hook-version marker convention was extended to recognize a `// askfirst-hook-version:
+<N>` JS-comment form alongside the `#`-style shell-comment form, with a new
+per-tool `marker_file` field replacing a hardcoded `session_start.sh` filename
+assumption. `hook_version` moved to 4 across all tools' marker files (Claude
+Code's markers were bumped too, despite no content change, since the version
+number is one shared counter). Stage 016 was triggered by a
 field trial (run via a sibling test harness, not this repo) showing that the
 hard `stop-and-ask` gate for capability gaps the package author hasn't
 anticipated is only reachable if the agent voluntarily calls
@@ -550,10 +577,18 @@ from `detect_tools()` during this stage, so opencode must now be selected
 explicitly via `--tool opencode` (the underlying config-registration path
 for opencode installs, `TARGET_CONFIG=".opencode/settings.json"`, was left
 unchanged and remains a known inaccuracy, out of scope for this fix).
+Stage 017 finally removed that config-registration path entirely (rather
+than fixing it), once opencode's own docs confirmed local plugins are
+auto-discovered from `.opencode/plugins/` with no registration needed at
+all; the manifest gained a `marker_file` field per tool (`session_start.sh`
+for Claude Code, `askfirst-plugin.js` for opencode) since the version-marker
+filename could no longer be assumed universal, and the version-marker
+regex was extended to recognize a `// askfirst-hook-version: <N>`
+JS-comment form alongside the original `#`-style one.
 **Proposed by:** joint (config-path and detection-branch corrections: mpadge)
 **Relates to:** Stage 007 (Decision 2, `agent-hooks/` as the shared,
 language-agnostic source this manifest extends)
-**Stages:** 014
+**Stages:** 014, 017
 
 ### Enforcement: persistent pending sentinel with active PostToolUse blocking, plus a non-blocking escalation for the agent-invoked gate
 **Outcome:** Every `stop-and-ask` signal writes a per-`{pkg}-{type}` file
@@ -611,11 +646,22 @@ label. The opencode hook files were extended identically to the Claude Code
 side anyway (for consistency, and in case an undocumented path exists), with
 this concrete finding documented in both copies' headers rather than acted
 on; a real JS/TS plugin was flagged as a future stage rather than built now.
-**Proposed by:** git-user
+Stage 017 built that plugin: `agent-hooks/opencode/askfirst-plugin.js`
+implements all three enforcement halves for opencode via
+`experimental.chat.system.transform` (context), `tool.execute.after`
+(non-blocking log/escalation), and `tool.execute.before` (blocking gate, via
+throwing an `Error` while any `pending/` sentinel exists — opencode's own
+documented abort-a-tool-call pattern). Verified live against a real,
+authenticated opencode session that this abort mechanism fires
+unconditionally on every tool call, not scoped to any tool type, achieving
+the same coverage as Claude Code's exit-code-2 convention; the legacy
+shell scripts were deleted outright once this was confirmed, per explicit
+no-fallback-kept decision.
+**Proposed by:** git-user (stage 015); joint (stage 017 verification)
 **Relates to:** Stage 014 (Decision 3, the `agent-hooks/manifest.json`/
 version-marker scheme extended here to a third hook file, `hook_version`
-bumped to 2, then 3 in stage 016)
-**Stages:** 015, 016
+bumped to 2, then 3 in stage 016, then 4 in stage 017)
+**Stages:** 015, 016, 017
 
 ### State storage: session-scoped tmp root, out of the project's working tree
 **Outcome:** All askfirst runtime state (`log`, `pending/`,
@@ -649,6 +695,44 @@ directory.
 **Proposed by:** joint
 **Relates to:** Stage 015 (the `log`/`pending/` mechanism relocated here)
 **Stages:** 016
+
+### opencode integration mechanism: Hooks/Plugin, not custom Tools
+**Outcome:** `agent-hooks/opencode/askfirst-plugin.js` is built against opencode's
+Hooks/Plugin mechanism (intercepts the agent's existing tool calls
+automatically), not its separate custom-Tools mechanism (`.opencode/tools/`,
+which defines new functions the agent may choose to call).
+**Rationale:** Every behavior needed — automatic context injection, an
+escalating reminder on the agent's own subsequent edits, and blocking any
+subsequent tool call — requires watching tool calls the agent already
+makes on its own initiative, not offering it a new one to opt into. A
+Tool-based implementation would have reintroduced the exact reachability
+gap stage 016 fixed: an agent that never calls the tool gets no benefit
+from it at all.
+**Roads not taken:** A native `askfirst_check_scenarios()` custom Tool
+(nicer discoverability than shelling out to `Rscript`) — a legitimate but
+separate, smaller enhancement, deferred to a possible future stage rather
+than folded into this one.
+**Proposed by:** agent, confirmed by git-user
+**Stages:** 017
+
+### Plugin distribution: single dependency-free file, named ES export required
+**Outcome:** `askfirst-plugin.js` uses only Node/Bun builtins (`fs`, `path`
+via `require()`) and exports exactly one binding:
+`export const AskfirstPlugin = async ({directory}) => {...}` — a named ES
+export, not `export default` and not CommonJS `module.exports`.
+**Rationale:** Live testing against a real opencode session found its
+plugin loader tries to invoke *every* exported binding in a plugin file as
+if it were a `Plugin` function. An initial implementation attempt used
+`module.exports`, which the loader did not recognize at all; a later
+attempt at exporting an internal helper function alongside the real
+plugin (to make it directly unit-testable) caused plugin loading to hang
+entirely, since the loader tried invoking that mismatched export too.
+**Tradeoffs:** Internal helpers (state-dir path mangling) cannot be unit
+tested by direct import; tests instead exercise them indirectly through
+the one real exported plugin function, invoked exactly as opencode itself
+invokes it.
+**Proposed by:** agent (discovered via live testing, not documented anywhere)
+**Stages:** 017
 
 ### Notice suppression: opt-in ASKFIRST_SILENCE_NOTICE, replacing ad hoc filtering
 **Outcome:** A comma-separated `ASKFIRST_SILENCE_NOTICE` environment
@@ -941,6 +1025,37 @@ this repo's own local dev hook installation — was found mid-implementation
 to rest on a wrong premise (this repo's local hooks belong to an unrelated
 tool, not any prior askfirst installation) and was skipped rather than
 forced through.
+Stage 017 built the real opencode plugin that stage 016 had flagged but not
+attempted, closing both that stage's own deferred item and the entangled
+harness-side question from `askfirst-tests/recommendations.md` (whether
+opencode hook delivery could be trusted at all). Investigation and
+implementation proceeded largely through direct empirical testing against a
+real, authenticated opencode session (a free-tier model,
+`opencode/deepseek-v4-flash-free`) rather than documentation or type
+inspection alone — this is the first stage in the project's history to
+verify a mechanism this way rather than relying on transcripts, unit tests,
+or a coding-tool's published docs. That live testing surfaced findings
+neither opencode's docs nor its vendored type definitions stated: opencode's
+plugin loader tries to invoke every exported binding in a plugin file as if
+it were the plugin function itself (discovered when an unrelated second
+export hung plugin loading entirely, and again when the first
+`module.exports`-based implementation attempt was silently never invoked at
+all); and the precise firing order within a turn (`"chat.message"` fires
+once, before any tool calls; `experimental.chat.system.transform` fires
+repeatedly, once per inference step, not once per session as Claude Code's
+SessionStart does). A version mismatch in this repo's own local dev
+environment — the vendored `@opencode-ai/plugin` dependency pinned to
+`1.1.23` while the actually-installed `opencode` CLI was `1.18.8`, due to a
+stale, unrelated `/usr/bin/opencode` earlier in `$PATH` than the correctly-
+updated `~/.opencode/bin/opencode` — was found and fixed during planning,
+resolving what had initially looked like a genuine gap between opencode's
+published docs and its SDK's type definitions, when it was actually just a
+stale local install. The resulting plugin achieves confirmed, not assumed,
+parity with Claude Code's three-hook mechanism, and the legacy
+`agent-hooks/opencode/*.sh` shell scripts — already known-dead since stage
+016 — were deleted outright once that parity was verified, consistent with
+the project's practice of not keeping known-dead fallback code once a real
+fix supersedes it.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -1147,3 +1262,35 @@ forced through.
   local `.claude/hooks/` belong to an unrelated tool, not any prior askfirst
   installation; forcing the change would have overwritten hooks actively in
   use for unrelated purposes.
+
+**Enforcement (stage 017):**
+- A custom opencode Tool (`.opencode/tools/`) instead of a Plugin/Hooks-based
+  implementation — rejected: Tools are agent-invoked/opt-in, which would
+  reintroduce the exact reachability gap stage 016 fixed (an agent that
+  never calls the tool gets no benefit); Plugins intercept the agent's
+  existing tool calls automatically instead.
+- `permission.ask` for the blocking gate instead of `tool.execute.before`
+  throwing — rejected once live testing (and opencode's own docs) showed
+  `permission.ask` operates only within opencode's existing
+  permission-gating system, narrower than the unconditional-on-every-call
+  coverage `tool.execute.before`'s abort-via-throw achieves.
+- Keeping the legacy `agent-hooks/opencode/*.sh` shell scripts installed
+  alongside the new plugin as a defensive fallback — rejected; they were
+  already confirmed non-functional against real opencode in stage 016, so
+  keeping them added no value once the real mechanism was verified working.
+- Exporting internal helper functions (state-dir mangling) from
+  `askfirst-plugin.js` for easier direct unit testing — rejected after live
+  testing showed opencode's plugin loader tries to invoke *every* exported
+  binding as if it were a `Plugin` function; a second, differently-shaped
+  export hung plugin loading entirely. Tests exercise the real exported
+  plugin function indirectly instead.
+- `module.exports` (CommonJS) for the plugin's export — the first
+  implementation attempt, silently never invoked by opencode at all; replaced
+  with a named ES export (`export const AskfirstPlugin = ...`), confirmed
+  live as the convention opencode's loader actually looks for.
+- Active pruning or a new config-registration path for opencode's plugin
+  install — rejected; opencode's own docs confirm local plugins are
+  auto-discovered from `.opencode/plugins/` with no registration step
+  needed at all, so the prior (already-suspected-inert)
+  `register_hooks_opencode()`/`.opencode/settings.json` write was removed
+  entirely rather than replaced with a new registration mechanism.
