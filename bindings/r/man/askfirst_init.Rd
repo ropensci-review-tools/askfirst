@@ -60,7 +60,7 @@ the same or other adopting packages reuse that one cached result rather
 than recomputing it. It also checks (once per session, via
 \code{askfirst_hooks_status()}) whether this project has current
 \code{askfirst}-aware agent hooks installed, and if not, prints a one-time,
-human-directed nudge pointing at \code{tools/install-agent-hooks.sh} --
+human-directed nudge pointing at \code{agent-hooks/install-agent-hooks.sh} --
 independent of the confidence tier, since a human running the session is
 exactly who needs to see this, not an agent.
 }

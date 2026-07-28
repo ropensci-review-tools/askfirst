@@ -27,6 +27,49 @@ afterEach(() => {
   fs.rmSync(stateDir, { recursive: true, force: true });
 });
 
+test("askfirstMangleTermPath matches the shared behavioral-contract fixture", async () => {
+  // Shared with bindings/r/tests/testthat/test-log.R's
+  // askfirst_mangle_path() fixture test -- bash/JS/R can't literally
+  // share the mangling function's code, so all three are checked against
+  // the same input/output pairs here (stage 018, Design Goal 4). Verified
+  // indirectly, via the real AskfirstPlugin export: for each fixture
+  // pair, a marker file is placed at the FIXTURE's own expected path (not
+  // this test file's separate `mangle()` setup helper), and a real hook
+  // call must find it -- so this test would catch drift between
+  // askfirstMangleTermPath() and the fixture even if this file's own
+  // `mangle()` helper (used only for other tests' setup) happened to
+  // drift too.
+  const fixturePath = path.join(import.meta.dir, "..", "askfirst-state-dir-fixture.txt");
+  const fixtureLines = fs
+    .readFileSync(fixturePath, "utf8")
+    .split("\n")
+    .filter((l) => l.length > 0);
+
+  for (const line of fixtureLines) {
+    const [input, expected = ""] = line.split("\t");
+    if (expected === "") {
+      // The "/" -> "" edge case mangles to the shared state-root itself
+      // (${TMPDIR}/askfirst), not a private per-fixture directory --
+      // recursively deleting that in cleanup would be destructive to
+      // shared test infrastructure. Covered directly (and safely, with
+      // no filesystem side effects) by test-log.R's fixture test instead.
+      continue;
+    }
+    const fixtureStateDir = path.join(os.tmpdir(), "askfirst", expected);
+    fs.mkdirSync(fixtureStateDir, { recursive: true });
+    fs.writeFileSync(path.join(fixtureStateDir, "log"), "fixture marker\n");
+
+    try {
+      const hooks = await AskfirstPlugin({ directory: input });
+      const output = { tool: "irrelevant", output: "real output", title: "t", metadata: {} };
+      await hooks["tool.execute.after"]({ tool: "irrelevant" }, output);
+      expect(output.output).toContain("fixture marker");
+    } finally {
+      fs.rmSync(fixtureStateDir, { recursive: true, force: true });
+    }
+  }
+});
+
 test("state dir mangling matches the R/bash scheme", () => {
   // Indirect: the plugin computes its own state dir internally from
   // `directory`; we confirm it lands exactly where the R/bash mangling

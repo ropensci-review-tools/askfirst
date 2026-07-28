@@ -42,12 +42,14 @@
 # scheme ever changes.
 # askfirst-hook-version: 4
 
+# ASKFIRST_STATE_DIR_START
 askfirst_state_dir() {
   local cwd="$1"
   local mangled
   mangled=$(printf '%s' "$cwd" | sed 's#^/##; s#/#_#g')
   printf '%s/askfirst/%s' "${TMPDIR:-/tmp}" "$mangled"
 }
+# ASKFIRST_STATE_DIR_END
 
 main() {
   local payload
@@ -101,11 +103,13 @@ main() {
             count=$((count + 1))
             echo "$count" > "$count_file"
             if (( count >= 3 )); then
-              printf 'REPEATED reminder (%dx): the notice from %s has now gone unaddressed across multiple edits. This is not optional -- call askfirst::askfirst_check_scenarios("%s") now, before making any further edits that could duplicate, wrap, or extend functionality already provided by %s, or tell the user explicitly that this edit is unrelated to %s.\n\n' \
-                "$count" "$pkg" "$pkg" "$pkg" "$pkg"
+              # ASKFIRST_REMINDER_LEVEL2_START
+              printf 'REPEATED reminder (%dx): the notice from %s has now gone unaddressed across multiple edits. This is not optional -- call askfirst::askfirst_check_scenarios("%s") now, before making any further edits that could duplicate, wrap, or extend functionality already provided by %s, or tell the user explicitly that this edit is unrelated to %s.\n\n' "$count" "$pkg" "$pkg" "$pkg" "$pkg"
+              # ASKFIRST_REMINDER_LEVEL2_END
             else
-              printf 'A notice from %s is still open this session -- askfirst::askfirst_check_scenarios("%s") has not been called. If this edit duplicates, wraps, or extends functionality already provided by %s, call askfirst::askfirst_check_scenarios("%s") before proceeding.\n\n' \
-                "$pkg" "$pkg" "$pkg" "$pkg"
+              # ASKFIRST_REMINDER_LEVEL1_START
+              printf 'A notice from %s is still open this session -- askfirst::askfirst_check_scenarios("%s") has not been called. If this edit duplicates, wraps, or extends functionality already provided by %s, call askfirst::askfirst_check_scenarios("%s") before proceeding.\n\n' "$pkg" "$pkg" "$pkg" "$pkg"
+              # ASKFIRST_REMINDER_LEVEL1_END
             fi
           done
         fi

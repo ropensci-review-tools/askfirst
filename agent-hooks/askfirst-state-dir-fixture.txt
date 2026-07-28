@@ -1,0 +1,4 @@
+/home/user/project	home_user_project
+/a/b/c	a_b_c
+/
+/single	single

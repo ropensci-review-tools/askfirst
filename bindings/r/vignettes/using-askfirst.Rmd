@@ -62,7 +62,7 @@ pending-sentinel clearing on a new turn) via opencode's
 If your users prefer to configure manually, they can run the shared shell
 script directly — it interactively prompts when multiple tools are detected:
 ```bash
-/path/to/askfirst/tools/install-agent-hooks.sh
+/path/to/askfirst/agent-hooks/install-agent-hooks.sh
 ```
 or copy `agent-hooks/claude/` (for Claude Code's hook scripts) or
 `agent-hooks/opencode/askfirst-plugin.js` (for opencode's plugin) into

@@ -1,27 +1,14 @@
-# Repo-structure check: tools/install-agent-hooks.sh embeds hook content
-# generated from agent-hooks/claude/*.sh (see tools/generate-install-hooks.sh).
+# Repo-structure check: agent-hooks/install-agent-hooks.sh embeds hook content
+# generated from agent-hooks/claude/*.sh (see agent-hooks/generate-install-hooks.sh).
 # These tests catch the shipped installer silently drifting out of sync with
 # its canonical source again. They only make sense inside a full checkout of
-# the askfirst repo (agent-hooks/ and tools/ live at the repo root, outside
-# any single language binding), so they skip gracefully when that structure
-# isn't present -- e.g. when tests run against an installed/tarball copy of
-# just the R package.
-
-find_repo_root <- function(start = getwd(), max_up = 6) {
-  dir <- normalizePath(start, mustWork = FALSE)
-  for (i in seq_len(max_up)) {
-    if (dir.exists(file.path(dir, "agent-hooks", "claude")) &&
-      file.exists(file.path(dir, "tools", "install-agent-hooks.sh"))) {
-      return(dir)
-    }
-    parent <- dirname(dir)
-    if (identical(parent, dir)) {
-      return(NULL)
-    }
-    dir <- parent
-  }
-  NULL
-}
+# the askfirst repo (agent-hooks/ lives at the repo root, outside any single
+# language binding), so they skip gracefully when that structure isn't present
+# -- e.g. when tests run against an installed/tarball copy of just the R
+# package.
+#
+# find_repo_root() now lives in helper-repo-root.R (shared with
+# test-log.R's fixture-driven mangling test, stage 018).
 
 extract_heredoc_body <- function(lines, marker) {
   start_idx <- which(grepl(sprintf("<<'%s'$", marker), lines))[1]
@@ -32,14 +19,14 @@ extract_heredoc_body <- function(lines, marker) {
   rest[seq_len(end_offset - 1)]
 }
 
-test_that("tools/install-agent-hooks.sh's embedded hooks match agent-hooks/claude/ exactly", {
+test_that("agent-hooks/install-agent-hooks.sh's embedded hooks match agent-hooks/claude/ exactly", {
   repo_root <- find_repo_root()
   skip_if(
     is.null(repo_root),
-    "not running inside a full askfirst repo checkout (agent-hooks/ or tools/ not found)"
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
   )
 
-  installer_lines <- readLines(file.path(repo_root, "tools", "install-agent-hooks.sh"))
+  installer_lines <- readLines(file.path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
 
   session_embedded <- extract_heredoc_body(installer_lines, "SESSION_HOOK")
   post_embedded <- extract_heredoc_body(installer_lines, "POST_HOOK")
@@ -54,20 +41,20 @@ test_that("tools/install-agent-hooks.sh's embedded hooks match agent-hooks/claud
   expect_identical(user_prompt_embedded, user_prompt_canonical)
 })
 
-test_that("tools/install-agent-hooks.sh's embedded plugin matches agent-hooks/opencode/askfirst-plugin.js exactly", {
+test_that("agent-hooks/install-agent-hooks.sh's embedded plugin matches agent-hooks/opencode/askfirst-plugin.js exactly", {
   # As of stage 017, agent-hooks/claude/ and agent-hooks/opencode/ are no
   # longer byte-identical shell-script families -- opencode's real
   # mechanism is a JS plugin, spliced from its own independent source (see
-  # tools/generate-install-hooks.sh). This test replaces the old
+  # agent-hooks/generate-install-hooks.sh). This test replaces the old
   # byte-identity check with the equivalent regression coverage for the
   # plugin file.
   repo_root <- find_repo_root()
   skip_if(
     is.null(repo_root),
-    "not running inside a full askfirst repo checkout (agent-hooks/ or tools/ not found)"
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
   )
 
-  installer_lines <- readLines(file.path(repo_root, "tools", "install-agent-hooks.sh"))
+  installer_lines <- readLines(file.path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
   plugin_embedded <- extract_heredoc_body(installer_lines, "PLUGIN_HOOK")
   plugin_canonical <- readLines(file.path(repo_root, "agent-hooks", "opencode", "askfirst-plugin.js"))
 
@@ -78,10 +65,10 @@ test_that("the installed post_tool_use.sh carries the current version marker and
   repo_root <- find_repo_root()
   skip_if(
     is.null(repo_root),
-    "not running inside a full askfirst repo checkout (agent-hooks/ or tools/ not found)"
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
   )
 
-  installer_lines <- readLines(file.path(repo_root, "tools", "install-agent-hooks.sh"))
+  installer_lines <- readLines(file.path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
   post_embedded <- extract_heredoc_body(installer_lines, "POST_HOOK")
 
   expect_match(
@@ -99,11 +86,11 @@ test_that("the Claude Code PostToolUse matcher includes file-modifying tool call
   repo_root <- find_repo_root()
   skip_if(
     is.null(repo_root),
-    "not running inside a full askfirst repo checkout (agent-hooks/ or tools/ not found)"
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
   )
 
   installer_text <- paste(
-    readLines(file.path(repo_root, "tools", "install-agent-hooks.sh")),
+    readLines(file.path(repo_root, "agent-hooks", "install-agent-hooks.sh")),
     collapse = "\n"
   )
 

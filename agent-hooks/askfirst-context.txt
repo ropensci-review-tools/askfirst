@@ -1,16 +1,3 @@
-#!/bin/bash
-# askfirst SessionStart hook — injects system-level context about askfirst
-# into the assistant's prompt before any package code is loaded.
-# Fires once per session. Must never cause the session to fail.
-# askfirst-hook-version: 4
-
-set -euo pipefail
-
-main() {
-  cat
-
-  cat <<'ASKFIRST_CONTEXT'
-
 <askfirst-context>
 This project uses askfirst (https://github.com/ropensci-review-tools/askfirst),
 a system that lets R package maintainers detect when their package is being
@@ -102,7 +89,3 @@ Your response to these signals:
    forward-reference to what a later stop-and-ask block from the same
    package means.
 </askfirst-context>
-ASKFIRST_CONTEXT
-}
-
-main 2>/dev/null || true

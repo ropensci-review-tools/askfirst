@@ -4,6 +4,28 @@ test_that("askfirst_mangle_path() strips a leading slash and replaces remaining 
   expect_equal(askfirst:::askfirst_mangle_path("/"), "")
 })
 
+test_that("askfirst_mangle_path() matches the shared behavioral-contract fixture", {
+  # Shared with agent-hooks/opencode/askfirst-plugin.test.js's mangling
+  # verification -- bash/JS/R can't literally share the mangling
+  # function's code, but all three are checked against the same
+  # input/output pairs here (stage 018, Design Goal 4).
+  repo_root <- find_repo_root()
+  skip_if(
+    is.null(repo_root),
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
+  )
+
+  fixture_lines <- readLines(file.path(repo_root, "agent-hooks", "askfirst-state-dir-fixture.txt"))
+  fixture_lines <- fixture_lines[nzchar(fixture_lines)]
+
+  for (line in fixture_lines) {
+    parts <- strsplit(line, "\t", fixed = TRUE)[[1]]
+    input <- parts[1]
+    expected <- if (length(parts) >= 2) parts[2] else ""
+    expect_equal(askfirst:::askfirst_mangle_path(input), expected, info = input)
+  }
+})
+
 test_that("askfirst_state_dir() derives a tmp path from the current working directory", {
   local_reset_askfirst_state()
 

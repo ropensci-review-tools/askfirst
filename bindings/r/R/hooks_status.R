@@ -5,7 +5,7 @@
 #' `hooks_dir` and `marker_file` per supported coding-agent tool, plus the
 #' current `hook_version` -- kept in sync manually whenever
 #' `agent-hooks/manifest.json` changes. `hooks_dir` is a fixed,
-#' askfirst-controlled location where `tools/install-agent-hooks.sh` places
+#' askfirst-controlled location where `agent-hooks/install-agent-hooks.sh` places
 #' its own hook/plugin file(s), independent of each tool's own config-file
 #' search path -- Claude Code's config lives at a fixed project-relative
 #' path (`.claude/settings.json`), but opencode's config file
@@ -80,7 +80,7 @@ askfirst_hooks_status_for_tool <- function(tool, manifest = askfirst_hooks_manif
 #' Kept pure/side-effect-free (no printing) so it can be unit tested
 #' directly; see [askfirst_init()] for where its result drives a one-time,
 #' human-directed nudge to install/update hooks via
-#' `tools/install-agent-hooks.sh`.
+#' `agent-hooks/install-agent-hooks.sh`.
 #' @return A single string: one of `"not_installed"`, `"stale"`, `"current"`.
 #' @keywords internal
 #' @noRd
@@ -121,7 +121,7 @@ askfirst_maybe_nudge_hooks_install <- function() {
   if (status %in% c("not_installed", "stale")) {
     cli::cli_inform(paste(
       "askfirst: no current agent hooks detected for this project.",
-      "Run {.code tools/install-agent-hooks.sh} (from the askfirst",
+      "Run {.code agent-hooks/install-agent-hooks.sh} (from the askfirst",
       "repository) to install or update hooks that help AI coding",
       "assistants recognise askfirst's structured signals."
     ))

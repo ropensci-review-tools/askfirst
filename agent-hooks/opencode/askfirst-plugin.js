@@ -7,6 +7,13 @@
 // no node_modules or build step needed to install this file.
 // askfirst-hook-version: 4
 
+// Manually-maintained JS port of the canonical bash mangling logic in
+// agent-hooks/askfirst-state-dir.sh (spliced into agent-hooks/claude/
+// post_tool_use.sh and user_prompt_submit.sh) -- not literally shared,
+// since bash and JS can't execute the same function body. Verified
+// equivalent via a shared fixture of example path pairs, not a shared
+// source file (stage 018, Design Goal 4). Keep this in sync by hand if
+// the mangling scheme ever changes.
 function askfirstMangleTermPath(p) {
   return p.replace(/^\//, "").replace(/\//g, "_");
 }
@@ -66,14 +73,14 @@ the condition-system delivery on stderr) and written to a persistent
 sentinel file in a session-scoped location outside the project's working
 tree (not something you need to inspect directly). Unlike a \`notice\`, this
 sentinel is NOT cleared by your next tool call -- it stays in effect, and
-this coding tool's own tool-execution hook will actively reject every
-subsequent tool call (regardless of topic) until either you send the
-user's answer back through a new message (which clears the sentinel) or
-the underlying situation is otherwise resolved. This means you cannot
-"wait it out" or move on to unrelated work after a stop-and-ask fires -- if
-several tool calls have passed since a stop-and-ask appeared and you did
-not yet surface it to the user, treat a subsequent rejected tool call as
-your cue to go back and do so now, before retrying.
+this coding tool's own enforcement hook will actively stop every
+subsequent tool call (regardless of topic) from succeeding until either
+you send the user's answer back through a new message (which clears the
+sentinel) or the underlying situation is otherwise resolved. This means
+you cannot "wait it out" or move on to unrelated work after a stop-and-ask
+fires -- if several tool calls have passed since a stop-and-ask appeared
+and you did not yet surface it to the user, treat a subsequent failed tool
+call as your cue to go back and do so now, before retrying.
 
 If a \`notice\` fires and you do not call \`askfirst_check_scenarios()\`
 before your next file edit, that edit (and every subsequent one) will
@@ -202,9 +209,13 @@ export const AskfirstPlugin = async ({ directory }) => {
         fs.writeFileSync(countFile, String(count));
 
         if (count >= 3) {
+          // ASKFIRST_REMINDER_LEVEL2_START
           reminder += `REPEATED reminder (${count}x): the notice from ${pkg} has now gone unaddressed across multiple edits. This is not optional -- call askfirst::askfirst_check_scenarios("${pkg}") now, before making any further edits that could duplicate, wrap, or extend functionality already provided by ${pkg}, or tell the user explicitly that this edit is unrelated to ${pkg}.\n\n`;
+          // ASKFIRST_REMINDER_LEVEL2_END
         } else {
+          // ASKFIRST_REMINDER_LEVEL1_START
           reminder += `A notice from ${pkg} is still open this session -- askfirst::askfirst_check_scenarios("${pkg}") has not been called. If this edit duplicates, wraps, or extends functionality already provided by ${pkg}, call askfirst::askfirst_check_scenarios("${pkg}") before proceeding.\n\n`;
+          // ASKFIRST_REMINDER_LEVEL1_END
         }
       }
 

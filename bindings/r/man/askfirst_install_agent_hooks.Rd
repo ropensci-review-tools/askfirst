@@ -23,9 +23,12 @@ specified agent tool. Call \code{\link{askfirst_detect_agent_tool}} first
 if you are unsure which tool to use.
 }
 \details{
-The shell script is located via \code{system.file("install-agent-hooks.sh",
-package = "askfirst")} -- it is symlinked into the package's \code{inst/}
-directory from the shared \code{tools/} at the repo root.
+The shell script is located via \code{system.file("agent-hooks",
+"install-agent-hooks.sh", package = "askfirst")} -- it lives inside the
+\code{agent-hooks/} directory, which is symlinked whole into the
+package's \code{inst/} directory from the repo root (as of stage 018,
+\code{install-agent-hooks.sh} moved into \code{agent-hooks/} itself,
+so this one symlink covers it -- no separate symlink is needed).
 }
 \examples{
 \dontrun{

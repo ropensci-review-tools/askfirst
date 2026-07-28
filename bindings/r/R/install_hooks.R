@@ -1,6 +1,6 @@
 #' Detect available agent tool(s) for the current project
 #'
-#' Calls \code{tools/install-agent-hooks.sh --detect} to check which agent
+#' Calls \code{agent-hooks/install-agent-hooks.sh --detect} to check which agent
 #' tools have configuration files in the current working directory.
 #' Returns a character vector of tool names (e.g. \code{"claude"},
 #' \code{"opencode"}), possibly of length zero.
@@ -12,7 +12,7 @@
 #' askfirst_detect_agent_tool()
 #' }
 askfirst_detect_agent_tool <- function() {
-  script <- system.file("install-agent-hooks.sh", package = "askfirst", mustWork = TRUE)
+  script <- system.file("agent-hooks", "install-agent-hooks.sh", package = "askfirst", mustWork = TRUE)
   out <- system2(script, "--detect", stdout = TRUE, stderr = FALSE)
   if (length(out) == 0 || identical(out, "")) character() else out
 }
@@ -23,9 +23,12 @@ askfirst_detect_agent_tool <- function() {
 #' specified agent tool. Call \code{\link{askfirst_detect_agent_tool}} first
 #' if you are unsure which tool to use.
 #'
-#' The shell script is located via \code{system.file("install-agent-hooks.sh",
-#' package = "askfirst")} -- it is symlinked into the package's \code{inst/}
-#' directory from the shared \code{tools/} at the repo root.
+#' The shell script is located via \code{system.file("agent-hooks",
+#' "install-agent-hooks.sh", package = "askfirst")} -- it lives inside the
+#' \code{agent-hooks/} directory, which is symlinked whole into the
+#' package's \code{inst/} directory from the repo root (as of stage 018,
+#' \code{install-agent-hooks.sh} moved into \code{agent-hooks/} itself,
+#' so this one symlink covers it -- no separate symlink is needed).
 #'
 #' @param tool A single string: \code{"claude"} or \code{"opencode"}.
 #'   Required -- use \code{\link{askfirst_detect_agent_tool}} to discover
@@ -45,7 +48,7 @@ askfirst_install_agent_hooks <- function(tool, overwrite = FALSE) {
     "`tool` must be a single string" = is.character(tool) && length(tool) == 1
   )
 
-  script <- system.file("install-agent-hooks.sh", package = "askfirst", mustWork = TRUE)
+  script <- system.file("agent-hooks", "install-agent-hooks.sh", package = "askfirst", mustWork = TRUE)
 
   args <- c("--tool", tool)
   if (isTRUE(overwrite)) {

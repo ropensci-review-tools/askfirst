@@ -1,0 +1,4 @@
+--- LEVEL1 ---
+A notice from {{PKG}} is still open this session -- askfirst::askfirst_check_scenarios("{{PKG}}") has not been called. If this edit duplicates, wraps, or extends functionality already provided by {{PKG}}, call askfirst::askfirst_check_scenarios("{{PKG}}") before proceeding.\n\n
+--- LEVEL2 ---
+REPEATED reminder ({{COUNT}}x): the notice from {{PKG}} has now gone unaddressed across multiple edits. This is not optional -- call askfirst::askfirst_check_scenarios("{{PKG}}") now, before making any further edits that could duplicate, wrap, or extend functionality already provided by {{PKG}}, or tell the user explicitly that this edit is unrelated to {{PKG}}.\n\n

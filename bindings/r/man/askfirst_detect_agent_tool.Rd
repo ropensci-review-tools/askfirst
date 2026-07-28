@@ -10,7 +10,7 @@ askfirst_detect_agent_tool()
 A character vector of detected tool names.
 }
 \description{
-Calls \code{tools/install-agent-hooks.sh --detect} to check which agent
+Calls \code{agent-hooks/install-agent-hooks.sh --detect} to check which agent
 tools have configuration files in the current working directory.
 Returns a character vector of tool names (e.g. \code{"claude"},
 \code{"opencode"}), possibly of length zero.

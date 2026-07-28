@@ -24,12 +24,14 @@
 # invoked on the opencode side).
 # askfirst-hook-version: 4
 
+# ASKFIRST_STATE_DIR_START
 askfirst_state_dir() {
   local cwd="$1"
   local mangled
   mangled=$(printf '%s' "$cwd" | sed 's#^/##; s#/#_#g')
   printf '%s/askfirst/%s' "${TMPDIR:-/tmp}" "$mangled"
 }
+# ASKFIRST_STATE_DIR_END
 
 main() {
   local payload
