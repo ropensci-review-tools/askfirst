@@ -19,9 +19,9 @@ askfirst_detect_agent_tool <- function() {
 
 #' Install askfirst agent hooks for the current project
 #'
-#' Installs SessionStart and PostToolUse hooks for the specified agent tool.
-#' Call \code{\link{askfirst_detect_agent_tool}} first if you are unsure
-#' which tool to use.
+#' Installs SessionStart, PostToolUse, and UserPromptSubmit hooks for the
+#' specified agent tool. Call \code{\link{askfirst_detect_agent_tool}} first
+#' if you are unsure which tool to use.
 #'
 #' The shell script is located via \code{system.file("install-agent-hooks.sh",
 #' package = "askfirst")} -- it is symlinked into the package's \code{inst/}

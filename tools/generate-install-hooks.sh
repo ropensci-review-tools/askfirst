@@ -16,8 +16,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INSTALLER="$REPO_ROOT/tools/install-agent-hooks.sh"
 SESSION_SRC="$REPO_ROOT/agent-hooks/claude/session_start.sh"
 POST_SRC="$REPO_ROOT/agent-hooks/claude/post_tool_use.sh"
+USER_PROMPT_SRC="$REPO_ROOT/agent-hooks/claude/user_prompt_submit.sh"
 
-for f in "$INSTALLER" "$SESSION_SRC" "$POST_SRC"; do
+for f in "$INSTALLER" "$SESSION_SRC" "$POST_SRC" "$USER_PROMPT_SRC"; do
   if [[ ! -f "$f" ]]; then
     echo "error: expected file not found: $f" >&2
     exit 1
@@ -26,7 +27,7 @@ done
 
 tmp=$(mktemp)
 
-awk -v session_file="$SESSION_SRC" -v post_file="$POST_SRC" '
+awk -v session_file="$SESSION_SRC" -v post_file="$POST_SRC" -v user_prompt_file="$USER_PROMPT_SRC" '
   $0 ~ /<<.SESSION_HOOK.$/ {
     print
     while ((getline line < session_file) > 0) print line
@@ -41,6 +42,13 @@ awk -v session_file="$SESSION_SRC" -v post_file="$POST_SRC" '
     skip = "POST_HOOK"
     next
   }
+  $0 ~ /<<.USER_PROMPT_HOOK.$/ {
+    print
+    while ((getline line < user_prompt_file) > 0) print line
+    close(user_prompt_file)
+    skip = "USER_PROMPT_HOOK"
+    next
+  }
   skip != "" {
     if ($0 == skip) { print; skip = "" }
     next
@@ -51,4 +59,4 @@ awk -v session_file="$SESSION_SRC" -v post_file="$POST_SRC" '
 mv "$tmp" "$INSTALLER"
 chmod +x "$INSTALLER"
 
-echo "regenerated: $INSTALLER (from $SESSION_SRC, $POST_SRC)" >&2
+echo "regenerated: $INSTALLER (from $SESSION_SRC, $POST_SRC, $USER_PROMPT_SRC)" >&2

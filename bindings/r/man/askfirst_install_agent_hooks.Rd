@@ -18,9 +18,9 @@ available tools, then pass the result here.}
 Invisibly, the exit status of the shell script (0 on success).
 }
 \description{
-Installs SessionStart and PostToolUse hooks for the specified agent tool.
-Call \code{\link{askfirst_detect_agent_tool}} first if you are unsure
-which tool to use.
+Installs SessionStart, PostToolUse, and UserPromptSubmit hooks for the
+specified agent tool. Call \code{\link{askfirst_detect_agent_tool}} first
+if you are unsure which tool to use.
 }
 \details{
 The shell script is located via \code{system.file("install-agent-hooks.sh",

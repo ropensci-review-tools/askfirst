@@ -195,7 +195,7 @@ test_that("askfirst_signal with prefix = FALSE omits the structured prefix", {
   expect_match(msg, "raw message", fixed = TRUE)
   expect_no_match(msg, "askfirst::", fixed = TRUE)
   expect_no_match(msg, "See:", fixed = TRUE)
-  expect_no_match(msg, "directive:", fixed = TRUE)
+  expect_no_match(msg, "type:", fixed = TRUE)
 })
 
 test_that("askfirst_signal with default prefix = TRUE includes the structured prefix", {
@@ -214,7 +214,7 @@ test_that("askfirst_signal with default prefix = TRUE includes the structured pr
 
   msg <- conditionMessage(caught)
   expect_match(msg, "askfirst::r::mypkg::notice", fixed = TRUE)
-  expect_match(msg, "directive: notice", fixed = TRUE)
+  expect_match(msg, "type: notice", fixed = TRUE)
   expect_match(msg, "raw message", fixed = TRUE)
   expect_match(msg, "See: https://ropensci.github.io/askfirst/", fixed = TRUE)
   expect_match(msg, "hard stop", fixed = TRUE)
@@ -232,12 +232,12 @@ test_that("askfirst_signal hard-stop shape includes the delimiter and imperative
   )
 
   msg <- conditionMessage(caught)
-  expect_match(msg, "----- ASKFIRST AGENT STOP: DO NOT IMPLEMENT A WORKAROUND -----", fixed = TRUE)
+  expect_match(msg, "<<<ASKFIRST:HALT>>>", fixed = TRUE)
   expect_match(msg, "YOU ARE BEING INSTRUCTED TO STOP HERE.", fixed = TRUE)
   expect_match(msg, "ask the developers of mypkg directly", fixed = TRUE)
-  expect_match(msg, "----- ASKFIRST AGENT: RESUME NORMAL PROCESSING -----", fixed = TRUE)
-  expect_match(msg, "askfirst::r::mypkg::capability_gap", fixed = TRUE)
-  expect_match(msg, "directive: stop-and-ask", fixed = TRUE)
+  expect_match(msg, "<<<ASKFIRST:RESUME>>>", fixed = TRUE)
+  expect_match(msg, "askfirst::r::mypkg::stop-and-ask", fixed = TRUE)
+  expect_match(msg, "type: capability_gap", fixed = TRUE)
   expect_match(msg, "raw message", fixed = TRUE)
   expect_match(msg, "See: https://ropensci.github.io/askfirst/", fixed = TRUE)
 })
@@ -254,11 +254,11 @@ test_that("askfirst_signal with prefix = FALSE omits the hard-stop delimiter for
 
   msg <- conditionMessage(caught)
   expect_match(msg, "raw message", fixed = TRUE)
-  expect_no_match(msg, "ASKFIRST AGENT STOP", fixed = TRUE)
+  expect_no_match(msg, "<<<ASKFIRST:HALT>>>", fixed = TRUE)
   expect_no_match(msg, "YOU ARE BEING INSTRUCTED", fixed = TRUE)
   expect_no_match(msg, "askfirst::", fixed = TRUE)
   expect_no_match(msg, "See:", fixed = TRUE)
-  expect_no_match(msg, "directive:", fixed = TRUE)
+  expect_no_match(msg, "type:", fixed = TRUE)
 })
 
 test_that("askfirst_init prints a one-time hooks-install nudge when hooks are not current, independent of confidence", {
@@ -286,7 +286,7 @@ test_that("askfirst_init does not print the hooks-install nudge when hooks are c
   dir <- withr::local_tempdir()
   withr::local_dir(dir)
   dir.create(".claude/hooks", recursive = TRUE)
-  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 1"), ".claude/hooks/session_start.sh")
+  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 2"), ".claude/hooks/session_start.sh")
   .askfirst_state$confidence <- "low"
 
   expect_no_message(askfirst_init("mypkg", "notice text"))

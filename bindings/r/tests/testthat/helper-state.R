@@ -1,7 +1,14 @@
 # Resets askfirst's internal session-state environment for the duration of
 # a test, so tests don't leak detection/registry state into one another.
+# Also sandboxes the working directory to a fresh tempdir, since
+# askfirst_signal() now writes real files under .askfirst/ (log, pending/)
+# as a side effect of any stop-and-ask or un-silenced notice signal --
+# without this, tests calling askfirst_init()/askfirst_capability_gap()/etc
+# at high confidence would write those files into the real repo checkout.
 # Auto-sourced by testthat before running tests (files matching helper-*.R).
 local_reset_askfirst_state <- function(env = parent.frame()) {
+  withr::local_dir(withr::local_tempdir(.local_envir = env), .local_envir = env)
+
   old <- list(
     confidence = .askfirst_state$confidence,
     tool = .askfirst_state$tool,

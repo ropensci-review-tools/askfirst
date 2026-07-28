@@ -43,12 +43,15 @@ test_that("tools/install-agent-hooks.sh's embedded hooks match agent-hooks/claud
 
   session_embedded <- extract_heredoc_body(installer_lines, "SESSION_HOOK")
   post_embedded <- extract_heredoc_body(installer_lines, "POST_HOOK")
+  user_prompt_embedded <- extract_heredoc_body(installer_lines, "USER_PROMPT_HOOK")
 
   session_canonical <- readLines(file.path(repo_root, "agent-hooks", "claude", "session_start.sh"))
   post_canonical <- readLines(file.path(repo_root, "agent-hooks", "claude", "post_tool_use.sh"))
+  user_prompt_canonical <- readLines(file.path(repo_root, "agent-hooks", "claude", "user_prompt_submit.sh"))
 
   expect_identical(session_embedded, session_canonical)
   expect_identical(post_embedded, post_canonical)
+  expect_identical(user_prompt_embedded, user_prompt_canonical)
 })
 
 test_that("agent-hooks/claude/ and agent-hooks/opencode/ stay byte-identical", {
@@ -65,5 +68,9 @@ test_that("agent-hooks/claude/ and agent-hooks/opencode/ stay byte-identical", {
   expect_identical(
     readLines(file.path(repo_root, "agent-hooks", "claude", "post_tool_use.sh")),
     readLines(file.path(repo_root, "agent-hooks", "opencode", "post_tool_use.sh"))
+  )
+  expect_identical(
+    readLines(file.path(repo_root, "agent-hooks", "claude", "user_prompt_submit.sh")),
+    readLines(file.path(repo_root, "agent-hooks", "opencode", "user_prompt_submit.sh"))
   )
 })
