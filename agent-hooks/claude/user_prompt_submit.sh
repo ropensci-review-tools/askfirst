@@ -22,7 +22,7 @@
 # `post_tool_use.sh` (kept identical here so both hooks derive the same
 # path from the same `cwd` payload field, if this script is ever actually
 # invoked on the opencode side).
-# askfirst-hook-version: 3
+# askfirst-hook-version: 4
 
 askfirst_state_dir() {
   local cwd="$1"

@@ -54,25 +54,24 @@ test_that("tools/install-agent-hooks.sh's embedded hooks match agent-hooks/claud
   expect_identical(user_prompt_embedded, user_prompt_canonical)
 })
 
-test_that("agent-hooks/claude/ and agent-hooks/opencode/ stay byte-identical", {
+test_that("tools/install-agent-hooks.sh's embedded plugin matches agent-hooks/opencode/askfirst-plugin.js exactly", {
+  # As of stage 017, agent-hooks/claude/ and agent-hooks/opencode/ are no
+  # longer byte-identical shell-script families -- opencode's real
+  # mechanism is a JS plugin, spliced from its own independent source (see
+  # tools/generate-install-hooks.sh). This test replaces the old
+  # byte-identity check with the equivalent regression coverage for the
+  # plugin file.
   repo_root <- find_repo_root()
   skip_if(
     is.null(repo_root),
     "not running inside a full askfirst repo checkout (agent-hooks/ or tools/ not found)"
   )
 
-  expect_identical(
-    readLines(file.path(repo_root, "agent-hooks", "claude", "session_start.sh")),
-    readLines(file.path(repo_root, "agent-hooks", "opencode", "session_start.sh"))
-  )
-  expect_identical(
-    readLines(file.path(repo_root, "agent-hooks", "claude", "post_tool_use.sh")),
-    readLines(file.path(repo_root, "agent-hooks", "opencode", "post_tool_use.sh"))
-  )
-  expect_identical(
-    readLines(file.path(repo_root, "agent-hooks", "claude", "user_prompt_submit.sh")),
-    readLines(file.path(repo_root, "agent-hooks", "opencode", "user_prompt_submit.sh"))
-  )
+  installer_lines <- readLines(file.path(repo_root, "tools", "install-agent-hooks.sh"))
+  plugin_embedded <- extract_heredoc_body(installer_lines, "PLUGIN_HOOK")
+  plugin_canonical <- readLines(file.path(repo_root, "agent-hooks", "opencode", "askfirst-plugin.js"))
+
+  expect_identical(plugin_embedded, plugin_canonical)
 })
 
 test_that("the installed post_tool_use.sh carries the current version marker and the relocated tmp-root paths", {

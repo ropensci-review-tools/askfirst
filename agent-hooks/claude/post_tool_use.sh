@@ -40,7 +40,7 @@
 # working directory (`getwd()` on the R side, this payload's `cwd` field
 # here). Neither side resolves symlinks -- keep both sides in sync if this
 # scheme ever changes.
-# askfirst-hook-version: 3
+# askfirst-hook-version: 4
 
 askfirst_state_dir() {
   local cwd="$1"

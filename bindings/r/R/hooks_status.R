@@ -2,45 +2,52 @@
 #'
 #' The installed R package does not ship the repo-relative `agent-hooks/`
 #' directory, so this is a hand-maintained copy of the same data --
-#' `hooks_dir` per supported coding-agent tool, plus the current
-#' `hook_version` -- kept in sync manually whenever
+#' `hooks_dir` and `marker_file` per supported coding-agent tool, plus the
+#' current `hook_version` -- kept in sync manually whenever
 #' `agent-hooks/manifest.json` changes. `hooks_dir` is a fixed,
 #' askfirst-controlled location where `tools/install-agent-hooks.sh` places
-#' its own hook scripts, independent of each tool's own config-file search
-#' path -- Claude Code's config lives at a fixed project-relative path
-#' (`.claude/settings.json`), but opencode's config file (`opencode.json`)
-#' is discovered via a precedence order across several possible locations
-#' (see <https://opencode.ai/docs/config#precedence-order>), not a single
-#' fixed path, so no config path is recorded here at all; only `hooks_dir`
-#' is checked. The path/version-marker convention this represents is
-#' deliberately language-agnostic in shape (same relative paths, same
-#' `# askfirst-hook-version: <N>` marker format), so a future Python/Julia/
-#' Rust binding can implement the equivalent check without redesigning the
-#' underlying scheme.
+#' its own hook/plugin file(s), independent of each tool's own config-file
+#' search path -- Claude Code's config lives at a fixed project-relative
+#' path (`.claude/settings.json`), but opencode's config file
+#' (`opencode.json`) is discovered via a precedence order across several
+#' possible locations (see
+#' <https://opencode.ai/docs/config#precedence-order>), not a single fixed
+#' path, so no config path is recorded here at all; only `hooks_dir` is
+#' checked. `marker_file` is the specific file within `hooks_dir` whose
+#' version marker is authoritative for that tool -- as of stage 017 this
+#' differs by tool in both name and comment style (Claude Code:
+#' `session_start.sh`, a `# askfirst-hook-version: <N>` shell comment;
+#' opencode: `askfirst-plugin.js`, a `// askfirst-hook-version: <N>` JS
+#' comment, since opencode's mechanism is a real JS plugin rather than a
+#' shell-script family -- see `agent-hooks/opencode/askfirst-plugin.js`).
 #' @keywords internal
 #' @noRd
 askfirst_hooks_manifest <- function() {
   list(
-    hook_version = 3L,
+    hook_version = 4L,
     tools = list(
-      claude = list(hooks_dir = ".claude/hooks"),
-      opencode = list(hooks_dir = ".opencode/hooks")
+      claude = list(hooks_dir = ".claude/hooks", marker_file = "session_start.sh"),
+      opencode = list(hooks_dir = ".opencode/plugins", marker_file = "askfirst-plugin.js")
     )
   )
 }
 
-#' Extract the `# askfirst-hook-version: <N>` marker from a hook script
+#' Extract the `askfirst-hook-version: <N>` marker from a hook/plugin file
+#'
+#' Recognises both the `# askfirst-hook-version: <N>` shell-comment form
+#' (Claude Code's hook scripts) and the `// askfirst-hook-version: <N>`
+#' JS-comment form (opencode's plugin file, since stage 017).
 #' @return An integer version, or `NA_integer_` if the file has no marker
 #'   line (e.g. hooks installed before this stage introduced versioning).
 #' @keywords internal
 #' @noRd
 askfirst_hook_version_from_file <- function(path) {
   lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) character())
-  marker <- grep("^#\\s*askfirst-hook-version:\\s*[0-9]+", lines, value = TRUE)
+  marker <- grep("^(#|//)\\s*askfirst-hook-version:\\s*[0-9]+", lines, value = TRUE)
   if (length(marker) == 0) {
     return(NA_integer_)
   }
-  as.integer(sub("^#\\s*askfirst-hook-version:\\s*([0-9]+).*$", "\\1", marker[[1]]))
+  as.integer(sub("^(#|//)\\s*askfirst-hook-version:\\s*([0-9]+).*$", "\\2", marker[[1]]))
 }
 
 #' Hooks-installation status for a single tool, relative to `getwd()`
@@ -49,7 +56,8 @@ askfirst_hook_version_from_file <- function(path) {
 #' @noRd
 askfirst_hooks_status_for_tool <- function(tool, manifest = askfirst_hooks_manifest()) {
   hooks_dir <- manifest$tools[[tool]]$hooks_dir
-  target <- file.path(hooks_dir, "session_start.sh")
+  marker_file <- manifest$tools[[tool]]$marker_file
+  target <- file.path(hooks_dir, marker_file)
   if (!file.exists(target)) {
     return("not_installed")
   }

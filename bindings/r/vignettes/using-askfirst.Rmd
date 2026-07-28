@@ -39,20 +39,34 @@ if (length(tools) == 1) {
 }
 ```
 
-This copies SessionStart and PostToolUse hook scripts into your project's
-`.claude/hooks/` (or `.opencode/hooks/`) directory and registers them in
-the tool's settings.json. The SessionStart hook injects system-level context
+For Claude Code, this copies SessionStart/PostToolUse/UserPromptSubmit hook
+scripts into your project's `.claude/hooks/` directory and registers them in
+`.claude/settings.json`. The SessionStart hook injects system-level context
 telling the AI what `askfirst::` signals are and how to respond; the
 PostToolUse hook annotates `askfirst::` lines in tool output and (see step
 4 below) escalates a reminder if a notice is ever left unfollowed-up.
+
+For opencode, this instead copies a single real plugin file
+(`askfirst-plugin.js`) into your project's `.opencode/plugins/` directory --
+a structurally different mechanism from Claude Code's shell hooks, since
+opencode's actual extension point is a JS/TS plugin module implementing
+opencode's own `Hooks` interface, not a shell script reading JSON from
+stdin. No separate registration step is needed: opencode auto-discovers
+plugin files from `.opencode/plugins/` on its own. The plugin implements
+the same four behaviors as the Claude Code hooks (context injection,
+notice-log/escalation annotation, the blocking stop-and-ask gate, and
+pending-sentinel clearing on a new turn) via opencode's
+`experimental.chat.system.transform`, `tool.execute.after`,
+`tool.execute.before`, and `"chat.message"` hooks respectively.
 
 If your users prefer to configure manually, they can run the shared shell
 script directly — it interactively prompts when multiple tools are detected:
 ```bash
 /path/to/askfirst/tools/install-agent-hooks.sh
 ```
-or copy `agent-hooks/claude/` (or `agent-hooks/opencode/`) into their
-project's hooks directory and register them by hand.
+or copy `agent-hooks/claude/` (for Claude Code's hook scripts) or
+`agent-hooks/opencode/askfirst-plugin.js` (for opencode's plugin) into
+their project's hooks/plugins directory directly.
 
 ## 1. Registering your package: `askfirst_init()`
 
