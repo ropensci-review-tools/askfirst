@@ -1,7 +1,7 @@
 ---
-created: 2026-07-27T16:55:00Z
+created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: 01e8c3fb12f24b22888144a4eb02ae71a5d91f87
+git_hash: 6999676a3066babc769b0b934d8a493cd707f900
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,21 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Thirteen design stages are complete. Stage 013 replaced the
+capability. Fourteen design stages are complete. Stage 014 reopened stage
+007/011's neutral-message-text trust boundary for `directive: stop-and-ask`
+signals specifically: `askfirst_signal()` now embeds a fixed, imperative
+hard-stop block directly in message text — start/end delimiter lines
+bounding a first-person-to-agent consequence statement, the existing
+structured prefix/directive line pair, and the package-authored body —
+unconditionally, regardless of whether `agent-hooks/` is installed, after a
+field report showed even the hooks-reinforced version failed to stop a
+workaround. `askfirst_notice` instead gained a short, non-halting
+forward-reference sentence. The same stage added `askfirst_hooks_status()`,
+a check (backed by a hand-maintained `agent-hooks/manifest.json` and a
+`# askfirst-hook-version:` marker in the canonical hook scripts) that
+detects missing/stale hooks and prints a one-time, human-directed (not
+agent-directed) nudge from `askfirst_init()`, independent of AI-agent
+confidence. Stage 013 replaced the
 vague "the capability may belong in `{pkg}` itself" framing in the
 load-time notice and the scenario-check message with a concrete, attributed
 invitation naming `askfirst` explicitly, backed by two new optional
@@ -368,7 +382,19 @@ concrete, attributed invitation built by a shared internal helper
 (`askfirst_build_contribute_line()`), always naming `askfirst` by name and
 optionally including maintainer-supplied `contribute_how`/`contribute_url`
 text (two new optional `askfirst_init()` fields). `askfirst_capability_gap()`
-and `error_redirect` are unchanged.
+and `error_redirect` are unchanged. Stage 014 reopened the neutral-message-
+text side of this trust boundary, but only for `directive: stop-and-ask`
+signals: the message body itself now carries a fixed, imperative hard-stop
+block — `----- ASKFIRST AGENT STOP: ... -----` / a first-person-to-agent
+consequence statement / the existing prefix-and-directive lines / the
+package-authored body / `----- ASKFIRST AGENT: RESUME NORMAL PROCESSING
+-----` / the `See:` line — emitted unconditionally, whether or not
+`agent-hooks/` is installed or current. `askfirst_notice` instead gained a
+short, non-halting forward-reference sentence naming the same markers. The
+fixed text interpolates `{pkg}` via `sprintf()` inside `askfirst_signal()`
+itself rather than glue syntax, since `askfirst_capability_gap()` resolves
+glue interpolation against the *adopting function's own frame*, which
+generally has no variable named `pkg`.
 **Rationale:** The previous second-person format ("If you are an AI coding
 agent...") was interpreted as a prompt injection by AI assistants, causing
 outright refusal. The structured prefix lets the tool's system context
@@ -394,7 +420,15 @@ agent, not a human, is the direct reader of message text, so an unqualified
 human the invitation is meant for — a misreading that could plausibly lead
 an agent to conclude it should go open an upstream PR unsupervised. Every
 sentence in the new "contribute" text names its addressee explicitly
-instead.
+instead. Stage 014 found, via a further field report, that even the
+hooks-reinforced structured format still failed to stop an agent from
+offering a workaround, and that many sessions run with no hooks installed
+at all (or hooks predating a fix) — hook context alone cannot be relied on
+to carry instruction strength. Rather than escalating message strength only
+once hooks are confirmed current, the decision was to emit the full
+hard-stop shape unconditionally, accepting a residual guardrail-rejection
+risk in the no-hooks case as the lesser failure mode versus a workaround
+slipping through unchallenged.
 **Roads not taken:** Keeping the second-person embedded-instruction format
 (actively counterproductive — triggers prompt-injection guardrails);
 implementing hook installation as R-only logic (rejected mid-stage in favor
@@ -408,8 +442,56 @@ reversion within stage 007 had specifically removed to keep the shared
 `tools/` installer usable by any future language binding); an unqualified
 second-person "you" in the new stage-013 contribute-invitation text
 (rejected once it was recognized the agent, not the human, is the direct
-reader of that text).
-**Stages:** 007, 011, 012, 013
+reader of that text); conditioning stage 014's hard-stop message strength on
+detected hook-installation status, escalating only once hooks are confirmed
+current (rejected in favor of unconditional emission, to avoid a runtime
+dependency between two otherwise-separate mechanisms).
+**Stages:** 007, 011, 012, 013, 014
+
+### Hooks-installation detection: language-agnostic manifest and version marker, human-directed nudge
+**Outcome:** A hand-maintained `agent-hooks/manifest.json` records, per known
+coding-agent tool, only the fixed `hooks_dir` where
+`tools/install-agent-hooks.sh` places its own hook scripts (no config-file
+path is recorded, since only Claude Code's is fixed — see Roads not taken
+below), plus a single `hook_version` shared across tools. A matching
+`# askfirst-hook-version: <N>` comment line was added to the canonical
+`agent-hooks/claude/session_start.sh`/`post_tool_use.sh` scripts (propagated
+through `tools/generate-install-hooks.sh` with no logic change needed, since
+it already splices file content verbatim). `askfirst_hooks_status()` (R)
+embeds a compiled-in copy of this same manifest data (the installed package
+doesn't ship the repo-relative `agent-hooks/` directory) and reports
+`"not_installed"`/`"stale"`/`"current"` per session, cached like the
+existing confidence-detection result. `askfirst_init()` calls it once per
+session, independent of AI-agent confidence, and prints a one-time,
+human-directed (not agent-directed, and not routed through
+`askfirst_signal()`'s condition machinery) nudge toward
+`tools/install-agent-hooks.sh` when hooks are missing or out of date.
+**Rationale:** Complements stage 014's message-text self-sufficiency work by
+addressing the root cause on the other side — hooks not being installed in
+the first place — while keeping the path/version-marker convention portable
+to future non-R bindings without redesign. The nudge is human-directed
+because the entire reason to show it is that hook context can't be relied
+on to reach an agent at all in the state it's warning about, so gating it on
+agent-confidence detection the way agent-facing signals are would be
+self-defeating.
+**Tradeoffs:** opencode's own config file (`opencode.json`) is discovered
+via a precedence order across several possible locations (project root,
+global config directory, etc. — see
+`https://opencode.ai/docs/config#precedence-order`), not a single fixed
+path, so the manifest and `askfirst_hooks_status()` only ever check
+`hooks_dir` (askfirst's own fixed script-install location), never a config
+path, for opencode. The pre-existing `tools/install-agent-hooks.sh` installer
+had, independently, been auto-detecting opencode by checking for a
+`.opencode/settings.json` file that can never actually exist under real
+opencode config discovery; that always-false detection branch was removed
+from `detect_tools()` during this stage, so opencode must now be selected
+explicitly via `--tool opencode` (the underlying config-registration path
+for opencode installs, `TARGET_CONFIG=".opencode/settings.json"`, was left
+unchanged and remains a known inaccuracy, out of scope for this fix).
+**Proposed by:** joint (config-path and detection-branch corrections: mpadge)
+**Relates to:** Stage 007 (Decision 2, `agent-hooks/` as the shared,
+language-agnostic source this manifest extends)
+**Stages:** 014
 
 ### Demo content: vignette-scoped, realistic function replacing abstract placeholders
 **Outcome:** The `askfirst-development.Rmd` vignette's tokenpkg demo was
@@ -582,6 +664,41 @@ final wording names its addressee explicitly instead.
 `askfirst_capability_gap()` and `error_redirect` were left unchanged,
 staying consistent with each function's own established design (fully
 author-supplied message; deliberate verbatim-notice reuse, respectively).
+Stage 014 was triggered by a further field report describing the same
+underlying failure at a more fundamental level: an agent read a
+`stop-and-ask` signal that already carried stage 011/012's full structured
+prefix and directive line, and offered a workaround as a menu option
+anyway, diagnosing the problem as its own message text reading like
+ordinary error/package output rather than an unmistakable instruction.
+Reviewing this against stage 007/011's deliberate trust-boundary decision
+(message text is untrusted/spoofable; instruction strength belongs in
+pre-loaded, trusted `agent-hooks/` context) surfaced a real tension: many
+sessions never have hooks installed at all, or run with hooks predating
+whatever fix ships, so a boundary that routes all instruction strength
+through hooks cannot, by construction, reach those sessions. The decision
+was to reopen the boundary specifically for `directive: stop-and-ask`
+signals — message text now carries a fixed, imperative hard-stop block
+directly and unconditionally — while leaving the boundary's other half
+intact: the package-authored body still cannot inject or override the
+fixed structural text around it, and `agent-hooks/` context was updated to
+describe and reinforce the new markers rather than being the sole carrier
+of instruction strength. A companion mechanism, `askfirst_hooks_status()`,
+was added in the same stage to detect missing/stale hooks and nudge the
+human toward installing them, addressing the root cause the reopened
+message-text boundary works around rather than fixes. Implementation
+surfaced two corrections along the way: the fixed hard-stop text
+interpolates `pkg` via `sprintf()` rather than glue `{pkg}` syntax, since
+`askfirst_capability_gap()`'s glue interpolation resolves against the
+calling package's own frame, which usually has no variable named `pkg`; and
+the imperative consequence text's first draft asked the human to judge
+whether a capability belonged upstream, corrected to direct the human to
+ask the package's own developers instead, since they — not the human user —
+are the ones positioned to know. A related, pre-existing inaccuracy was
+also corrected: `tools/install-agent-hooks.sh` had been auto-detecting
+opencode via a `.opencode/settings.json` check that can never succeed under
+opencode's real, precedence-based config discovery; that dead detection
+branch was removed, leaving opencode selectable only via explicit `--tool
+opencode`.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -697,3 +814,35 @@ author-supplied message; deliberate verbatim-notice reuse, respectively).
 - Per-call `contribute_how`/`contribute_url` overrides on
   `askfirst_capability_gap()` — deferred as unnecessary, since that
   function doesn't consume these fields at all this stage.
+
+**Messaging (stage 014):**
+- Conditioning the new hard-stop message shape's strength on detected
+  hook-installation status — considered (softer wording when hooks are
+  missing/stale, full hard-stop only once confirmed current), rejected in
+  favor of unconditional emission, accepting residual guardrail-rejection
+  risk in the no-hooks case as the lesser failure mode versus an
+  unchallenged workaround, and avoiding a runtime dependency between two
+  otherwise-separate mechanisms.
+- Asking the human user to judge whether a capability belongs in `{pkg}`
+  itself — the first draft of the fixed consequence text; corrected once it
+  was pointed out the human typically has no basis for that judgment, only
+  the package's own developers do.
+- `{pkg}` glue interpolation for the new fixed hard-stop text — considered,
+  then replaced with direct `sprintf()` interpolation inside
+  `askfirst_signal()` once it was recognized that `askfirst_capability_gap()`
+  resolves glue interpolation against the adopting function's own frame,
+  which generally has no variable literally named `pkg`.
+- A precedence-aware `opencode.json` config-path lookup for the new
+  hooks-detection manifest — out of scope; only `hooks_dir` (askfirst's own
+  fixed script-install location) is tracked, not a config path, for
+  opencode.
+- Fixing `tools/install-agent-hooks.sh`'s pre-existing opencode
+  config-registration path (`TARGET_CONFIG=".opencode/settings.json"`,
+  written after install but never actually read by real opencode config
+  discovery) — left unchanged as a known, out-of-scope inaccuracy; only the
+  installer's opencode *detection* branch (which could never succeed) was
+  removed this stage, not the separate config-registration write path.
+- An anti-spoofing mechanism (signing, checksums, allowlisting) to restore
+  some guarantee of message-text legitimacy now that hard-stop text carries
+  real instructional weight without hooks to vouch for it in the no-hooks
+  case — flagged as a candidate for a future stage, not attempted here.
