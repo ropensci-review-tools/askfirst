@@ -2,16 +2,16 @@
 #'
 #' These strings are deliberately **not** package-authored and **not**
 #' glue/cli-interpolated against a caller-supplied environment -- unlike the
-#' body `message` passed to [askfirst_signal()], which is written by the
+#' body `message` passed to `askfirst_signal()`, which is written by the
 #' adopting package and may reference that package's own local variables via
 #' `{}` syntax resolved in `.envir`. The hard-stop block instead interpolates
-#' `pkg` directly via `sprintf()`, using the `pkg` argument [askfirst_signal()]
+#' `pkg` directly via `sprintf()`, using the `pkg` argument `askfirst_signal()`
 #' itself always receives, rather than `{pkg}` glue syntax -- glue
 #' interpolation for `askfirst_capability_gap()` resolves against the
 #' *adopting function's own frame* (so package authors can reference their own
 #' local variables), which usually has no variable literally named `pkg`, so
 #' `{pkg}` there would error rather than resolve. `sprintf()` inside
-#' [askfirst_signal()] itself sidesteps that entirely.
+#' `askfirst_signal()` itself sidesteps that entirely.
 #'
 #' This keeps the boundary from stage 007/011 intact in spirit -- the
 #' package-authored body still cannot inject or override the instructional
@@ -26,7 +26,7 @@
 #' print a backtrace afterward -- this is rlang's own `rlang_backtrace_on_error`
 #' default ("full" when `!interactive()`), not something askfirst adds or
 #' controls. It always trails strictly *after* the fully assembled message
-#' (i.e. after [askfirst_stop_end_delimiter] and the `See:` line), never
+#' (i.e. after `askfirst_stop_end_delimiter` and the `See:` line), never
 #' interleaved within the block, so the hard-stop block itself stays intact
 #' and un-interrupted regardless of calling context. No suppression is
 #' attempted here -- overriding `options(rlang_backtrace_on_error = ...)`
@@ -91,8 +91,8 @@ askfirst_notice_prime <- function(pkg) {
 #'
 #' - **Hard-stop shape**, used whenever `directive_map[[class]]` is
 #'   `"stop-and-ask"` (every class except `"askfirst_notice"`): the message is
-#'   bounded by [askfirst_stop_start_delimiter] and [askfirst_stop_end_delimiter],
-#'   with [askfirst_stop_consequence()]'s fixed, first-person-to-agent
+#'   bounded by `askfirst_stop_start_delimiter` and `askfirst_stop_end_delimiter`,
+#'   with `askfirst_stop_consequence()`'s fixed, first-person-to-agent
 #'   imperative text placed immediately after the start delimiter -- before
 #'   the structured `askfirst::<language>::<pkg>::stop-and-ask` / `type:`
 #'   line pair, the (package-authored) body `message`, and, after the end
@@ -106,12 +106,12 @@ askfirst_notice_prime <- function(pkg) {
 #'   moves to the `type:` line that follows.
 #' - **Notice shape**, used only for `"askfirst_notice"`: keeps the same
 #'   `askfirst::<language>::<pkg>::notice` / `type: notice` / body layout,
-#'   with [askfirst_notice_prime()]'s short, fixed forward-reference
+#'   with `askfirst_notice_prime()`'s short, fixed forward-reference
 #'   sentence appended after the body (before the URL) -- priming the agent
 #'   for what a later hard-stop block from this package means, without
 #'   itself being a hard stop (nothing has gone wrong yet at notice time).
 #'
-#' See [askfirst_stop_start_delimiter] for why the hard-stop shape's fixed
+#' See `askfirst_stop_start_delimiter` for why the hard-stop shape's fixed
 #' text is interpolated via `sprintf()` on the `pkg` argument directly, rather
 #' than via `{pkg}` glue syntax resolved in `.envir`.
 #'

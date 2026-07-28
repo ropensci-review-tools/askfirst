@@ -96,7 +96,7 @@ askfirst_hooks_status <- function() {
 #' Print a one-time, human-directed nudge to install/update askfirst hooks
 #'
 #' Called from [askfirst_init()], independent of the session's `confidence`
-#' tier -- unlike [askfirst_signal()]'s agent-directed conditions, this
+#' tier -- unlike `askfirst_signal()`'s agent-directed conditions, this
 #' message is for the human running the session: the whole reason to show
 #' it is that hooks context can't be relied on to reach an agent at all
 #' while hooks are missing or stale, so it isn't gated on agent detection.

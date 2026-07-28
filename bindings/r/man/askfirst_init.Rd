@@ -58,7 +58,7 @@ caches the session's LLM/AI-agent-caller confidence tier (see
 \code{specs/002-design-agnostic-spec/design.md}, T002-4); subsequent calls from
 the same or other adopting packages reuse that one cached result rather
 than recomputing it. It also checks (once per session, via
-\code{\link[=askfirst_hooks_status]{askfirst_hooks_status()}}) whether this project has current
+\code{askfirst_hooks_status()}) whether this project has current
 \code{askfirst}-aware agent hooks installed, and if not, prints a one-time,
 human-directed nudge pointing at \code{tools/install-agent-hooks.sh} --
 independent of the confidence tier, since a human running the session is
