@@ -7,7 +7,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
 # Tasks: escalate-unactioned-notice
 
 ## T016-1: Shared helper computing the tmp state root (R side)
-- [ ] T016-1: In `bindings/r/R/state.R` (or a new `bindings/r/R/state_dir.R`
+- [x] T016-1: In `bindings/r/R/state.R` (or a new `bindings/r/R/state_dir.R`
   if that reads more cleanly), add `askfirst_state_dir()`: returns
   `file.path(Sys.getenv("TMPDIR", unset = "/tmp"), "askfirst", askfirst_mangle_path(getwd()))`,
   and a helper `askfirst_mangle_path(path)` implementing the agreed
@@ -23,7 +23,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   from stage 015.
 
 ## T016-2: Migrate the existing log/pending mechanism to the new root
-- [ ] T016-2: In `bindings/r/R/log.R`, update `askfirst_log_notice()` and
+- [x] T016-2: In `bindings/r/R/log.R`, update `askfirst_log_notice()` and
   `askfirst_write_pending()` to write under
   `file.path(askfirst_state_dir(), "log")` and
   `file.path(askfirst_state_dir(), "pending", sprintf("%s-%s.txt", pkg, type))`
@@ -32,7 +32,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   `log`, one-file-per-`{pkg}-{type}` de-duplication for `pending/`).
 
 ## T016-3: Add write/clear helpers for the new "unresolved notice" marker
-- [ ] T016-3: In `bindings/r/R/log.R`, add
+- [x] T016-3: In `bindings/r/R/log.R`, add
   `askfirst_write_unresolved_notice(pkg, formatted)` (writes/overwrites
   `file.path(askfirst_state_dir(), "unresolved-notice", paste0(pkg, ".txt"))`,
   creating parent directories as needed) and
@@ -45,7 +45,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   firing), never merely by time or turn passing.
 
 ## T016-4: Write the marker when a notice fires without a prior resolution
-- [ ] T016-4: In `bindings/r/R/conditions.R`, inside `askfirst_signal()`'s
+- [x] T016-4: In `bindings/r/R/conditions.R`, inside `askfirst_signal()`'s
   existing notice branch (the `else if (!askfirst_silence_notice_active(pkg))`
   block that currently calls `askfirst_log_notice(pkg, formatted)`), add a
   call to `askfirst_write_unresolved_notice(pkg, formatted)` right
@@ -55,7 +55,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   already exists for `pkg` before writing.
 
 ## T016-5: Clear the marker on a scenario-check call, at every confidence tier
-- [ ] T016-5: In `bindings/r/R/scenarios.R`, at the top of
+- [x] T016-5: In `bindings/r/R/scenarios.R`, at the top of
   `askfirst_check_scenarios()` (before the `confidence <- askfirst_ensure_detection()`
   branch that decides whether to signal), add an unconditional call to
   `askfirst_clear_unresolved_notice(pkg)`. This must run regardless of the
@@ -64,7 +64,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   happened.
 
 ## T016-6: Clear the marker when a real stop-and-ask gate fires
-- [ ] T016-6: In `bindings/r/R/conditions.R`, inside `askfirst_signal()`,
+- [x] T016-6: In `bindings/r/R/conditions.R`, inside `askfirst_signal()`,
   add a call to `askfirst_clear_unresolved_notice(pkg)` in the
   `stop-and-ask` branch (i.e. whenever `directive_map[[class]]` is
   `"stop-and-ask"`), so that any of `askfirst_capability_gap()`,
@@ -73,7 +73,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   package.
 
 ## T016-7: Unit tests for the state-root helper and the full marker lifecycle
-- [ ] T016-7: Add tests for `askfirst_state_dir()`/`askfirst_mangle_path()`
+- [x] T016-7: Add tests for `askfirst_state_dir()`/`askfirst_mangle_path()`
   (correct mangling of representative paths, including ones with multiple
   path separators). Update `bindings/r/tests/testthat/test-log.R` for the
   relocated `askfirst_log_notice()`/`askfirst_write_pending()` (assert
@@ -97,7 +97,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   test.
 
 ## T016-8: Relocate the bash-side state paths and add the mangling function
-- [ ] T016-8: In `agent-hooks/claude/post_tool_use.sh` and
+- [x] T016-8: In `agent-hooks/claude/post_tool_use.sh` and
   `agent-hooks/claude/user_prompt_submit.sh`, add a shared bash function
   (duplicated identically in both files, consistent with how these scripts
   already duplicate their `cwd`-extraction logic) implementing the same
@@ -110,7 +110,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   `pending` subpath under the new root.
 
 ## T016-9: Escalating reminder logic in the Claude Code PostToolUse hook
-- [ ] T016-9: In `agent-hooks/claude/post_tool_use.sh`, after the existing
+- [x] T016-9: In `agent-hooks/claude/post_tool_use.sh`, after the existing
   pending-block check and before (or alongside) the existing log flush
   (both now reading from the relocated tmp-root paths per T016-8), add
   logic that: (a) parses the tool name from the hook payload (Claude
@@ -136,7 +136,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   a reminder was appended.
 
 ## T016-10: Confirm and implement the opencode equivalent
-- [ ] T016-10: Investigate opencode's actual `PostToolUse`-equivalent
+- [x] T016-10: Investigate opencode's actual `PostToolUse`-equivalent
   payload shape for file-modifying tool calls (its plugin API is a
   `tool.execute.before/after` interface per stage 015's own findings, not
   necessarily identical field names to Claude Code's `tool_name`) -- check
@@ -154,7 +154,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   blocking convention) rather than silently shipping a no-op.
 
 ## T016-11: Broaden the Claude Code PostToolUse matcher to include file edits
-- [ ] T016-11: In `tools/install-agent-hooks.sh`'s `register_hooks_claude()`
+- [x] T016-11: In `tools/install-agent-hooks.sh`'s `register_hooks_claude()`
   function, change the `PostToolUse` matcher from the current
   `"Bash|R|Rscript"` to also include `Edit`, `Write`, and `NotebookEdit`
   (e.g. `"Bash|R|Rscript|Edit|Write|NotebookEdit"`), since the hook script
@@ -170,7 +170,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   same, fuller matcher.
 
 ## T016-12: Determine whether opencode's matcher/config registration has any effect
-- [ ] T016-12: `tools/install-agent-hooks.sh`'s `register_hooks_opencode()`
+- [x] T016-12: `tools/install-agent-hooks.sh`'s `register_hooks_opencode()`
   writes a `matcher` field into `.opencode/settings.json`, but
   `askfirst-tests/AGENTS.md` states opencode "discovers hooks from
   `.opencode/hooks/` without needing them registered in a config file" and
@@ -184,7 +184,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   `register_hooks_opencode()`.
 
 ## T016-13: Regenerate the embedded installer heredocs
-- [ ] T016-13: After T016-8, T016-9, and T016-10's edits to
+- [x] T016-13: After T016-8, T016-9, and T016-10's edits to
   `agent-hooks/claude/post_tool_use.sh`, `agent-hooks/claude/user_prompt_submit.sh`,
   and their `opencode/` counterparts (and any `session_start.sh` changes
   from T016-16) are finalized, run `tools/generate-install-hooks.sh` from
@@ -195,7 +195,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   that script's own header comment.
 
 ## T016-14: Bump the hook version marker everywhere it's tracked
-- [ ] T016-14: Increment the hook version from 2 to 3 in all of: the
+- [x] T016-14: Increment the hook version from 2 to 3 in all of: the
   `# askfirst-hook-version: 2` comment line in
   `agent-hooks/claude/session_start.sh`, `agent-hooks/claude/post_tool_use.sh`,
   `agent-hooks/claude/user_prompt_submit.sh`, and their
@@ -205,7 +205,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   these in sync manually, per the existing documented convention.
 
 ## T016-15: Update hook-status and installer tests for the new version
-- [ ] T016-15: Update `bindings/r/tests/testthat/test-hooks-status.R` for
+- [x] T016-15: Update `bindings/r/tests/testthat/test-hooks-status.R` for
   the new `hook_version` value (3) wherever tests assert on
   `askfirst_hooks_manifest()` or construct fixture hook files with a
   specific version marker to test `"stale"` vs `"current"` status. Update
@@ -215,7 +215,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   includes `Edit`/`Write`/`NotebookEdit` per T016-11/T016-12.
 
 ## T016-16: Update SessionStart hook context for the new location and tier
-- [ ] T016-16: In both `agent-hooks/claude/session_start.sh` and
+- [x] T016-16: In both `agent-hooks/claude/session_start.sh` and
   `agent-hooks/opencode/session_start.sh`'s injected `<askfirst-context>`
   block: (a) correct the existing paragraph that currently says a
   stop-and-ask signal is "written to a persistent sentinel file under
@@ -231,7 +231,7 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   edit in question duplicates/extends the flagged package's functionality.
 
 ## T016-17: Document the new mechanism and storage location in vignettes
-- [ ] T016-17: Update `bindings/r/vignettes/using-askfirst.Rmd` to
+- [x] T016-17: Update `bindings/r/vignettes/using-askfirst.Rmd` to
   describe the new escalation tier alongside the existing explanation of
   `notice`/`stop-and-ask`/`askfirst_check_scenarios()`, so package authors
   adopting askfirst understand the full lifecycle: load-time notice ->
@@ -244,36 +244,60 @@ git_hash: 1c0f92128de0efe81c2d4217b0cb7261e3ea1916
   contents before deciding what needs to change).
 
 ## T016-18: Reconcile this repo's own local dev hook installation
-- [ ] T016-18: This repo's own `.claude/settings.json` (used to dogfood
-  askfirst's own development) currently registers `PostToolUse` with
-  matcher `"Write|Edit"` only, and its hook scripts are presumably from an
-  earlier hook-version pointing at the pre-relocation `.askfirst/` paths.
-  After T016-8-T016-14 land, re-run
-  `tools/install-agent-hooks.sh --tool claude --overwrite` from the repo
-  root to refresh `.claude/hooks/*.sh` to the new version and relocated
-  paths, and reconcile `.claude/settings.json`'s matcher with whatever
-  T016-11 decided, so this repo's own dev sessions actually exercise the
-  new mechanism rather than running stale hooks against a location
-  nothing writes to anymore.
+- [x] T016-18: **Skipped, premise was wrong.** Investigation found this
+  repo's `.claude/hooks/session_start.sh`/`post_tool_use.sh`/`stop.sh` and
+  the `"matcher": "Write|Edit"` entry in `.claude/settings.json` belong to
+  **designlens** (the tool behind this project's own `/designlens.*`
+  workflow), not askfirst -- there was never an askfirst dev-hook
+  installation in this repo to begin with, so there is nothing to
+  relocate or reconcile. Running
+  `tools/install-agent-hooks.sh --tool claude --overwrite` as originally
+  written would have silently overwritten designlens's own hooks (the
+  ones driving this very implementation session) with askfirst's. Per
+  explicit user decision, left untouched entirely rather than merging
+  askfirst's hooks in alongside designlens's.
 
 ## T016-19: Manual smoke-test verification for both agents
-- [ ] T016-19: Before considering this stage complete, manually verify the
-  end-to-end behavior once for each agent: trigger a `notice` (e.g. load
-  an askfirst-adopting test package in a throwaway directory with hooks
-  installed), skip calling `askfirst_check_scenarios()`, perform an
-  Edit/Write-equivalent tool call, and confirm (a) the R process and the
-  hook script actually agree on the same tmp-root path (e.g. by checking
-  the marker file the R side wrote is the one the hook script reads), and
-  (b) the escalating reminder appears in the tool result, for both Claude
-  Code and opencode. This directly closes the plan's open verification
-  questions -- both the R/bash path-derivation agreement and whether
-  opencode's hook mechanism can even inject non-blocking output the way
-  Claude Code's can -- rather than leaving them assumed. Record the
-  outcome (works / doesn't work / partially works per agent) in
-  `design-decisions.md` when this stage is retrospected.
+- [x] T016-19: **Claude Code side, verified directly**: simulated the
+  full round trip without a live CLI session -- loaded the package,
+  `setwd()` into a throwaway directory, fired an `askfirst_notice` signal
+  for a fake package (`dodgr`), then piped a synthetic Claude Code
+  `PostToolUse` payload (`{"cwd": "<that directory>", "tool_name": "Edit"}`)
+  into `agent-hooks/claude/post_tool_use.sh`. Confirmed: (a) R's
+  `askfirst_state_dir()` and the hook's independently-computed path from
+  only the payload's `cwd` field resolved to the identical directory
+  (`/tmp/askfirst/<mangled-path>`); (b) the one-shot log flush
+  (`[askfirst-annotation:]`) reproduced R's rendered message byte-for-byte;
+  (c) the `[askfirst-unresolved-notice-reminder:]` block fired with the
+  correct level-1 wording naming `dodgr`. A separate standalone run (during
+  T016-8/T016-9) additionally confirmed the level-2 "REPEATED" escalation
+  after 3 occurrences and silence on a non-file-modifying (`Bash`) tool
+  call. This closes the plan's R/bash path-derivation open question for
+  Claude Code concretely, without needing a real `claude -p` session.
+  **Opencode side, not independently re-verified beyond T016-10's
+  finding**: since T016-10 already established opencode's real plugin API
+  has no shell-script-from-stdin mechanism matching what
+  `agent-hooks/opencode/post_tool_use.sh` assumes, a smoke test of that
+  script in isolation would only re-confirm the bash logic itself (already
+  covered by the byte-identical-to-Claude-Code test above), not whether
+  real opencode ever invokes it -- that requires either a real JS/TS
+  plugin (out of scope, per the earlier decision on T016-10) or a live
+  `opencode run` session with a canary, which is exactly the kind of
+  end-to-end verification `askfirst-tests`' own harness (not this
+  implementation session) is built to do. Recorded here rather than
+  claimed as verified.
 
 ## T016-20: Full test suite and package check
-- [ ] T016-20: Run the full `bindings/r` test suite (`devtools::test()` or
+- [x] T016-20: `devtools::test()`: 163/163 pass, 0 failures. `devtools::check()`:
+  0 errors, 0 warnings, 0 notes (fixed one regression along the way: a
+  stray `askfirst-hook-version: 2` fixture in `test-init.R` needed bumping
+  to 3 alongside `test-hooks-status.R`'s fixtures; and a genuine new R CMD
+  check NOTE -- "detritus in the temp directory" -- caused by
+  `local_reset_askfirst_state()`'s cleanup removing the per-test mangled
+  state directory but leaving the now-empty `${TMPDIR}/askfirst` parent
+  behind, which R CMD check's detritus scan flags since it scans all of
+  TMPDIR, not just R's own `tempdir()` subdir; fixed by also pruning that
+  parent when empty). Run the full `bindings/r` test suite (`devtools::test()` or
   equivalent) and `R CMD check` (or `devtools::check()`) from
   `bindings/r/`, confirm no regressions from T016-1-T016-7's R-side
   changes, and fix any failures before this stage is considered done.

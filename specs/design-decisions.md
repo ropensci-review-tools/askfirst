@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: b07e93ec14bf083b339d05d93d2267ed81cf883a
+git_hash: 8b47d990537d5e607601a4827065ef1e61e85e89
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,33 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Fifteen design stages are complete. Stage 015 addressed a second
+capability. Sixteen design stages are complete. Stage 016 was triggered by a
+field trial (run via a sibling test harness, not this repo) showing that the
+hard `stop-and-ask` gate for capability gaps the package author hasn't
+anticipated is only reachable if the agent voluntarily calls
+`askfirst_check_scenarios()` — an agent that never makes that call gets no
+reinforcement past the existing one-shot notice log. A new, non-blocking
+`PostToolUse` escalation now tracks, per package, whether a `notice` fired
+without a following scenario-check call, and appends an escalating reminder
+(single-line, then a firmer "REPEATED" wording after three occurrences) to
+every subsequent file-editing tool call until the check happens or the
+session ends — deliberately untargeted (fires on any edit, not scoped to
+files referencing the flagged package) and never blocking. The same stage
+relocated all askfirst runtime state — the `log`/`pending/` files from stage
+015, and the new escalation marker — out of the project's working tree
+entirely, into a session-scoped path under a fixed tmp root
+(`${TMPDIR:-/tmp}/askfirst/<mangled-project-path>/`), computed identically
+and independently by the R process (from `getwd()`) and each hook script
+(from its payload's `cwd` field); this supersedes stage 015's deferred
+`.gitignore` item rather than completing it. Investigating opencode's real
+plugin SDK for this stage's opencode-side work found its actual mechanism is
+a JS/TS module registered via `opencode.json`'s `plugin` array, executed
+in-process — not a shell-script/stdin-JSON convention at all — meaning the
+existing `agent-hooks/opencode/*.sh` scripts (since stages 014/015) are very
+likely never invoked by real opencode; this was documented precisely rather
+than fixed, since building a real plugin is a substantially larger,
+separate undertaking flagged for a future stage. `hook_version` moved to 3
+to reflect these changes. Stage 015 addressed a second
 field report describing signals that reach an agent's output but still get
 missed — buried by scrolling/habituation, stripped by the agent's own ad hoc
 `grep -v askfirst...` filtering, or acted on too late — combined with the
@@ -529,38 +555,100 @@ unchanged and remains a known inaccuracy, out of scope for this fix).
 language-agnostic source this manifest extends)
 **Stages:** 014
 
-### Enforcement: persistent pending sentinel with active PostToolUse blocking
+### Enforcement: persistent pending sentinel with active PostToolUse blocking, plus a non-blocking escalation for the agent-invoked gate
 **Outcome:** Every `stop-and-ask` signal writes a per-`{pkg}-{type}` file
-under `.askfirst/pending/` (filename doubling as de-duplication — a repeat
+under `pending/` (filename doubling as de-duplication — a repeat
 signal from the same package/type overwrites rather than accumulates).
 `post_tool_use.sh` (both Claude Code and opencode copies) now checks for any
 pending file on *every* tool call, not just the triggering one, and returns
 a blocking response (Claude Code's exit-code-2/stderr-as-reason convention)
 if any exist — the agent cannot proceed on any topic until the sentinel is
-cleared. A new `user_prompt_submit.sh` hook clears `.askfirst/pending/` at
+cleared. A new `user_prompt_submit.sh` hook clears `pending/` at
 the start of each new user turn, the only available proxy for "the human has
 had a chance to respond," since askfirst cannot detect an actual answer.
-`notice` signals keep the pre-existing, lighter-weight `.askfirst/log` —
+`notice` signals keep the pre-existing, lighter-weight `log` —
 annotated non-blockingly by `post_tool_use.sh` and cleared after being read,
-unchanged in kind from stage 014's plan.
+unchanged in kind from stage 014's plan. Stage 016 added a third,
+non-blocking state category on the same footing as `log`/`pending/`: an
+`unresolved-notice/<pkg>.txt` marker written whenever a `notice` fires and
+cleared only by an explicit resolution (a scenario-check call, at any
+confidence tier, or a stop-and-ask firing for the same package) — unlike
+`pending/`, never cleared merely by a new user turn, since it isn't waiting
+on a human's answer. While any such marker exists, `post_tool_use.sh`
+appends an escalating (but never blocking) reminder to every subsequent
+file-editing tool call, growing firmer after repeat occurrences. Stage 016
+also broadened Claude Code's registered `PostToolUse` matcher from
+`Bash|R|Rscript` to include `Edit|Write|NotebookEdit`, without which none of
+`post_tool_use.sh`'s checks — including the pre-existing `log`/`pending/`
+ones — ever ran on a file-edit tool call at all.
 **Rationale:** Directly answers a field report's "delayed consequence"
 failure mode: a stop-and-ask signal fired several tool calls before the
 agent actually began implementing a workaround, with no mechanism to
 retroactively re-surface it. A passive, one-shot log (as stage 014's
 `askfirst_hooks_status()` companion work implied for notices) cannot enforce
 anything past the immediately-following tool call; only an actively
-blocking check on every subsequent call closes that gap.
+blocking check on every subsequent call closes that gap. Stage 016's
+escalation addresses a different, earlier failure surfaced by field trial:
+the blocking gate above is itself only reachable if the agent voluntarily
+calls `askfirst_check_scenarios()`, and an agent that never does so gets no
+reinforcement at all; since the package's own code cannot mechanically
+detect an about-to-be-written workaround (see the Messaging: three
+independent intervention points decision), the coding-tool hook — which
+does see the agent's subsequent file edits — is the layer that can narrow
+this gap instead. It stays non-blocking and untargeted (any edit, not
+scoped to files referencing the package) by explicit choice, trading
+detection recall for zero risk of blocking unrelated work on a false
+positive.
 **Tradeoffs:** opencode has no documented shell-hook config equivalent to
 Claude Code's `settings.json` hooks at all — its plugin API is a separate
 `tool.execute.before/after` JS/TS interface with no documented
-blocking-result semantics as of this stage. The opencode hook files use the
-Claude Code convention as an explicitly-flagged, unverified fallback rather
-than block implementation on opencode's own documentation catching up.
+blocking-result semantics as of stage 015. Stage 016 investigated this
+further and found opencode's real plugin API is a JS/TS module registered
+via `opencode.json`'s `plugin` array, executed in-process — confirming the
+existing shell-script hook files are very likely never invoked by real
+opencode at all, a stronger finding than stage 015's "unverified fallback"
+label. The opencode hook files were extended identically to the Claude Code
+side anyway (for consistency, and in case an undocumented path exists), with
+this concrete finding documented in both copies' headers rather than acted
+on; a real JS/TS plugin was flagged as a future stage rather than built now.
 **Proposed by:** git-user
 **Relates to:** Stage 014 (Decision 3, the `agent-hooks/manifest.json`/
 version-marker scheme extended here to a third hook file, `hook_version`
-bumped to 2)
-**Stages:** 015
+bumped to 2, then 3 in stage 016)
+**Stages:** 015, 016
+
+### State storage: session-scoped tmp root, out of the project's working tree
+**Outcome:** All askfirst runtime state (`log`, `pending/`,
+`unresolved-notice/`) lives under
+`${TMPDIR:-/tmp}/askfirst/<mangled-abs-project-path>/`, not under a
+`.askfirst/` directory in the project's own working tree as originally
+shipped in stage 015. The mangled path (leading `/` stripped, remaining `/`
+replaced with `_`) is computed independently by the R process (from
+`getwd()`) and by each hook script (from its payload's `cwd` field) — the
+one value both processes already share, so no new coordination mechanism
+was introduced. The mangling is a literal transform, not a hash: a
+maintainer can `ls` their way to the right directory from the project path
+alone, at the cost of that path being visible as a directory name to other
+users on a shared multi-user `/tmp`.
+**Rationale:** Reviewing where to put stage 016's new marker surfaced that
+stage 015's `log`/`pending/` were already sitting in the project's working
+tree with no `.gitignore` entry anywhere in the repo — deferred, not
+resolved, in stage 015. Adding a third marker family to that same location
+would have compounded the gap. Since all three state categories are
+inherently session-scoped and meaningless once the coding session ends, the
+resolution was to stop writing any of them under the project tree at all,
+which obsoletes the `.gitignore` question rather than answering it. R's own
+`tempdir()` could not be used for this, since it is randomized per R session
+and has no way to be discovered by the separate hook process that must read
+the same files.
+**Tradeoffs:** No active pruning of leftover, now-empty tmp directories was
+added; relies on the OS's own normal tmp reaping. Neither side resolves
+symlinks, matching (not introducing) an existing assumption that the R
+process's `getwd()` and the hook payload's `cwd` already refer to the same
+directory.
+**Proposed by:** joint
+**Relates to:** Stage 015 (the `log`/`pending/` mechanism relocated here)
+**Stages:** 016
 
 ### Notice suppression: opt-in ASKFIRST_SILENCE_NOTICE, replacing ad hoc filtering
 **Outcome:** A comma-separated `ASKFIRST_SILENCE_NOTICE` environment
@@ -813,6 +901,46 @@ both notice and stop-and-ask paths at high confidence, so the shared test
 helper `local_reset_askfirst_state()` was extended to sandbox every test's
 working directory into a fresh tempdir, rather than adding per-test
 sandboxing calls across the three test files that use it.
+Stage 016 was triggered by a field trial from a sibling test harness
+(`askfirst-tests`, not part of this repo) showing a concrete instance of a
+gap none of stages 004–015 had directly addressed: the hard `stop-and-ask`
+gate for author-unanticipated capability gaps is only reachable through the
+agent's own voluntary call to `askfirst_check_scenarios()`, and an agent
+that never makes that call — as observed in the trial — gets no
+reinforcement past the one-shot notice log, regardless of how strong that
+log's wording is. Because the package's own code cannot mechanically detect
+an about-to-be-written workaround (the same reasoning stage 004 already
+established for why this is an agent-invoked mechanism in the first place),
+the fix targets a different layer entirely: the coding-tool hook, which
+does see the agent's subsequent file-editing tool calls. A new, explicitly
+non-blocking escalation fires an increasingly firm reminder on any such call
+following an unresolved notice, deliberately untargeted (not scoped to
+files referencing the flagged package) to keep any false-positive cost at
+"an extra line of text" rather than a blocked edit. Mid-design, deciding
+where this new marker should live surfaced that stage 015's `log`/
+`pending/` files were already sitting, ungitignored, in the project's
+working tree — a gap that stage's own retrospective had explicitly deferred
+rather than resolved. Rather than adding a third marker to the same
+location, all three state categories were relocated to a session-scoped
+path under a fixed tmp root, computed identically and independently by the
+R process and each hook script from the one value they already share (the
+project's working directory) — obsoleting the deferred `.gitignore`
+question rather than answering it. Implementing the opencode side of the
+new escalation required investigating opencode's actual plugin API for the
+first time in this project's history (prior stages had only noted its
+shell-hook support as "undocumented"); this found opencode's real mechanism
+is a JS/TS module registered via config and executed in-process, not a
+shell script reading JSON from stdin at all — meaning the opencode hook
+files shipped since stage 014 are very likely never invoked by real
+opencode. Rather than building a real plugin in this stage (a substantially
+larger, separate undertaking), the finding was documented precisely in both
+hook file copies, consistent with this project's established practice of
+shipping an explicitly-flagged unverified mechanism rather than blocking on
+a much larger fix. One task originally scoped for this stage — reconciling
+this repo's own local dev hook installation — was found mid-implementation
+to rest on a wrong premise (this repo's local hooks belong to an unrelated
+tool, not any prior askfirst installation) and was skipped rather than
+forced through.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -984,3 +1112,38 @@ sandboxing calls across the three test files that use it.
   rejected; the documentation gap was treated as an unresolved question to
   flag transparently (via a code comment noting the fallback is unverified),
   not a reason to withhold the mechanism from opencode users entirely.
+
+**Enforcement (stage 016):**
+- A blocking gate for the new escalation (forcing `askfirst_check_scenarios()`
+  before any further file edit) — rejected in favor of a non-blocking,
+  escalating reminder; the trigger has no way to know whether a given edit
+  actually touches the flagged package, so blocking risked stalling
+  unrelated work on every false positive.
+- Scoping the escalation trigger to files that reference the flagged
+  package's name — rejected in favor of an untargeted trigger (any
+  file-editing tool call); content-scanning a diff/file for a package name
+  is itself a heuristic that can misfire (indirect or aliased usage), and
+  the non-blocking severity level already keeps a false positive's cost low.
+- Building a real opencode JS/TS plugin to actually implement this
+  mechanism for opencode — deferred as a substantially larger, separate
+  undertaking once investigation confirmed the existing shell-script hook
+  files are very likely non-functional against real opencode; flagged as
+  the top candidate for a future stage rather than attempted here.
+
+**State storage (stage 016):**
+- Hashing the mangled project path instead of a literal transform —
+  rejected in favor of a human-debuggable literal path, accepting that the
+  project's absolute path becomes visible as a directory name to other
+  users on a shared multi-user `/tmp`.
+- Using R's own `tempdir()` for the new state root — rejected; it is
+  randomized per R session and has no way to be discovered by the separate
+  hook script process that must read the same files.
+- Adding active pruning of leftover, now-empty tmp directories — deferred in
+  favor of relying on the OS's normal tmp reaping, to avoid adding new
+  pruning logic and a threshold constant to design and maintain in this
+  stage.
+- Reconciling this repo's own local dev hook installation with the new
+  version/paths — dropped mid-implementation once it was found this repo's
+  local `.claude/hooks/` belong to an unrelated tool, not any prior askfirst
+  installation; forcing the change would have overwritten hooks actively in
+  use for unrelated purposes.
