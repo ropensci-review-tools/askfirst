@@ -31,6 +31,21 @@ test_that("askfirst_capability_gap does not halt under medium confidence", {
   expect_null(result)
 })
 
+test_that("askfirst_capability_gap clears an existing unresolved-notice marker for the same package", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "high"
+  askfirst:::askfirst_write_unresolved_notice("mypkg", "earlier notice")
+  marker <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  expect_true(file.exists(marker))
+
+  tryCatch(
+    askfirst_capability_gap("mypkg", "grouped input is not supported yet"),
+    askfirst_capability_gap = function(cnd) cnd
+  )
+
+  expect_false(file.exists(marker))
+})
+
 test_that("askfirst_capability_gap supports cli/glue-style interpolation from the caller's frame", {
   local_reset_askfirst_state()
   .askfirst_state$confidence <- "high"

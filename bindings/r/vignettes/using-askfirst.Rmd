@@ -43,7 +43,8 @@ This copies SessionStart and PostToolUse hook scripts into your project's
 `.claude/hooks/` (or `.opencode/hooks/`) directory and registers them in
 the tool's settings.json. The SessionStart hook injects system-level context
 telling the AI what `askfirst::` signals are and how to respond; the
-PostToolUse hook annotates `askfirst::` lines in tool output.
+PostToolUse hook annotates `askfirst::` lines in tool output and (see step
+4 below) escalates a reminder if a notice is ever left unfollowed-up.
 
 If your users prefer to configure manually, they can run the shared shell
 script directly — it interactively prompts when multiple tools are detected:
@@ -203,10 +204,36 @@ read advice it could continue past. At `"medium"`/`"low"` confidence
 no nudge wording and no signalled condition — a human calling this
 deliberately doesn't need to be told to ask themselves.
 
-## 4. What your end users experience
+## 4. When the self-check doesn't happen: the PostToolUse reminder
 
-Putting the three pieces together, from the perspective of someone using
-*your* package:
+`askfirst_check_scenarios()` (step 3) only ever fires because the *agent*
+chose to call it — nothing in your package's own code path (loading it,
+reading its docs, an agent editing an unrelated script) can call it for
+you, since by construction the workaround code an agent writes typically
+never touches your package's namespace at all. In practice, an agent that
+sees your load-time notice sometimes never makes that voluntary call and
+goes on to write a workaround anyway, without ever reaching the real
+`scenario_check` halt.
+
+To narrow (not close) that gap, the PostToolUse hook installed in step 0
+tracks, per package, whether a `notice` has fired without a following
+`askfirst_check_scenarios()` call. If so, every subsequent file-editing
+tool call in that same session carries an additional, non-blocking
+reminder in the tool result — starting as a single-line nudge and growing
+firmer after a few repeats — until the agent calls the check or the
+session ends. This is deliberately *not* a hard stop: unlike
+`askfirst_capability_gap()` or `askfirst_check_scenarios()`'s own halt, it
+has no way to know whether a given edit actually touches your package, so
+it escalates via reminder strength rather than blocking, to avoid
+interrupting edits that have nothing to do with your package. You don't
+configure or call anything for this yourself — it's driven entirely by
+whether your `notice` fired and whether the agent followed up, both
+already covered in steps 1 and 3.
+
+## 5. What your end users experience
+
+Putting the pieces together, from the perspective of someone using *your*
+package:
 
 - A human using your package interactively sees nothing extra — no
   notices, no halts, at low confidence.
@@ -218,7 +245,9 @@ Putting the three pieces together, from the perspective of someone using
   `askfirst_capability_gap()` call site you've added, and — if it calls
   `askfirst_check_scenarios()` on its own initiative — is halted with
   `askfirst::r::<pkg>::scenario_check` carrying your registered scenario
-  list and guidance to check with the user first.
+  list and guidance to check with the user first. If it doesn't make that
+  call, its next file edits instead carry the escalating PostToolUse
+  reminder described in step 4.
 
 For a concrete, runnable walkthrough of registering a test package and
 verifying these behaviors under real agent-tool sessions, see the

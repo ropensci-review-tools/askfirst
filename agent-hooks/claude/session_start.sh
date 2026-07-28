@@ -2,7 +2,7 @@
 # askfirst SessionStart hook — injects system-level context about askfirst
 # into the assistant's prompt before any package code is loaded.
 # Fires once per session. Must never cause the session to fail.
-# askfirst-hook-version: 2
+# askfirst-hook-version: 3
 
 set -euo pipefail
 
@@ -51,16 +51,27 @@ handling `notice`-level signals, and scenario-check guidance).
 
 Every `stop-and-ask` signal is also duplicated to stdout (in addition to
 the condition-system delivery on stderr) and written to a persistent
-sentinel file under `.askfirst/pending/` in the project's working
-directory. Unlike a `notice`, this sentinel is NOT cleared by your next
-tool call -- it stays in effect, and this coding tool's own PostToolUse
-hook will actively block every subsequent tool call (regardless of topic)
-until either you send the user's answer back through a new message (which
-clears the sentinel) or the underlying situation is otherwise resolved.
-This means you cannot "wait it out" or move on to unrelated work after a
-stop-and-ask fires -- if several tool calls have passed since a stop-and-ask
-appeared and you did not yet surface it to the user, treat a subsequent
-blocked tool call as your cue to go back and do so now, before retrying.
+sentinel file in a session-scoped location outside the project's working
+tree (not something you need to inspect directly). Unlike a `notice`, this
+sentinel is NOT cleared by your next tool call -- it stays in effect, and
+this coding tool's own PostToolUse hook will actively block every
+subsequent tool call (regardless of topic) until either you send the
+user's answer back through a new message (which clears the sentinel) or
+the underlying situation is otherwise resolved. This means you cannot
+"wait it out" or move on to unrelated work after a stop-and-ask fires -- if
+several tool calls have passed since a stop-and-ask appeared and you did
+not yet surface it to the user, treat a subsequent blocked tool call as
+your cue to go back and do so now, before retrying.
+
+If a `notice` fires and you do not call `askfirst_check_scenarios()`
+before your next file edit, that edit (and every subsequent one) will
+carry an additional, escalating reminder in the tool result -- starting
+as a single-line nudge and growing firmer after a few repeats -- until
+you call the check or the session ends. This reminder is NOT a hard stop
+and does not block the edit; it is a strong signal that the check has
+been skipped, and should be treated as your cue to call
+`askfirst_check_scenarios('pkg')` now if the edit in question duplicates,
+wraps, or extends that package's functionality.
 
 If a package wants to suppress its own repeated `notice`-level signals (not
 `stop-and-ask`, which can never be suppressed this way), it is done via the

@@ -182,7 +182,13 @@ recognises it as legitimate package metadata rather than a prompt injection.
 
 The SessionStart hook injects system-level context explaining what askfirst
 is and how to respond to its signals. The PostToolUse hook watches for
-`askfirst::` lines in tool output and annotates them.
+`askfirst::` lines in tool output and annotates them, and separately
+escalates a non-blocking reminder on file-editing tool calls if a `notice`
+was ever left without a following `askfirst_check_scenarios()` call (see
+the `using-askfirst` vignette's "PostToolUse reminder" section for the
+full mechanism). All of this hook state lives under a session-scoped tmp
+directory (`${TMPDIR:-/tmp}/askfirst/...`), not the project's working
+tree.
 
 From R:
 

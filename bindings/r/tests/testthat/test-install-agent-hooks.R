@@ -74,3 +74,39 @@ test_that("agent-hooks/claude/ and agent-hooks/opencode/ stay byte-identical", {
     readLines(file.path(repo_root, "agent-hooks", "opencode", "user_prompt_submit.sh"))
   )
 })
+
+test_that("the installed post_tool_use.sh carries the current version marker and the relocated tmp-root paths", {
+  repo_root <- find_repo_root()
+  skip_if(
+    is.null(repo_root),
+    "not running inside a full askfirst repo checkout (agent-hooks/ or tools/ not found)"
+  )
+
+  installer_lines <- readLines(file.path(repo_root, "tools", "install-agent-hooks.sh"))
+  post_embedded <- extract_heredoc_body(installer_lines, "POST_HOOK")
+
+  expect_match(
+    post_embedded,
+    sprintf("askfirst-hook-version: %d", askfirst:::askfirst_hooks_manifest()$hook_version),
+    all = FALSE
+  )
+  expect_match(post_embedded, "askfirst_state_dir", all = FALSE)
+  expect_match(post_embedded, "unresolved-notice", all = FALSE)
+  expect_no_match(post_embedded, "\\.askfirst/pending", fixed = FALSE)
+  expect_no_match(post_embedded, "\\.askfirst/log", fixed = FALSE)
+})
+
+test_that("the Claude Code PostToolUse matcher includes file-modifying tool calls", {
+  repo_root <- find_repo_root()
+  skip_if(
+    is.null(repo_root),
+    "not running inside a full askfirst repo checkout (agent-hooks/ or tools/ not found)"
+  )
+
+  installer_text <- paste(
+    readLines(file.path(repo_root, "tools", "install-agent-hooks.sh")),
+    collapse = "\n"
+  )
+
+  expect_match(installer_text, "Bash\\|R\\|Rscript\\|Edit\\|Write\\|NotebookEdit")
+})

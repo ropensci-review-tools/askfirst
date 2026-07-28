@@ -243,6 +243,54 @@ test_that("askfirst_check_scenarios returns plain vector with no condition at lo
   expect_equal(result, c("scenario A", "scenario B"))
 })
 
+test_that("askfirst_check_scenarios clears an existing unresolved-notice marker at high confidence", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "high"
+  .askfirst_state$packages[["mypkg"]] <- list(
+    notice = "n", on_error = FALSE, scenarios = c("scenario A")
+  )
+  askfirst:::askfirst_write_unresolved_notice("mypkg", "earlier notice")
+  marker <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  expect_true(file.exists(marker))
+
+  tryCatch(
+    askfirst_check_scenarios("mypkg"),
+    askfirst_scenario_check = function(cnd) cnd
+  )
+
+  expect_false(file.exists(marker))
+})
+
+test_that("askfirst_check_scenarios clears an existing unresolved-notice marker at medium confidence", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "medium"
+  .askfirst_state$packages[["mypkg"]] <- list(
+    notice = "n", on_error = FALSE, scenarios = character()
+  )
+  askfirst:::askfirst_write_unresolved_notice("mypkg", "earlier notice")
+  marker <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  expect_true(file.exists(marker))
+
+  askfirst_check_scenarios("mypkg")
+
+  expect_false(file.exists(marker))
+})
+
+test_that("askfirst_check_scenarios clears an existing unresolved-notice marker at low confidence", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "low"
+  .askfirst_state$packages[["mypkg"]] <- list(
+    notice = "n", on_error = FALSE, scenarios = c("scenario A", "scenario B")
+  )
+  askfirst:::askfirst_write_unresolved_notice("mypkg", "earlier notice")
+  marker <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  expect_true(file.exists(marker))
+
+  askfirst_check_scenarios("mypkg")
+
+  expect_false(file.exists(marker))
+})
+
 test_that("askfirst_check_scenarios errors informatively for an unregistered package", {
   local_reset_askfirst_state()
 

@@ -36,7 +36,7 @@ test_that("askfirst_hooks_status returns current when a hook file has a current 
 
   dir.create(".claude/hooks", recursive = TRUE)
   writeLines(
-    c("#!/bin/bash", "# askfirst-hook-version: 2", "echo hi"),
+    c("#!/bin/bash", "# askfirst-hook-version: 3", "echo hi"),
     ".claude/hooks/session_start.sh"
   )
 
@@ -48,7 +48,7 @@ test_that("askfirst_hooks_status reports current if any one known tool is curren
   withr::local_dir(dir)
 
   dir.create(".claude/hooks", recursive = TRUE)
-  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 2"), ".claude/hooks/session_start.sh")
+  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 3"), ".claude/hooks/session_start.sh")
   dir.create(".opencode/hooks", recursive = TRUE)
   writeLines(c("#!/bin/bash", "no marker here"), ".opencode/hooks/session_start.sh")
 

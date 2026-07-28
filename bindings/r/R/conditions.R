@@ -214,8 +214,10 @@ askfirst_signal <- function(class, pkg, message, ..., call_stop = FALSE,
     if (identical(directive_map[[class]], "stop-and-ask")) {
       cat(formatted, "\n\n", sep = "", file = stdout())
       askfirst_write_pending(pkg, type, formatted)
+      askfirst_clear_unresolved_notice(pkg)
     } else if (!askfirst_silence_notice_active(pkg)) {
       askfirst_log_notice(pkg, formatted)
+      askfirst_write_unresolved_notice(pkg, formatted)
     }
   }
 

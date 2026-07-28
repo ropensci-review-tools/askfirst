@@ -21,7 +21,7 @@
 #' @noRd
 askfirst_hooks_manifest <- function() {
   list(
-    hook_version = 2L,
+    hook_version = 3L,
     tools = list(
       claude = list(hooks_dir = ".claude/hooks"),
       opencode = list(hooks_dir = ".opencode/hooks")

@@ -107,7 +107,7 @@ write_session_start() {
 # askfirst SessionStart hook — injects system-level context about askfirst
 # into the assistant's prompt before any package code is loaded.
 # Fires once per session. Must never cause the session to fail.
-# askfirst-hook-version: 2
+# askfirst-hook-version: 3
 
 set -euo pipefail
 
@@ -156,16 +156,27 @@ handling `notice`-level signals, and scenario-check guidance).
 
 Every `stop-and-ask` signal is also duplicated to stdout (in addition to
 the condition-system delivery on stderr) and written to a persistent
-sentinel file under `.askfirst/pending/` in the project's working
-directory. Unlike a `notice`, this sentinel is NOT cleared by your next
-tool call -- it stays in effect, and this coding tool's own PostToolUse
-hook will actively block every subsequent tool call (regardless of topic)
-until either you send the user's answer back through a new message (which
-clears the sentinel) or the underlying situation is otherwise resolved.
-This means you cannot "wait it out" or move on to unrelated work after a
-stop-and-ask fires -- if several tool calls have passed since a stop-and-ask
-appeared and you did not yet surface it to the user, treat a subsequent
-blocked tool call as your cue to go back and do so now, before retrying.
+sentinel file in a session-scoped location outside the project's working
+tree (not something you need to inspect directly). Unlike a `notice`, this
+sentinel is NOT cleared by your next tool call -- it stays in effect, and
+this coding tool's own PostToolUse hook will actively block every
+subsequent tool call (regardless of topic) until either you send the
+user's answer back through a new message (which clears the sentinel) or
+the underlying situation is otherwise resolved. This means you cannot
+"wait it out" or move on to unrelated work after a stop-and-ask fires -- if
+several tool calls have passed since a stop-and-ask appeared and you did
+not yet surface it to the user, treat a subsequent blocked tool call as
+your cue to go back and do so now, before retrying.
+
+If a `notice` fires and you do not call `askfirst_check_scenarios()`
+before your next file edit, that edit (and every subsequent one) will
+carry an additional, escalating reminder in the tool result -- starting
+as a single-line nudge and growing firmer after a few repeats -- until
+you call the check or the session ends. This reminder is NOT a hard stop
+and does not block the edit; it is a strong signal that the check has
+been skipped, and should be treated as your cue to call
+`askfirst_check_scenarios('pkg')` now if the edit in question duplicates,
+wraps, or extends that package's functionality.
 
 If a package wants to suppress its own repeated `notice`-level signals (not
 `stop-and-ask`, which can never be suppressed this way), it is done via the
@@ -215,17 +226,53 @@ write_post_tool_use() {
 #!/bin/bash
 # askfirst PostToolUse hook — actively blocks every subsequent tool call
 # while an unresolved stop-and-ask sentinel is pending (Claude Code's
-# PostToolUse blocking convention: exit code 2, reason on stderr), and
-# passively surfaces/clears any queued notice-level annotations. Only ever
-# exits non-zero deliberately, to block on a pending sentinel -- any other
-# failure (e.g. jq missing, no payload) falls through to a clean exit 0.
-# The exit-code-2/stderr-as-reason convention is confirmed for Claude Code;
-# opencode has no documented shell-hook equivalent (its plugin API is a
-# separate JS/TS tool.execute.before/after interface with no documented
+# PostToolUse blocking convention: exit code 2, reason on stderr), passively
+# surfaces/clears any queued notice-level annotations, and (non-blocking)
+# escalates a reminder on file-modifying tool calls while a notice for some
+# package has never been followed up with askfirst_check_scenarios(). Only
+# ever exits non-zero deliberately, to block on a pending sentinel -- any
+# other failure (e.g. jq missing, no payload) falls through to a clean exit
+# 0. The exit-code-2/stderr-as-reason convention is confirmed for Claude
+# Code; opencode has no documented shell-hook equivalent (its plugin API is
+# a separate JS/TS tool.execute.before/after interface with no documented
 # blocking-result semantics as of this writing), so the opencode copy of
 # this file uses the same convention as a best-effort fallback, unverified
 # against opencode itself.
-# askfirst-hook-version: 2
+#
+# CONCRETE FINDING (stage 016, opencode only -- this note is kept in both
+# copies since agent-hooks/claude/ and agent-hooks/opencode/ are kept
+# byte-identical): opencode's real plugin API (`@opencode-ai/plugin`) is a
+# JS/TS `Hooks` object -- `tool.execute.before`/`tool.execute.after` etc. --
+# registered via `opencode.json`'s `plugin` array (a list of module file
+# paths) and executed in-process by opencode itself. There is no
+# `.opencode/hooks/*.sh`-style shell-script-reading-JSON-from-stdin
+# convention anywhere in that SDK's type definitions. The opencode copy of
+# this file is therefore very likely never actually invoked by real
+# opencode at all -- a stronger finding than the "unverified fallback" label
+# above, kept as a best-effort placeholder (in case some undocumented
+# shell-hook path does exist) rather than removed, but not to be trusted to
+# provide any of this mechanism's guarantees for opencode until a real
+# JS/TS plugin is built and verified. This finding does not apply to the
+# Claude Code side, which is confirmed via the exit-code-2 convention
+# above. See this stage's design-decisions.md for the follow-up this
+# should become.
+#
+# All state (pending/, log, unresolved-notice/) lives under a session-scoped
+# tmp directory, not the project's working tree -- computed here from the
+# same mangling scheme as `askfirst_state_dir()`/`askfirst_mangle_path()` in
+# the R package's `bindings/r/R/state.R`, so both processes independently
+# derive the identical path from the one thing they share: the project's
+# working directory (`getwd()` on the R side, this payload's `cwd` field
+# here). Neither side resolves symlinks -- keep both sides in sync if this
+# scheme ever changes.
+# askfirst-hook-version: 3
+
+askfirst_state_dir() {
+  local cwd="$1"
+  local mangled
+  mangled=$(printf '%s' "$cwd" | sed 's#^/##; s#/#_#g')
+  printf '%s/askfirst/%s' "${TMPDIR:-/tmp}" "$mangled"
+}
 
 main() {
   local payload
@@ -235,7 +282,10 @@ main() {
   cwd=$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null)
   [[ -n "$cwd" ]] || cwd="."
 
-  local pending_dir="$cwd/.askfirst/pending"
+  local state_dir
+  state_dir=$(askfirst_state_dir "$cwd")
+
+  local pending_dir="$state_dir/pending"
   if [[ -d "$pending_dir" ]]; then
     shopt -s nullglob
     local pending_files=("$pending_dir"/*.txt)
@@ -246,12 +296,47 @@ main() {
     fi
   fi
 
-  local log_file="$cwd/.askfirst/log"
+  local log_file="$state_dir/log"
   if [[ -f "$log_file" ]]; then
     echo "[askfirst-annotation:]"
     cat "$log_file"
     rm -f "$log_file"
   fi
+
+  local tool_name
+  tool_name=$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null)
+  case "$tool_name" in
+    Edit|Write|NotebookEdit)
+      local notice_dir="$state_dir/unresolved-notice"
+      if [[ -d "$notice_dir" ]]; then
+        shopt -s nullglob
+        local notice_files=("$notice_dir"/*.txt)
+        shopt -u nullglob
+        if [[ ${#notice_files[@]} -gt 0 ]]; then
+          local count_dir="$state_dir/unresolved-notice-count"
+          mkdir -p "$count_dir"
+          echo "[askfirst-unresolved-notice-reminder:]"
+          local f pkg count_file count
+          for f in "${notice_files[@]}"; do
+            pkg=$(basename "$f" .txt)
+            count_file="$count_dir/$pkg.txt"
+            count=0
+            [[ -f "$count_file" ]] && count=$(cat "$count_file" 2>/dev/null)
+            [[ "$count" =~ ^[0-9]+$ ]] || count=0
+            count=$((count + 1))
+            echo "$count" > "$count_file"
+            if (( count >= 3 )); then
+              printf 'REPEATED reminder (%dx): the notice from %s has now gone unaddressed across multiple edits. This is not optional -- call askfirst::askfirst_check_scenarios("%s") now, before making any further edits that could duplicate, wrap, or extend functionality already provided by %s, or tell the user explicitly that this edit is unrelated to %s.\n\n' \
+                "$count" "$pkg" "$pkg" "$pkg" "$pkg"
+            else
+              printf 'A notice from %s is still open this session -- askfirst::askfirst_check_scenarios("%s") has not been called. If this edit duplicates, wraps, or extends functionality already provided by %s, call askfirst::askfirst_check_scenarios("%s") before proceeding.\n\n' \
+                "$pkg" "$pkg" "$pkg" "$pkg"
+            fi
+          done
+        fi
+      fi
+      ;;
+  esac
 
   exit 0
 }
@@ -272,9 +357,35 @@ write_user_prompt_submit() {
 #!/bin/bash
 # askfirst UserPromptSubmit hook — clears any pending stop-and-ask
 # sentinels at the start of each new user turn, on the theory that a new
-# user message means the user has had the chance to respond/redirect.
-# Must never cause the turn to fail.
-# askfirst-hook-version: 2
+# user message means the user has had the chance to respond/redirect. Does
+# NOT clear unresolved-notice/ -- that marker isn't waiting on a human
+# answer, it's waiting on the agent's own askfirst_check_scenarios() call,
+# so a new user turn must leave it untouched. Must never cause the turn to
+# fail.
+#
+# CONCRETE FINDING (stage 016, opencode only -- this note is kept in both
+# copies since agent-hooks/claude/ and agent-hooks/opencode/ are kept
+# byte-identical): see the matching comment in `post_tool_use.sh` --
+# opencode's real plugin API is a JS/TS `Hooks` object registered via
+# `opencode.json`'s `plugin` array and executed in-process, not a shell
+# script reading JSON from stdin. The opencode copy of this file is very
+# likely never actually invoked by real opencode; kept as a best-effort
+# placeholder pending a real JS/TS plugin implementation. Does not apply to
+# the Claude Code side.
+#
+# State lives under a session-scoped tmp directory, not the project's
+# working tree -- see the matching comment/mangling scheme in
+# `post_tool_use.sh` (kept identical here so both hooks derive the same
+# path from the same `cwd` payload field, if this script is ever actually
+# invoked on the opencode side).
+# askfirst-hook-version: 3
+
+askfirst_state_dir() {
+  local cwd="$1"
+  local mangled
+  mangled=$(printf '%s' "$cwd" | sed 's#^/##; s#/#_#g')
+  printf '%s/askfirst/%s' "${TMPDIR:-/tmp}" "$mangled"
+}
 
 main() {
   local payload
@@ -284,7 +395,10 @@ main() {
   cwd=$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null)
   [[ -n "$cwd" ]] || cwd="."
 
-  rm -rf "$cwd/.askfirst/pending"
+  local state_dir
+  state_dir=$(askfirst_state_dir "$cwd")
+
+  rm -rf "$state_dir/pending"
 }
 
 main 2>/dev/null || true
@@ -303,16 +417,37 @@ if ! command -v jq &>/dev/null; then
   exit 0
 fi
 
+# PostToolUse matcher includes Edit/Write/NotebookEdit (not just
+# Bash/R/Rscript) as of stage 016: without them, post_tool_use.sh is never
+# invoked at all for file-edit tool calls, which stage 016's
+# unresolved-notice escalation depends on to fire. This also retroactively
+# closes a latent gap from stage 015: its one-shot `log` notice was meant
+# to flush "on the next tool call," but with the narrower matcher, that
+# flush silently never happened whenever the very next tool call was an
+# Edit/Write rather than a Bash/R/Rscript call.
 register_hooks_claude() {
   local tmp
   tmp=$(mktemp)
   if jq -e '.hooks.SessionStart // empty' "$TARGET_CONFIG" >/dev/null 2>&1; then
-    jq '.hooks.SessionStart[0].hooks += [{"type": "command", "command": ".claude/hooks/session_start.sh"}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript", "hooks": [{"type": "command", "command": ".claude/hooks/post_tool_use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/user_prompt_submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
+    jq '.hooks.SessionStart[0].hooks += [{"type": "command", "command": ".claude/hooks/session_start.sh"}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": ".claude/hooks/post_tool_use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/user_prompt_submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
   else
-    jq '.hooks.SessionStart += [{"hooks": [{"type": "command", "command": ".claude/hooks/session_start.sh"}]}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript", "hooks": [{"type": "command", "command": ".claude/hooks/post_tool_use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/user_prompt_submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
+    jq '.hooks.SessionStart += [{"hooks": [{"type": "command", "command": ".claude/hooks/session_start.sh"}]}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": ".claude/hooks/post_tool_use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/user_prompt_submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
   fi
 }
 
+# CONCRETE FINDING (stage 016): this function's `.hooks.*`/`matcher`
+# registration, written into `.opencode/settings.json`, almost certainly
+# has no effect on real opencode. Investigating opencode's actual plugin
+# SDK (`@opencode-ai/plugin`) for stage 016 found its `Config` type exposes
+# a `plugin` array of JS/TS module paths, not a `.hooks.PostToolUse`
+# matcher-based structure resembling Claude Code's -- and
+# `askfirst-tests/AGENTS.md` already separately notes
+# `.opencode/settings.json` "does not exist as a real opencode config
+# path" at all. Left unchanged (not broadened to include Edit/Write, unlike
+# `register_hooks_claude()`'s matcher in stage 016) since broadening a
+# field with no observed effect would be pointless; the real fix is a
+# proper JS/TS opencode plugin, flagged as a follow-up stage rather than
+# attempted here.
 register_hooks_opencode() {
   local tmp
   tmp=$(mktemp)

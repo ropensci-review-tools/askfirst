@@ -129,6 +129,8 @@ askfirst_try_load_namespace <- function(pkg) {
 askfirst_check_scenarios <- function(pkg) {
   stopifnot("pkg must be a single string" = is.character(pkg) && length(pkg) == 1)
 
+  askfirst_clear_unresolved_notice(pkg)
+
   info <- .askfirst_state$packages[[pkg]]
   if (is.null(info)) {
     askfirst_try_load_namespace(pkg)
