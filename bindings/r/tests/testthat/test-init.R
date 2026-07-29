@@ -261,6 +261,31 @@ test_that("askfirst_signal with prefix = FALSE omits the hard-stop delimiter for
   expect_no_match(msg, "type:", fixed = TRUE)
 })
 
+test_that("askfirst_stop_start_delimiter/askfirst_stop_end_delimiter read the literal tokens from agent-content/", {
+  expect_equal(askfirst:::askfirst_stop_start_delimiter(), "<<<ASKFIRST:HALT>>>")
+  expect_equal(askfirst:::askfirst_stop_end_delimiter(), "<<<ASKFIRST:RESUME>>>")
+})
+
+test_that("askfirst_stop_consequence substitutes {{PKG}} from agent-content/askfirst-stop-consequence.txt", {
+  text <- askfirst:::askfirst_stop_consequence("mypkg")
+  expect_match(text, "developers of mypkg", fixed = TRUE)
+  expect_no_match(text, "{{PKG}}", fixed = TRUE)
+})
+
+test_that("askfirst_notice_prime substitutes {{PKG}}/{{HALT_MARKER}}/{{RESUME_MARKER}} from agent-content/askfirst-notice-prime.txt", {
+  text <- askfirst:::askfirst_notice_prime("mypkg")
+  expect_match(text, "mypkg", fixed = TRUE)
+  expect_match(text, "<<<ASKFIRST:HALT>>>", fixed = TRUE)
+  expect_match(text, "<<<ASKFIRST:RESUME>>>", fixed = TRUE)
+  expect_no_match(text, "{{", fixed = TRUE)
+})
+
+test_that("askfirst_read_content reads agent-content/ files verbatim", {
+  text <- askfirst:::askfirst_read_content("askfirst-hooks-nudge.txt")
+  expect_match(text, "{{PKG}}", fixed = TRUE)
+  expect_match(text, "agent-hooks/install-agent-hooks.sh", fixed = TRUE)
+})
+
 test_that("askfirst_init prints a one-time hooks-install nudge when hooks are not current, independent of confidence", {
   local_reset_askfirst_state()
   withr::local_dir(withr::local_tempdir())
@@ -290,4 +315,75 @@ test_that("askfirst_init does not print the hooks-install nudge when hooks are c
   .askfirst_state$confidence <- "low"
 
   expect_no_message(askfirst_init("mypkg", "notice text"))
+})
+
+test_that("askfirst_init signals an askfirst_hooks_nudge condition under high confidence when hooks are missing", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "high"
+
+  caught <- NULL
+  suppressMessages(withCallingHandlers(
+    askfirst_init("mypkg", "notice text"),
+    askfirst_hooks_nudge = function(cnd) {
+      caught <<- cnd
+      invokeRestart("muffleMessage")
+    }
+  ))
+
+  expect_s3_class(caught, "askfirst_hooks_nudge")
+  expect_s3_class(caught, "askfirst_condition")
+  expect_equal(caught$pkg, "mypkg")
+  expect_match(conditionMessage(caught), "agent-hooks/install-agent-hooks.sh", fixed = TRUE)
+})
+
+test_that("askfirst_init does not signal askfirst_hooks_nudge when hooks are current, even under high confidence", {
+  local_reset_askfirst_state()
+  dir <- withr::local_tempdir()
+  withr::local_dir(dir)
+  dir.create(".claude/hooks", recursive = TRUE)
+  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 4"), ".claude/hooks/session_start.sh")
+  .askfirst_state$confidence <- "high"
+
+  fired <- FALSE
+  suppressMessages(withCallingHandlers(
+    askfirst_init("mypkg", "notice text"),
+    askfirst_hooks_nudge = function(cnd) {
+      fired <<- TRUE
+      invokeRestart("muffleMessage")
+    }
+  ))
+
+  expect_false(fired)
+})
+
+test_that("askfirst_init does not signal askfirst_hooks_nudge under low confidence, even when hooks are missing", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "low"
+
+  fired <- FALSE
+  suppressMessages(withCallingHandlers(
+    askfirst_init("mypkg", "notice text"),
+    askfirst_hooks_nudge = function(cnd) {
+      fired <<- TRUE
+      invokeRestart("muffleMessage")
+    }
+  ))
+
+  expect_false(fired)
+})
+
+test_that("askfirst_init does not signal askfirst_hooks_nudge under medium confidence, even when hooks are missing", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "medium"
+
+  fired <- FALSE
+  suppressMessages(withCallingHandlers(
+    askfirst_init("mypkg", "notice text"),
+    askfirst_hooks_nudge = function(cnd) {
+      fired <<- TRUE
+      invokeRestart("muffleMessage")
+    }
+  ))
+
+  expect_false(fired)
 })

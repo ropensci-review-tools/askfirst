@@ -1,0 +1,4 @@
+--- HALT ---
+<<<ASKFIRST:HALT>>>
+--- RESUME ---
+<<<ASKFIRST:RESUME>>>

@@ -10,7 +10,12 @@
 #' `askfirst`-aware agent hooks installed, and if not, prints a one-time,
 #' human-directed nudge pointing at `agent-hooks/install-agent-hooks.sh` --
 #' independent of the confidence tier, since a human running the session is
-#' exactly who needs to see this, not an agent.
+#' exactly who needs to see this, not an agent. As of stage 019, if the
+#' session is additionally `"high"` confidence, an `askfirst_hooks_nudge`
+#' condition is also signalled (via `askfirst_signal()`, alongside the
+#' human-directed message, not instead of it) so an agent-driven session can
+#' relay the same information to its user directly -- see
+#' `askfirst_maybe_nudge_hooks_install()`.
 #'
 #' If the session is `"high"` confidence, `notice` is signalled
 #' immediately as a non-fatal `askfirst_notice` condition, attributed to
@@ -91,7 +96,7 @@ askfirst_init <- function(pkg, notice, on_error = TRUE, scenarios = character(),
   )
 
   confidence <- askfirst_ensure_detection()
-  askfirst_maybe_nudge_hooks_install()
+  askfirst_maybe_nudge_hooks_install(pkg)
 
   .askfirst_state$packages[[pkg]] <- list(
     notice = notice,

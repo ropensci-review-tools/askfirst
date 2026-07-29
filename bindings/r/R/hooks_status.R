@@ -101,19 +101,36 @@ askfirst_hooks_status <- function() {
   "not_installed"
 }
 
-#' Print a one-time, human-directed nudge to install/update askfirst hooks
+#' Print a one-time, human-directed nudge to install/update askfirst hooks,
+#' plus (stage 019) a confidence-gated agent-directed nudge
 #'
-#' Called from [askfirst_init()], independent of the session's `confidence`
-#' tier -- unlike `askfirst_signal()`'s agent-directed conditions, this
-#' message is for the human running the session: the whole reason to show
-#' it is that hooks context can't be relied on to reach an agent at all
-#' while hooks are missing or stale, so it isn't gated on agent detection.
-#' Only ever prints once per session (tracked via
-#' `.askfirst_state$hooks_nudge_shown`), regardless of how many adopting
-#' packages call `askfirst_init()`.
+#' Called from [askfirst_init()], with two independent channels:
+#'
+#' - A **human-directed** `cli::cli_inform()` console message, printed
+#'   independent of the session's `confidence` tier -- unlike
+#'   `askfirst_signal()`'s agent-directed conditions, this message is for
+#'   the human running the session: the whole reason to show it is that
+#'   hooks context can't be relied on to reach an agent at all while hooks
+#'   are missing or stale, so it isn't gated on agent detection. This
+#'   channel is unchanged since stage 014.
+#' - An **agent-directed** `askfirst_hooks_nudge` condition (stage 019),
+#'   signalled via `askfirst_signal()` only when `.askfirst_state$confidence`
+#'   is `"high"` -- unlike the hooks themselves, `askfirst_signal()`'s
+#'   condition-based channel does not depend on any hooks being installed,
+#'   so it can reach an agent-driven session even while hooks are missing.
+#'   This is additive to, not a replacement for, the human-directed nudge
+#'   above.
+#'
+#' Both channels are gated by the same `not_installed`/`stale` status check
+#' and the same once-per-session flag (`.askfirst_state$hooks_nudge_shown`):
+#' they fire together (or not at all) as two deliveries of the same
+#' underlying event, regardless of how many adopting packages call
+#' `askfirst_init()`.
+#' @param pkg The name of the adopting package that triggered this check
+#'   (attributed on the `askfirst_hooks_nudge` condition, if signalled).
 #' @keywords internal
 #' @noRd
-askfirst_maybe_nudge_hooks_install <- function() {
+askfirst_maybe_nudge_hooks_install <- function(pkg) {
   if (isTRUE(.askfirst_state$hooks_nudge_shown)) {
     return(invisible(NULL))
   }
@@ -125,6 +142,10 @@ askfirst_maybe_nudge_hooks_install <- function() {
       "repository) to install or update hooks that help AI coding",
       "assistants recognise askfirst's structured signals."
     ))
+    if (identical(.askfirst_state$confidence, "high")) {
+      message <- gsub("{{PKG}}", pkg, askfirst_read_content("askfirst-hooks-nudge.txt"), fixed = TRUE)
+      askfirst_signal("askfirst_hooks_nudge", pkg = pkg, message = message)
+    }
   }
   .askfirst_state$hooks_nudge_shown <- TRUE
   invisible(NULL)

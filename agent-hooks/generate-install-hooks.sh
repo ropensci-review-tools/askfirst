@@ -27,9 +27,18 @@
 # which existed solely to hold these two files). This script has no
 # knowledge of, or dependency on, any specific language binding.
 #
+# As of stage 019, askfirst-context.txt's marker-token prose
+# ({{HALT_MARKER}}/{{RESUME_MARKER}} placeholders) is rendered from
+# agent-content/askfirst-markers.txt -- the same canonical source
+# bindings/r/R/conditions.R reads at runtime -- before being spliced into
+# the per-tool files, so the literal token values can't drift between what
+# askfirst actually emits and what this hook-context prose describes them
+# as.
+#
 # Run this after editing any of: agent-hooks/askfirst-context.txt,
 # agent-hooks/askfirst-reminder-messages.txt,
-# agent-hooks/askfirst-state-dir.sh, agent-hooks/claude/{session_start,
+# agent-hooks/askfirst-state-dir.sh, agent-content/askfirst-markers.txt,
+# agent-hooks/claude/{session_start,
 # post_tool_use,user_prompt_submit}.sh, or
 # agent-hooks/opencode/askfirst-plugin.js -- then commit every regenerated
 # file together (the per-tool canonical files AND install-agent-hooks.sh).
@@ -45,9 +54,10 @@ PLUGIN_SRC="$REPO_ROOT/agent-hooks/opencode/askfirst-plugin.js"
 CONTEXT_SRC="$REPO_ROOT/agent-hooks/askfirst-context.txt"
 REMINDER_SRC="$REPO_ROOT/agent-hooks/askfirst-reminder-messages.txt"
 STATE_DIR_SRC="$REPO_ROOT/agent-hooks/askfirst-state-dir.sh"
+MARKERS_SRC="$REPO_ROOT/agent-content/askfirst-markers.txt"
 
 for f in "$INSTALLER" "$SESSION_SRC" "$POST_SRC" "$USER_PROMPT_SRC" "$PLUGIN_SRC" \
-  "$CONTEXT_SRC" "$REMINDER_SRC" "$STATE_DIR_SRC"; do
+  "$CONTEXT_SRC" "$REMINDER_SRC" "$STATE_DIR_SRC" "$MARKERS_SRC"; do
   if [[ ! -f "$f" ]]; then
     echo "error: expected file not found: $f" >&2
     exit 1
@@ -95,6 +105,15 @@ extract_reminder_raw() {
   awk -v marker="--- ${level} ---" '$0 == marker { getline; print; exit }' "$REMINDER_SRC"
 }
 
+# Extracts the single-line token immediately following a "--- NAME ---"
+# section marker in agent-content/askfirst-markers.txt (same section-marker
+# format as askfirst-reminder-messages.txt; conditions.R's
+# askfirst_load_marker() reads the same file at R runtime).
+extract_marker_raw() {
+  local name="$1"
+  awk -v marker="--- ${name} ---" '$0 == marker { getline; print; exit }' "$MARKERS_SRC"
+}
+
 # Renders a canonical {{PKG}}/{{COUNT}}-templated message as a single-line
 # bash `printf` call, reconstructing the positional argument list in the
 # order placeholders appear (so the rendered *output* text is identical to
@@ -129,15 +148,24 @@ render_reminder_js_line() {
 
 # --- Pass 1: shared canonical sources -> per-tool canonical files ---
 
-# <askfirst-context> block: bash heredoc takes it verbatim (backticks are
-# not special inside a quoted heredoc); the JS template literal needs
-# every literal backtick escaped first.
-splice_between_markers "$SESSION_SRC" '<askfirst-context>' '</askfirst-context>' "$CONTEXT_SRC" inclusive
+# <askfirst-context> block: render its {{HALT_MARKER}}/{{RESUME_MARKER}}
+# placeholders from agent-content/askfirst-markers.txt first (stage 019),
+# then splice the rendered copy -- not askfirst-context.txt directly -- into
+# each target. bash heredoc takes the rendered text verbatim (backticks are
+# not special inside a quoted heredoc); the JS template literal needs every
+# literal backtick escaped first.
+halt_marker=$(extract_marker_raw HALT)
+resume_marker=$(extract_marker_raw RESUME)
+
+context_rendered=$(mktemp)
+sed -e "s#{{HALT_MARKER}}#${halt_marker}#g" -e "s#{{RESUME_MARKER}}#${resume_marker}#g" "$CONTEXT_SRC" > "$context_rendered"
+
+splice_between_markers "$SESSION_SRC" '<askfirst-context>' '</askfirst-context>' "$context_rendered" inclusive
 
 context_js_escaped=$(mktemp)
-sed 's/`/\\`/g' "$CONTEXT_SRC" > "$context_js_escaped"
+sed 's/`/\\`/g' "$context_rendered" > "$context_js_escaped"
 splice_between_markers "$PLUGIN_SRC" '<askfirst-context>' '</askfirst-context>' "$context_js_escaped" inclusive
-rm -f "$context_js_escaped"
+rm -f "$context_rendered" "$context_js_escaped"
 
 # askfirst_state_dir() mangling function: bash-only canonical source,
 # spliced into both Claude Code hook scripts that need it. No JS
@@ -164,7 +192,7 @@ splice_between_markers "$PLUGIN_SRC" '// ASKFIRST_REMINDER_LEVEL2_START' '// ASK
 
 rm -f "$bash_level1" "$bash_level2" "$js_level1" "$js_level2"
 
-echo "regenerated (pass 1): $SESSION_SRC, $POST_SRC, $USER_PROMPT_SRC, $PLUGIN_SRC (from $CONTEXT_SRC, $REMINDER_SRC, $STATE_DIR_SRC)" >&2
+echo "regenerated (pass 1): $SESSION_SRC, $POST_SRC, $USER_PROMPT_SRC, $PLUGIN_SRC (from $CONTEXT_SRC, $REMINDER_SRC, $STATE_DIR_SRC, $MARKERS_SRC)" >&2
 
 # --- Pass 2: per-tool canonical files -> install-agent-hooks.sh ---
 

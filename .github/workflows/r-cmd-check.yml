@@ -5,11 +5,13 @@ on:
     paths:
       - "bindings/r/**"
       - "agent-detect-spec/**"
+      - "agent-content/**"
       - ".github/workflows/r-cmd-check.yml"
   pull_request:
     paths:
       - "bindings/r/**"
       - "agent-detect-spec/**"
+      - "agent-content/**"
       - ".github/workflows/r-cmd-check.yml"
 
 permissions:
@@ -27,6 +29,9 @@ jobs:
 
       - name: Check bindings/r/inst/agent-detect-spec/ is in sync with agent-detect-spec/vendor/
         run: Rscript bindings/r/data-raw/check-vendor-sync.R
+
+      - name: Check bindings/r/inst/agent-content/ is in sync with agent-content/
+        run: Rscript bindings/r/data-raw/check-agent-content-sync.R
 
   r-cmd-check:
     runs-on: ${{ matrix.config.os }}

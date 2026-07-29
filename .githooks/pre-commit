@@ -1,0 +1,21 @@
+#!/bin/bash
+# Local pre-commit hook: blocks committing a drifted vendored/synced copy
+# (bindings/r/inst/agent-detect-spec/ vs agent-detect-spec/vendor/, and
+# bindings/r/inst/agent-content/ vs agent-content/). Opt in once per clone
+# via: git config core.hooksPath .githooks
+#
+# This is a developer-only convenience hook -- CI runs the same two checks
+# independently (see .github/workflows/r-cmd-check.yml) as the enforced
+# backstop, so this hook is not required for correctness.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+status=0
+
+Rscript bindings/r/data-raw/check-vendor-sync.R || status=1
+Rscript bindings/r/data-raw/check-agent-content-sync.R || status=1
+
+exit "$status"

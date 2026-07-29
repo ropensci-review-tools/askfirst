@@ -62,7 +62,12 @@ than recomputing it. It also checks (once per session, via
 \code{askfirst}-aware agent hooks installed, and if not, prints a one-time,
 human-directed nudge pointing at \code{agent-hooks/install-agent-hooks.sh} --
 independent of the confidence tier, since a human running the session is
-exactly who needs to see this, not an agent.
+exactly who needs to see this, not an agent. As of stage 019, if the
+session is additionally \code{"high"} confidence, an \code{askfirst_hooks_nudge}
+condition is also signalled (via \code{askfirst_signal()}, alongside the
+human-directed message, not instead of it) so an agent-driven session can
+relay the same information to its user directly -- see
+\code{askfirst_maybe_nudge_hooks_install()}.
 }
 \details{
 If the session is \code{"high"} confidence, \code{notice} is signalled

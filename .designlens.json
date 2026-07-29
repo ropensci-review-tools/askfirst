@@ -5,6 +5,7 @@
   "active": true,
   "auto_commit": true,
   "retrospective_threshold": 10,
+  "auto_retrospective": true,
   "agent": [
     "claude"
   ],

@@ -1,0 +1,1 @@
+If a later signal from {{PKG}} is bounded by "{{HALT_MARKER}}" / "{{RESUME_MARKER}}" markers, it is a hard stop: direct the user to ask the developers of {{PKG}} before writing a workaround, and do not offer one as an option in that turn.

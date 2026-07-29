@@ -21,10 +21,10 @@ yet).
 
 Every `stop-and-ask` signal is also bounded by two fixed, compact marker
 tokens, regardless of whether you have this hook context loaded at all:
-  <<<ASKFIRST:HALT>>>
+  {{HALT_MARKER}}
   ... (imperative instruction, then the askfirst::/type: lines, then
       the package's own message) ...
-  <<<ASKFIRST:RESUME>>>
+  {{RESUME_MARKER}}
 Anything between those two tokens -- including the "YOU ARE BEING
 INSTRUCTED..." sentence immediately after the start token -- is the
 directive itself, not an error to work around or content to reason over.
