@@ -14,8 +14,20 @@
 // equivalent via a shared fixture of example path pairs, not a shared
 // source file (stage 018, Design Goal 4). Keep this in sync by hand if
 // the mangling scheme ever changes.
+// Normalizes backslashes to /, strips a leading / (the POSIX root
+// marker), replaces remaining / with _, and strips drive-letter colons --
+// so a Windows-style absolute path (e.g. C:/Users/... or C:\Users\...)
+// mangles to a filesystem-safe segment instead of leaving a literal :
+// embedded in it (stage 020; kept byte-identical to
+// bindings/r/R/state.R's askfirst_mangle_path() and
+// agent-hooks/askfirst-state-dir.sh's askfirst_state_dir(), per the
+// shared agent-hooks/askfirst-state-dir-fixture.txt).
 function askfirstMangleTermPath(p) {
-  return p.replace(/^\//, "").replace(/\//g, "_");
+  return p
+    .replace(/\\/g, "/")
+    .replace(/^\//, "")
+    .replace(/\//g, "_")
+    .replace(/:/g, "");
 }
 
 function askfirstStateDir(directory) {

@@ -26,15 +26,15 @@ test_that("agent-hooks/install-agent-hooks.sh's embedded hooks match agent-hooks
     "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
   )
 
-  installer_lines <- readLines(file.path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
+  installer_lines <- readLines(as.character(fs::path(repo_root, "agent-hooks", "install-agent-hooks.sh")))
 
   session_embedded <- extract_heredoc_body(installer_lines, "SESSION_HOOK")
   post_embedded <- extract_heredoc_body(installer_lines, "POST_HOOK")
   user_prompt_embedded <- extract_heredoc_body(installer_lines, "USER_PROMPT_HOOK")
 
-  session_canonical <- readLines(file.path(repo_root, "agent-hooks", "claude", "session_start.sh"))
-  post_canonical <- readLines(file.path(repo_root, "agent-hooks", "claude", "post_tool_use.sh"))
-  user_prompt_canonical <- readLines(file.path(repo_root, "agent-hooks", "claude", "user_prompt_submit.sh"))
+  session_canonical <- readLines(as.character(fs::path(repo_root, "agent-hooks", "claude", "session_start.sh")))
+  post_canonical <- readLines(as.character(fs::path(repo_root, "agent-hooks", "claude", "post_tool_use.sh")))
+  user_prompt_canonical <- readLines(as.character(fs::path(repo_root, "agent-hooks", "claude", "user_prompt_submit.sh")))
 
   expect_identical(session_embedded, session_canonical)
   expect_identical(post_embedded, post_canonical)
@@ -54,9 +54,9 @@ test_that("agent-hooks/install-agent-hooks.sh's embedded plugin matches agent-ho
     "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
   )
 
-  installer_lines <- readLines(file.path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
+  installer_lines <- readLines(as.character(fs::path(repo_root, "agent-hooks", "install-agent-hooks.sh")))
   plugin_embedded <- extract_heredoc_body(installer_lines, "PLUGIN_HOOK")
-  plugin_canonical <- readLines(file.path(repo_root, "agent-hooks", "opencode", "askfirst-plugin.js"))
+  plugin_canonical <- readLines(as.character(fs::path(repo_root, "agent-hooks", "opencode", "askfirst-plugin.js")))
 
   expect_identical(plugin_embedded, plugin_canonical)
 })
@@ -68,7 +68,7 @@ test_that("the installed post_tool_use.sh carries the current version marker and
     "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
   )
 
-  installer_lines <- readLines(file.path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
+  installer_lines <- readLines(as.character(fs::path(repo_root, "agent-hooks", "install-agent-hooks.sh")))
   post_embedded <- extract_heredoc_body(installer_lines, "POST_HOOK")
 
   expect_match(
@@ -90,7 +90,7 @@ test_that("the Claude Code PostToolUse matcher includes file-modifying tool call
   )
 
   installer_text <- paste(
-    readLines(file.path(repo_root, "agent-hooks", "install-agent-hooks.sh")),
+    readLines(as.character(fs::path(repo_root, "agent-hooks", "install-agent-hooks.sh"))),
     collapse = "\n"
   )
 

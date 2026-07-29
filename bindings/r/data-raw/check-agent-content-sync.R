@@ -6,14 +6,14 @@
 # Run from the repository root: Rscript bindings/r/data-raw/check-agent-content-sync.R
 
 src_dir <- "agent-content"
-dest_dir <- file.path("bindings", "r", "inst", "agent-content")
+dest_dir <- as.character(fs::path("bindings", "r", "inst", "agent-content"))
 
 files <- list.files(src_dir, pattern = "\\.txt$")
 
 mismatches <- character(0)
 for (f in files) {
-  src_file <- file.path(src_dir, f)
-  dest_file <- file.path(dest_dir, f)
+  src_file <- as.character(fs::path(src_dir, f))
+  dest_file <- as.character(fs::path(dest_dir, f))
   if (!file.exists(dest_file)) {
     mismatches <- c(mismatches, sprintf("%s is missing", dest_file))
     next

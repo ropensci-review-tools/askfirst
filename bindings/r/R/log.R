@@ -11,7 +11,7 @@
 askfirst_log_notice <- function(pkg, formatted) {
   state_dir <- askfirst_state_dir()
   dir.create(state_dir, recursive = TRUE, showWarnings = FALSE)
-  cat(formatted, "\n\n", sep = "", file = file.path(state_dir, "log"), append = TRUE)
+  cat(formatted, "\n\n", sep = "", file = as.character(fs::path(state_dir, "log")), append = TRUE)
   invisible(NULL)
 }
 
@@ -31,9 +31,9 @@ askfirst_log_notice <- function(pkg, formatted) {
 #' @keywords internal
 #' @noRd
 askfirst_write_pending <- function(pkg, type, formatted) {
-  pending_dir <- file.path(askfirst_state_dir(), "pending")
+  pending_dir <- as.character(fs::path(askfirst_state_dir(), "pending"))
   dir.create(pending_dir, recursive = TRUE, showWarnings = FALSE)
-  target <- file.path(pending_dir, sprintf("%s-%s.txt", pkg, type))
+  target <- as.character(fs::path(pending_dir, sprintf("%s-%s.txt", pkg, type)))
   writeLines(formatted, target)
   invisible(NULL)
 }
@@ -55,9 +55,9 @@ askfirst_write_pending <- function(pkg, type, formatted) {
 #' @keywords internal
 #' @noRd
 askfirst_write_unresolved_notice <- function(pkg, formatted) {
-  notice_dir <- file.path(askfirst_state_dir(), "unresolved-notice")
+  notice_dir <- as.character(fs::path(askfirst_state_dir(), "unresolved-notice"))
   dir.create(notice_dir, recursive = TRUE, showWarnings = FALSE)
-  target <- file.path(notice_dir, paste0(pkg, ".txt"))
+  target <- as.character(fs::path(notice_dir, paste0(pkg, ".txt")))
   writeLines(formatted, target)
   invisible(NULL)
 }
@@ -69,7 +69,7 @@ askfirst_write_unresolved_notice <- function(pkg, formatted) {
 #' @keywords internal
 #' @noRd
 askfirst_clear_unresolved_notice <- function(pkg) {
-  target <- file.path(askfirst_state_dir(), "unresolved-notice", paste0(pkg, ".txt"))
+  target <- as.character(fs::path(askfirst_state_dir(), "unresolved-notice", paste0(pkg, ".txt")))
   if (file.exists(target)) {
     unlink(target)
   }

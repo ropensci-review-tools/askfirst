@@ -4,6 +4,19 @@ test_that("askfirst_mangle_path() strips a leading slash and replaces remaining 
   expect_equal(askfirst:::askfirst_mangle_path("/"), "")
 })
 
+test_that("askfirst_mangle_path() strips drive-letter colons and backslashes on Windows", {
+  testthat::skip_on_os(c("mac", "linux", "solaris"))
+
+  expect_equal(
+    askfirst:::askfirst_mangle_path("C:/Users/runner/AppData/Local/Temp/foo"),
+    "C_Users_runner_AppData_Local_Temp_foo"
+  )
+  expect_equal(
+    askfirst:::askfirst_mangle_path("C:\\Users\\runner\\AppData\\Local\\Temp\\foo"),
+    "C_Users_runner_AppData_Local_Temp_foo"
+  )
+})
+
 test_that("askfirst_mangle_path() matches the shared behavioral-contract fixture", {
   # Shared with agent-hooks/opencode/askfirst-plugin.test.js's mangling
   # verification -- bash/JS/R can't literally share the mangling
@@ -15,7 +28,7 @@ test_that("askfirst_mangle_path() matches the shared behavioral-contract fixture
     "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
   )
 
-  fixture_lines <- readLines(file.path(repo_root, "agent-hooks", "askfirst-state-dir-fixture.txt"))
+  fixture_lines <- readLines(as.character(fs::path(repo_root, "agent-hooks", "askfirst-state-dir-fixture.txt")))
   fixture_lines <- fixture_lines[nzchar(fixture_lines)]
 
   for (line in fixture_lines) {
@@ -29,11 +42,11 @@ test_that("askfirst_mangle_path() matches the shared behavioral-contract fixture
 test_that("askfirst_state_dir() derives a tmp path from the current working directory", {
   local_reset_askfirst_state()
 
-  expected <- file.path(
-    Sys.getenv("TMPDIR", unset = "/tmp"),
+  expected <- as.character(fs::path(
+    Sys.getenv("TMPDIR", unset = tempdir()),
     "askfirst",
     askfirst:::askfirst_mangle_path(getwd())
-  )
+  ))
   expect_equal(askfirst:::askfirst_state_dir(), expected)
 })
 
@@ -41,12 +54,12 @@ test_that("askfirst_write_pending() writes and overwrites a per-package/type sen
   local_reset_askfirst_state()
 
   askfirst:::askfirst_write_pending("mypkg", "capability_gap", "first message")
-  target <- file.path(askfirst:::askfirst_state_dir(), "pending", "mypkg-capability_gap.txt")
+  target <- as.character(fs::path(askfirst:::askfirst_state_dir(), "pending", "mypkg-capability_gap.txt"))
   expect_true(file.exists(target))
   expect_match(readLines(target), "first message", fixed = TRUE, all = FALSE)
 
   askfirst:::askfirst_write_pending("mypkg", "capability_gap", "second message")
-  files <- list.files(file.path(askfirst:::askfirst_state_dir(), "pending"))
+  files <- list.files(as.character(fs::path(askfirst:::askfirst_state_dir(), "pending")))
   expect_length(files, 1)
   expect_match(readLines(target), "second message", fixed = TRUE, all = FALSE)
 })
@@ -54,7 +67,7 @@ test_that("askfirst_write_pending() writes and overwrites a per-package/type sen
 test_that("askfirst_write_unresolved_notice()/askfirst_clear_unresolved_notice() lifecycle", {
   local_reset_askfirst_state()
 
-  target <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  target <- as.character(fs::path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt"))
   expect_false(file.exists(target))
 
   askfirst:::askfirst_write_unresolved_notice("mypkg", "first notice")
@@ -95,8 +108,8 @@ test_that("notice signals are not logged when ASKFIRST_SILENCE_NOTICE covers pkg
     askfirst_notice = function(cnd) invokeRestart("muffleMessage")
   )
 
-  expect_false(file.exists(file.path(askfirst:::askfirst_state_dir(), "log")))
-  expect_false(file.exists(file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")))
+  expect_false(file.exists(as.character(fs::path(askfirst:::askfirst_state_dir(), "log"))))
+  expect_false(file.exists(as.character(fs::path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt"))))
 })
 
 test_that("notice signals are logged when not silenced", {
@@ -108,7 +121,7 @@ test_that("notice signals are logged when not silenced", {
     askfirst_notice = function(cnd) invokeRestart("muffleMessage")
   )
 
-  log_file <- file.path(askfirst:::askfirst_state_dir(), "log")
+  log_file <- as.character(fs::path(askfirst:::askfirst_state_dir(), "log"))
   expect_true(file.exists(log_file))
   expect_match(readLines(log_file), "raw message", fixed = TRUE, all = FALSE)
 })
@@ -122,7 +135,7 @@ test_that("notice signals write an unresolved-notice marker when not silenced", 
     askfirst_notice = function(cnd) invokeRestart("muffleMessage")
   )
 
-  marker <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  marker <- as.character(fs::path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt"))
   expect_true(file.exists(marker))
   expect_match(readLines(marker), "raw message", fixed = TRUE, all = FALSE)
 })
@@ -143,7 +156,7 @@ test_that("stop-and-ask signals write to stdout and a pending sentinel, regardle
   expect_match(out, "raw message", fixed = TRUE)
   expect_match(out, "<<<ASKFIRST:HALT>>>", fixed = TRUE)
 
-  pending_file <- file.path(askfirst:::askfirst_state_dir(), "pending", "mypkg-capability_gap.txt")
+  pending_file <- as.character(fs::path(askfirst:::askfirst_state_dir(), "pending", "mypkg-capability_gap.txt"))
   expect_true(file.exists(pending_file))
 })
 
@@ -151,7 +164,7 @@ test_that("a stop-and-ask signal clears an existing unresolved-notice marker for
   local_reset_askfirst_state()
 
   askfirst:::askfirst_write_unresolved_notice("mypkg", "earlier notice")
-  marker <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  marker <- as.character(fs::path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt"))
   expect_true(file.exists(marker))
 
   tryCatch(

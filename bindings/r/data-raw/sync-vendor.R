@@ -6,8 +6,8 @@
 #
 # Run from the repository root: Rscript bindings/r/data-raw/sync-vendor.R
 
-src_dir <- file.path("agent-detect-spec", "vendor")
-dest_dir <- file.path("bindings", "r", "inst", "agent-detect-spec")
+src_dir <- as.character(fs::path("agent-detect-spec", "vendor"))
+dest_dir <- as.character(fs::path("bindings", "r", "inst", "agent-detect-spec"))
 
 stopifnot(
   "run this script from the repository root (src_dir not found)" =
@@ -19,8 +19,8 @@ dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
 files <- c("agents.json", "agents.schema.json")
 for (f in files) {
   file.copy(
-    file.path(src_dir, f),
-    file.path(dest_dir, f),
+    as.character(fs::path(src_dir, f)),
+    as.character(fs::path(dest_dir, f)),
     overwrite = TRUE
   )
 }

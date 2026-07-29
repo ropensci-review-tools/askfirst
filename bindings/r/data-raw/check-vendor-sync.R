@@ -4,15 +4,15 @@
 #
 # Run from the repository root: Rscript bindings/r/data-raw/check-vendor-sync.R
 
-src_dir <- file.path("agent-detect-spec", "vendor")
-dest_dir <- file.path("bindings", "r", "inst", "agent-detect-spec")
+src_dir <- as.character(fs::path("agent-detect-spec", "vendor"))
+dest_dir <- as.character(fs::path("bindings", "r", "inst", "agent-detect-spec"))
 
 files <- c("agents.json", "agents.schema.json")
 
 mismatches <- character(0)
 for (f in files) {
-  src_file <- file.path(src_dir, f)
-  dest_file <- file.path(dest_dir, f)
+  src_file <- as.character(fs::path(src_dir, f))
+  dest_file <- as.character(fs::path(dest_dir, f))
   if (!file.exists(dest_file)) {
     mismatches <- c(mismatches, sprintf("%s is missing", dest_file))
     next

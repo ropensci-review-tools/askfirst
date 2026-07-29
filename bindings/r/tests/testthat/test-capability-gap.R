@@ -35,7 +35,7 @@ test_that("askfirst_capability_gap clears an existing unresolved-notice marker f
   local_reset_askfirst_state()
   .askfirst_state$confidence <- "high"
   askfirst:::askfirst_write_unresolved_notice("mypkg", "earlier notice")
-  marker <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  marker <- as.character(fs::path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt"))
   expect_true(file.exists(marker))
 
   tryCatch(

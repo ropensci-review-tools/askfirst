@@ -2,3 +2,5 @@
 /a/b/c	a_b_c
 /
 /single	single
+C:/Users/runner/AppData/Local/Temp/foo	C_Users_runner_AppData_Local_Temp_foo
+C:\Users\runner\AppData\Local\Temp\foo	C_Users_runner_AppData_Local_Temp_foo

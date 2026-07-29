@@ -7,7 +7,7 @@
 # Run from the repository root: Rscript bindings/r/data-raw/sync-agent-content.R
 
 src_dir <- "agent-content"
-dest_dir <- file.path("bindings", "r", "inst", "agent-content")
+dest_dir <- as.character(fs::path("bindings", "r", "inst", "agent-content"))
 
 stopifnot(
   "run this script from the repository root (src_dir not found)" =
@@ -19,8 +19,8 @@ dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
 files <- list.files(src_dir, pattern = "\\.txt$")
 for (f in files) {
   file.copy(
-    file.path(src_dir, f),
-    file.path(dest_dir, f),
+    as.character(fs::path(src_dir, f)),
+    as.character(fs::path(dest_dir, f)),
     overwrite = TRUE
   )
 }

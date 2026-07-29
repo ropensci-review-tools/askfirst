@@ -250,7 +250,7 @@ test_that("askfirst_check_scenarios clears an existing unresolved-notice marker 
     notice = "n", on_error = FALSE, scenarios = c("scenario A")
   )
   askfirst:::askfirst_write_unresolved_notice("mypkg", "earlier notice")
-  marker <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  marker <- as.character(fs::path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt"))
   expect_true(file.exists(marker))
 
   tryCatch(
@@ -268,7 +268,7 @@ test_that("askfirst_check_scenarios clears an existing unresolved-notice marker 
     notice = "n", on_error = FALSE, scenarios = character()
   )
   askfirst:::askfirst_write_unresolved_notice("mypkg", "earlier notice")
-  marker <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  marker <- as.character(fs::path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt"))
   expect_true(file.exists(marker))
 
   askfirst_check_scenarios("mypkg")
@@ -283,7 +283,7 @@ test_that("askfirst_check_scenarios clears an existing unresolved-notice marker 
     notice = "n", on_error = FALSE, scenarios = c("scenario A", "scenario B")
   )
   askfirst:::askfirst_write_unresolved_notice("mypkg", "earlier notice")
-  marker <- file.path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt")
+  marker <- as.character(fs::path(askfirst:::askfirst_state_dir(), "unresolved-notice", "mypkg.txt"))
   expect_true(file.exists(marker))
 
   askfirst_check_scenarios("mypkg")

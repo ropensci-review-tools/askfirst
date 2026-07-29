@@ -57,7 +57,7 @@ askfirst_hook_version_from_file <- function(path) {
 askfirst_hooks_status_for_tool <- function(tool, manifest = askfirst_hooks_manifest()) {
   hooks_dir <- manifest$tools[[tool]]$hooks_dir
   marker_file <- manifest$tools[[tool]]$marker_file
-  target <- file.path(hooks_dir, marker_file)
+  target <- as.character(fs::path(hooks_dir, marker_file))
   if (!file.exists(target)) {
     return("not_installed")
   }
