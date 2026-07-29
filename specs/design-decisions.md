@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: a1324382a66f589854de7fadd3c42923c2a5a24d
+git_hash: e87e2de04bde998dea889cbf8cfdb729ba9970d3
 ---
 
 # Design Decisions: askfirst
@@ -224,7 +224,12 @@ Windows-only `rcmdcheck()` failure in the session-state-directory mangling
 scheme (a drive-letter colon survived into a directory-name segment,
 illegal on Windows), ported the fix identically to the R, bash, and JS
 implementations, and adopted `fs::path()` for path construction throughout
-`bindings/r/` in place of `file.path()`.
+`bindings/r/` in place of `file.path()`. Stage 021 gave `askfirst_hooks_nudge`
+its own `TELL-USER`/`END-TELL-USER`-bounded message shape, distinct from
+both the hard-stop and plain-notice shapes, and made `askfirst_signal()`
+fold a pending nudge into the next same-session `stop-and-ask` halt as one
+message, so a must-relay-to-human instruction isn't dropped when it
+co-occurs with a higher-severity halt.
 
 ## Key Decisions
 
@@ -677,6 +682,44 @@ reads. Folding the new sync/check logic into the existing
 rejected, to keep the third-party-derived vendor sync separate from
 askfirst-authored content.
 **Stages:** 019
+
+### Hooks-nudge relay: a dedicated tell-user shape, merged into a following halt
+**Outcome:** `agent-content/askfirst-markers.txt` gained a `TELL-USER` /
+`END-TELL-USER` marker pair, distinct from `HALT`/`RESUME`.
+`askfirst_signal()` gives `askfirst_hooks_nudge` a third message-assembly
+shape (header + body bounded by these markers + a `See:` line), rather
+than continuing to share the plain notice shape with `askfirst_notice`.
+New `.askfirst_state` fields (`hooks_nudge_pending_relay`,
+`hooks_nudge_relay_text`) let the hard-stop-shape branch prepend an
+earlier-fired nudge's bare `TELL-USER` block (no `See:` line of its own)
+before a later same-session `stop-and-ask` halt's own block, clearing the
+flag so only the first halt after a fresh nudge absorbs it.
+`agent-content/askfirst-hooks-nudge.txt`'s body wording was also revised,
+from a script-relative-path instruction to a direct repository URL.
+**Rationale:** A field report found a `hooks_nudge` notice and a later
+`stop-and-ask` halt in the same session's combined output; the agent read
+both correctly and obeyed the halt, but its own summary to the human
+dropped the nudge's "tell your human user..." instruction entirely.
+Diagnosis: only `stop-and-ask` signals carried a hard, always-relay
+delimiter (stage 014); the plain-notice shape has none, so a
+must-relay-to-human directive read exactly like ordinary, weighable output
+once a higher-severity halt co-occurred with it. Merging the two into one
+message removes the opportunity for an agent's own summarization to keep
+one and drop the other.
+**Tradeoffs:** Scoped to `askfirst_hooks_nudge` only, not a new
+general-purpose "must-relay" directive tier in `directive_map` — the only
+condition class today that is both non-halting and must-relay-to-a-human
+rather than must-act-on-by-the-agent. The merge applies uniformly to every
+`stop-and-ask` class (including `askfirst_error_redirect`) via the shared
+branch, needing no special-casing, since the nudge fires once at session
+outset and any later halt's pending-relay state is either already consumed
+or still available by construction.
+**Proposed by:** joint
+**Relates to:** Stage 014 (the hard-stop delimiter precedent extended here
+to a second, non-halting case); Stage 019 (`askfirst_hooks_nudge` and the
+`agent-content/` canonical-text mechanism this stage's new marker file and
+wording revision both build on)
+**Stages:** 021
 
 ### Enforcement: persistent pending sentinel with active PostToolUse blocking, plus a non-blocking escalation for the agent-invoked gate
 **Outcome:** Every `stop-and-ask` signal writes a per-`{pkg}-{type}` file
@@ -1241,6 +1284,32 @@ in the test itself (the `/` → `""` mangling edge case collapses to the
 shared tmp state-root, so naive cleanup would have deleted shared test
 infrastructure), both found and fixed before the stage was considered
 complete.
+Stages 019 and 020 (see Key Decisions and Current Architecture above)
+added a second, confidence-gated agent-directed hooks-installation nudge
+and fixed a Windows-only path-mangling failure, respectively. Stage 021
+was triggered by a single-session field report describing a failure mode
+distinct from any the project had previously named: a `hooks_nudge`
+notice and a later `stop-and-ask` halt appeared in the same session's
+output, the agent obeyed the halt, but its own summary to the human
+dropped the nudge's relay instruction entirely — not because the signal
+was misread or offered as optional (the patterns behind stages 007–014),
+but because an agent's own summarization, when two must-relay signals of
+different severity co-occur, collapses toward the more consequential one.
+Reviewing this against stage 014's precedent (a dedicated hard delimiter
+is what made `stop-and-ask` signals self-sufficient regardless of hook
+context) suggested the same treatment for the nudge: a `TELL-USER` shape
+distinct from the plain notice shape it had shared with `askfirst_notice`
+since stage 019, plus a merge of a pending nudge into the next same-session
+halt so the two reach the agent as one message rather than two
+independently-summarizable ones. Scoping questions raised while drafting
+the plan — whether `askfirst_error_redirect` needed special-casing for the
+merge, and whether to track re-running the sibling `askfirst-tests`
+harness as part of this stage's own process — were both resolved before
+implementation began, the former by recognizing the merge already applies
+uniformly by construction, the latter by treating that harness as entirely
+out of scope for this repo's own workflow. The stage also revised the
+nudge's own body wording to point at a direct repository URL rather than a
+script-relative path.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -1507,3 +1576,26 @@ complete.
   rejected once it was recognized the tags are already unique literal
   content present in both target files, so they serve directly as splice
   boundaries with no new marker syntax needed.
+
+**Hooks-nudge relay (stage 021):**
+- A new general-purpose "must-relay" directive tier in `directive_map`,
+  rather than a targeted third shape scoped to `askfirst_hooks_nudge`
+  alone — rejected; that class is the only one today that is both
+  non-halting and must-relay-to-a-human rather than must-act-on-by-the-
+  agent, so a whole new tier had no other consumer yet.
+- Special-casing `askfirst_error_redirect` in the merge logic — considered,
+  then found unnecessary: the nudge fires once at session outset, so by the
+  time any later `stop-and-ask` class fires, the pending relay is either
+  already consumed or still available by construction, and the shared
+  hard-stop-shape branch picks it up automatically either way.
+- Interleaving the nudge's text inside the halt's own hard-stop block,
+  rather than two back-to-back delimited blocks — rejected in favor of the
+  latter, for clearer separation between the two distinct instructions.
+- Keeping both blocks' own trailing `See:` line when merged — rejected;
+  the nudge's own `See:` line is dropped so the halt's is the only one in
+  the merged message, while the nudge's own `askfirst::.../type:` header
+  line is kept so the merged nudge content stays machine-identifiable.
+- Tracking a re-run of the sibling `askfirst-tests` harness's relevant
+  trial cell as a task of this stage — rejected; that harness is a
+  separate repository under the maintainer's own manual control, not part
+  of this repo's own workflow.

@@ -7,7 +7,7 @@ git_hash: 9a84f92a25af9435f8f22c2a1b82129a98791244
 # Tasks: harden-hooks-nudge-relay
 
 ## T021-1: Add TELL-USER/END-TELL-USER markers, revise nudge wording, sync to the R binding
-- [ ] T021-1: In `agent-content/askfirst-markers.txt`, add a new
+- [x] T021-1: In `agent-content/askfirst-markers.txt`, add a new
   `TELL-USER` / `END-TELL-USER` section pair after the existing `HALT` /
   `RESUME` pair, following the file's exact `--- NAME ---` / token format:
   ```
@@ -35,7 +35,7 @@ git_hash: 9a84f92a25af9435f8f22c2a1b82129a98791244
   copies in sync.
 
 ## T021-2: Add TELL-USER delimiter helpers to conditions.R
-- [ ] T021-2: In `bindings/r/R/conditions.R`, add
+- [x] T021-2: In `bindings/r/R/conditions.R`, add
   `askfirst_tell_user_start_delimiter()` and
   `askfirst_tell_user_end_delimiter()`, mirroring
   `askfirst_stop_start_delimiter()`/`askfirst_stop_end_delimiter()`
@@ -44,7 +44,7 @@ git_hash: 9a84f92a25af9435f8f22c2a1b82129a98791244
   `@keywords internal`, `@noRd`).
 
 ## T021-3: Add session-state fields for the pending relay
-- [ ] T021-3: In `bindings/r/R/state.R`, add
+- [x] T021-3: In `bindings/r/R/state.R`, add
   `.askfirst_state$hooks_nudge_pending_relay <- FALSE` and
   `.askfirst_state$hooks_nudge_relay_text <- NULL` alongside the existing
   `.askfirst_state$hooks_nudge_shown <- FALSE` initializer. In
@@ -55,7 +55,7 @@ git_hash: 9a84f92a25af9435f8f22c2a1b82129a98791244
   otherwise the new fields will leak state between tests.
 
 ## T021-4: Give askfirst_hooks_nudge its own TELL-USER-bounded message shape
-- [ ] T021-4: In `askfirst_signal()` (`bindings/r/R/conditions.R`), add a
+- [x] T021-4: In `askfirst_signal()` (`bindings/r/R/conditions.R`), add a
   third message-assembly branch, taken only when
   `class == "askfirst_hooks_nudge"` (checked before the existing
   `directive_map[[class]] == "stop-and-ask"` branch, since this class's
@@ -76,7 +76,7 @@ git_hash: 9a84f92a25af9435f8f22c2a1b82129a98791244
   shape."
 
 ## T021-5: Implement the merge into a later stop-and-ask halt
-- [ ] T021-5: In `askfirst_signal()`'s hard-stop-shape branch
+- [x] T021-5: In `askfirst_signal()`'s hard-stop-shape branch
   (`bindings/r/R/conditions.R`, the `identical(directive_map[[class]], "stop-and-ask")` branch), before assembling the existing
   `askfirst_stop_start_delimiter()`-bounded message: if
   `isTRUE(.askfirst_state$hooks_nudge_pending_relay)`, prepend
@@ -92,7 +92,7 @@ git_hash: 9a84f92a25af9435f8f22c2a1b82129a98791244
   nudge absorbs it).
 
 ## T021-6: Test the new TELL-USER shape
-- [ ] T021-6: In `bindings/r/tests/testthat/test-init.R`, add tests
+- [x] T021-6: In `bindings/r/tests/testthat/test-init.R`, add tests
   (following the file's existing `local_reset_askfirst_state()` /
   `withCallingHandlers()` conventions used by the neighbouring
   `askfirst_hooks_nudge` tests around line 320):
@@ -117,7 +117,7 @@ git_hash: 9a84f92a25af9435f8f22c2a1b82129a98791244
   `expect_match(text, "https://github.com/ropensci-review-tools/askfirst", fixed = TRUE)`.
 
 ## T021-7: Test the merge with a same-session stop-and-ask halt
-- [ ] T021-7: In `bindings/r/tests/testthat/test-capability-gap.R`, add
+- [x] T021-7: In `bindings/r/tests/testthat/test-capability-gap.R`, add
   tests using `askfirst_init()` (to trigger the nudge, as in
   `test-init.R`'s existing pattern) followed by
   `askfirst_capability_gap()` (to trigger a halt), both under high
@@ -141,7 +141,7 @@ git_hash: 9a84f92a25af9435f8f22c2a1b82129a98791244
     all — the merge only applies when a nudge actually preceded it.
 
 ## T021-8: Full verification pass
-- [ ] T021-8: From `bindings/r/`, run the full test suite
+- [x] T021-8: From `bindings/r/`, run the full test suite
   (`devtools::test()` or `R CMD check`) and confirm no failures or new
   warnings/notes; from the repo root, re-run
   `Rscript bindings/r/data-raw/check-agent-content-sync.R` to confirm
