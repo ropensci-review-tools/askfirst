@@ -99,6 +99,20 @@ askfirst_stop_consequence <- function(pkg) {
 #' @rdname askfirst_stop_start_delimiter
 #' @keywords internal
 #' @noRd
+askfirst_tell_user_start_delimiter <- function() {
+  askfirst_load_marker("TELL-USER")
+}
+
+#' @rdname askfirst_stop_start_delimiter
+#' @keywords internal
+#' @noRd
+askfirst_tell_user_end_delimiter <- function() {
+  askfirst_load_marker("END-TELL-USER")
+}
+
+#' @rdname askfirst_stop_start_delimiter
+#' @keywords internal
+#' @noRd
 askfirst_notice_prime <- function(pkg) {
   text <- askfirst_read_content("askfirst-notice-prime.txt")
   text <- gsub("{{PKG}}", pkg, text, fixed = TRUE)
@@ -117,14 +131,15 @@ askfirst_notice_prime <- function(pkg) {
 #' programmatically distinguish which adopting package raised it.
 #'
 #' When `prefix = TRUE` (the default), the message is assembled into one of
-#' two structural shapes, both gated entirely by `prefix` (i.e. `prefix =
+#' three structural shapes, all gated entirely by `prefix` (i.e. `prefix =
 #' FALSE` suppresses all of the apparatus described below, leaving only the
 #' raw `message` text -- useful in tests checking condition class/metadata
 #' only):
 #'
 #' - **Hard-stop shape**, used whenever `directive_map[[class]]` is
-#'   `"stop-and-ask"` (every class except `"askfirst_notice"`): the message is
-#'   bounded by `askfirst_stop_start_delimiter` and `askfirst_stop_end_delimiter`,
+#'   `"stop-and-ask"` (every class except `"askfirst_notice"` and
+#'   `"askfirst_hooks_nudge"`): the message is bounded by
+#'   `askfirst_stop_start_delimiter` and `askfirst_stop_end_delimiter`,
 #'   with `askfirst_stop_consequence()`'s fixed, first-person-to-agent
 #'   imperative text placed immediately after the start delimiter -- before
 #'   the structured `askfirst::<language>::<pkg>::stop-and-ask` / `type:`
@@ -136,13 +151,35 @@ askfirst_notice_prime <- function(pkg) {
 #'   into the last segment of the prefix line itself, rather than a separate
 #'   `directive:` line, so a prefix-anchored regex catches severity
 #'   immediately; the finer-grained signal class (e.g. `capability_gap`)
-#'   moves to the `type:` line that follows.
+#'   moves to the `type:` line that follows. If
+#'   `.askfirst_state$hooks_nudge_pending_relay` is `TRUE` (i.e. an
+#'   `askfirst_hooks_nudge` fired earlier this session and hasn't yet been
+#'   folded into a halt), the stashed `.askfirst_state$hooks_nudge_relay_text`
+#'   -- a bare `TELL-USER`-bounded block with no `See:` line of its own -- is
+#'   prepended before this hard-stop block (stage 021), so a must-relay
+#'   nudge and a later halt reach the agent as one message rather than two
+#'   separately-styled ones that summarization could independently keep or
+#'   drop. The flag is cleared immediately after, so only the first halt
+#'   following a fresh nudge absorbs it.
 #' - **Notice shape**, used only for `"askfirst_notice"`: keeps the same
 #'   `askfirst::<language>::<pkg>::notice` / `type: notice` / body layout,
 #'   with `askfirst_notice_prime()`'s short, fixed forward-reference
 #'   sentence appended after the body (before the URL) -- priming the agent
 #'   for what a later hard-stop block from this package means, without
 #'   itself being a hard stop (nothing has gone wrong yet at notice time).
+#' - **Tell-user shape** (stage 021), used only for `"askfirst_hooks_nudge"`:
+#'   the header/body are bounded by `askfirst_tell_user_start_delimiter()` /
+#'   `askfirst_tell_user_end_delimiter()` instead of the plain notice shape's
+#'   unbounded layout, since this notice carries an explicit must-relay-to-
+#'   human directive ("tell your human user...") rather than merely priming
+#'   the agent for a later signal -- the same self-sufficiency argument that
+#'   motivated the hard-stop shape applies here, just for a *relay*
+#'   consequence instead of an *execution* one. No `askfirst_notice_prime()`
+#'   text is appended (that sentence primes for a later hard stop, which
+#'   doesn't apply to this class). The undecorated block (no trailing `See:`
+#'   line) is also stashed into `.askfirst_state$hooks_nudge_relay_text`,
+#'   with `.askfirst_state$hooks_nudge_pending_relay` set `TRUE`, for the
+#'   hard-stop shape to potentially fold in later (see above).
 #'
 #' See `askfirst_stop_start_delimiter` for why the hard-stop shape's fixed
 #' text is interpolated via a `{{PKG}}` placeholder substituted directly,
@@ -169,14 +206,14 @@ askfirst_notice_prime <- function(pkg) {
 #'   `"stop-and-ask"`. Uses the hard-stop shape.
 #' - `"askfirst_hooks_nudge"` — non-fatal, load-time (see
 #'   `askfirst_maybe_nudge_hooks_install()`, stage 019). Directive:
-#'   `"notice"`. Uses the notice shape. Unlike the other four classes, it is
-#'   not attributable to a specific adopting package's own capability gap or
-#'   scenario check -- it reports a project-wide askfirst-agent-hooks
-#'   installation state (missing/stale), attributed to whichever `pkg`
-#'   happened to trigger `askfirst_init()` first in the session, and only
-#'   fires under high AI-agent confidence, alongside (not instead of) an
-#'   unconditional, human-directed console nudge printed independently of
-#'   confidence.
+#'   `"notice"`. Uses the tell-user shape (stage 021), not the plain notice
+#'   shape. Unlike the other four classes, it is not attributable to a
+#'   specific adopting package's own capability gap or scenario check -- it
+#'   reports a project-wide askfirst-agent-hooks installation state
+#'   (missing/stale), attributed to whichever `pkg` happened to trigger
+#'   `askfirst_init()` first in the session, and only fires under high
+#'   AI-agent confidence, alongside (not instead of) an unconditional,
+#'   human-directed console nudge printed independently of confidence.
 #'
 #' Every signalled condition also carries the base class
 #' `"askfirst_condition"`, so calling code (or an agent's own tooling) can
@@ -232,7 +269,18 @@ askfirst_signal <- function(class, pkg, message, ..., call_stop = FALSE,
     url_line <- sprintf("See: %s", askfirst_url())
     header <- paste(prefix_line, type_line, sep = "\n")
 
-    if (identical(directive_map[[class]], "stop-and-ask")) {
+    if (identical(class, "askfirst_hooks_nudge")) {
+      tell_user_block <- paste(
+        askfirst_tell_user_start_delimiter(),
+        header,
+        message,
+        askfirst_tell_user_end_delimiter(),
+        sep = "\n\n"
+      )
+      .askfirst_state$hooks_nudge_relay_text <- tell_user_block
+      .askfirst_state$hooks_nudge_pending_relay <- TRUE
+      message <- paste(tell_user_block, url_line, sep = "\n\n")
+    } else if (identical(directive_map[[class]], "stop-and-ask")) {
       message <- paste(
         askfirst_stop_start_delimiter(),
         askfirst_stop_consequence(pkg),
@@ -242,6 +290,10 @@ askfirst_signal <- function(class, pkg, message, ..., call_stop = FALSE,
         url_line,
         sep = "\n\n"
       )
+      if (isTRUE(.askfirst_state$hooks_nudge_pending_relay)) {
+        message <- paste(.askfirst_state$hooks_nudge_relay_text, message, sep = "\n\n")
+        .askfirst_state$hooks_nudge_pending_relay <- FALSE
+      }
     } else {
       message <- paste(
         header,

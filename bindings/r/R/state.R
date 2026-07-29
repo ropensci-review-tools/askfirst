@@ -14,6 +14,8 @@
 .askfirst_state$previous_error_option <- NULL
 .askfirst_state$hooks_status <- NULL
 .askfirst_state$hooks_nudge_shown <- FALSE
+.askfirst_state$hooks_nudge_pending_relay <- FALSE
+.askfirst_state$hooks_nudge_relay_text <- NULL
 
 #' Compute (once) and return the session's confidence tier
 #' @keywords internal

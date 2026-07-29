@@ -37,7 +37,9 @@ local_reset_askfirst_state <- function(env = parent.frame()) {
     error_handler_installed = .askfirst_state$error_handler_installed,
     previous_error_option = .askfirst_state$previous_error_option,
     hooks_status = .askfirst_state$hooks_status,
-    hooks_nudge_shown = .askfirst_state$hooks_nudge_shown
+    hooks_nudge_shown = .askfirst_state$hooks_nudge_shown,
+    hooks_nudge_pending_relay = .askfirst_state$hooks_nudge_pending_relay,
+    hooks_nudge_relay_text = .askfirst_state$hooks_nudge_relay_text
   )
   old_error_option <- getOption("error")
 
@@ -48,6 +50,8 @@ local_reset_askfirst_state <- function(env = parent.frame()) {
   .askfirst_state$previous_error_option <- NULL
   .askfirst_state$hooks_status <- NULL
   .askfirst_state$hooks_nudge_shown <- FALSE
+  .askfirst_state$hooks_nudge_pending_relay <- FALSE
+  .askfirst_state$hooks_nudge_relay_text <- NULL
 
   withr::defer({
     .askfirst_state$confidence <- old$confidence
@@ -57,6 +61,8 @@ local_reset_askfirst_state <- function(env = parent.frame()) {
     .askfirst_state$previous_error_option <- old$previous_error_option
     .askfirst_state$hooks_status <- old$hooks_status
     .askfirst_state$hooks_nudge_shown <- old$hooks_nudge_shown
+    .askfirst_state$hooks_nudge_pending_relay <- old$hooks_nudge_pending_relay
+    .askfirst_state$hooks_nudge_relay_text <- old$hooks_nudge_relay_text
     options(error = old_error_option)
   }, envir = env)
 

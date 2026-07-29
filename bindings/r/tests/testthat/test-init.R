@@ -266,6 +266,11 @@ test_that("askfirst_stop_start_delimiter/askfirst_stop_end_delimiter read the li
   expect_equal(askfirst:::askfirst_stop_end_delimiter(), "<<<ASKFIRST:RESUME>>>")
 })
 
+test_that("askfirst_tell_user_start_delimiter/askfirst_tell_user_end_delimiter read the literal tokens from agent-content/", {
+  expect_equal(askfirst:::askfirst_tell_user_start_delimiter(), "<<<ASKFIRST:TELL-USER>>>")
+  expect_equal(askfirst:::askfirst_tell_user_end_delimiter(), "<<<ASKFIRST:END-TELL-USER>>>")
+})
+
 test_that("askfirst_stop_consequence substitutes {{PKG}} from agent-content/askfirst-stop-consequence.txt", {
   text <- askfirst:::askfirst_stop_consequence("mypkg")
   expect_match(text, "developers of mypkg", fixed = TRUE)
@@ -283,7 +288,7 @@ test_that("askfirst_notice_prime substitutes {{PKG}}/{{HALT_MARKER}}/{{RESUME_MA
 test_that("askfirst_read_content reads agent-content/ files verbatim", {
   text <- askfirst:::askfirst_read_content("askfirst-hooks-nudge.txt")
   expect_match(text, "{{PKG}}", fixed = TRUE)
-  expect_match(text, "agent-hooks/install-agent-hooks.sh", fixed = TRUE)
+  expect_match(text, "https://github.com/ropensci-review-tools/askfirst", fixed = TRUE)
 })
 
 test_that("askfirst_init prints a one-time hooks-install nudge when hooks are not current, independent of confidence", {
@@ -333,7 +338,29 @@ test_that("askfirst_init signals an askfirst_hooks_nudge condition under high co
   expect_s3_class(caught, "askfirst_hooks_nudge")
   expect_s3_class(caught, "askfirst_condition")
   expect_equal(caught$pkg, "mypkg")
-  expect_match(conditionMessage(caught), "agent-hooks/install-agent-hooks.sh", fixed = TRUE)
+  expect_match(conditionMessage(caught), "https://github.com/ropensci-review-tools/askfirst", fixed = TRUE)
+})
+
+test_that("askfirst_hooks_nudge's message is bounded by TELL-USER/END-TELL-USER delimiters, not the hard-stop or plain-notice shape", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "high"
+
+  caught <- NULL
+  suppressMessages(withCallingHandlers(
+    askfirst_init("mypkg", "notice text"),
+    askfirst_hooks_nudge = function(cnd) {
+      caught <<- cnd
+      invokeRestart("muffleMessage")
+    }
+  ))
+
+  msg <- conditionMessage(caught)
+  expect_match(msg, "<<<ASKFIRST:TELL-USER>>>", fixed = TRUE)
+  expect_match(msg, "<<<ASKFIRST:END-TELL-USER>>>", fixed = TRUE)
+  expect_no_match(msg, "<<<ASKFIRST:HALT>>>", fixed = TRUE)
+  expect_no_match(msg, "<<<ASKFIRST:RESUME>>>", fixed = TRUE)
+  expect_no_match(msg, "If a later signal", fixed = TRUE)
+  expect_match(msg, "See:", fixed = TRUE)
 })
 
 test_that("askfirst_init does not signal askfirst_hooks_nudge when hooks are current, even under high confidence", {
