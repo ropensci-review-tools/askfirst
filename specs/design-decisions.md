@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: 7ff6ec5d47e1e408e6188acecd8bdd43d2800d5a
+git_hash: a1324382a66f589854de7fadd3c42923c2a5a24d
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,7 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Nineteen design stages are complete. Stage 018 removed three
+capability. Twenty design stages are complete. Stage 018 removed three
 pieces of content that stage 017 had hand-duplicated across bash and JS —
 the `<askfirst-context>` prose, the escalation-reminder wording, and the
 `askfirst_state_dir()` mangling function (the latter also duplicated
@@ -219,7 +219,12 @@ literal values from this same canonical source via
 `generate-install-hooks.sh`, closing the one remaining place those values
 could drift apart. A new local `.githooks/pre-commit` hook (opt-in via
 `git config core.hooksPath .githooks`) and a parallel CI step guard against
-committing a drifted `agent-content/` copy.
+committing a drifted `agent-content/` copy. Stage 020 fixed a real
+Windows-only `rcmdcheck()` failure in the session-state-directory mangling
+scheme (a drive-letter colon survived into a directory-name segment,
+illegal on Windows), ported the fix identically to the R, bash, and JS
+implementations, and adopted `fs::path()` for path construction throughout
+`bindings/r/` in place of `file.path()`.
 
 ## Key Decisions
 
@@ -777,7 +782,17 @@ process's `getwd()` and the hook payload's `cwd` already refer to the same
 directory.
 **Proposed by:** joint
 **Relates to:** Stage 015 (the `log`/`pending/` mechanism relocated here)
-**Stages:** 016
+**Extended by:** Stage 020 fixed the mangling transform for Windows-style
+drive-letter absolute paths (the literal `strip leading /, replace / with
+_` scheme left a drive-letter colon embedded in a directory-name segment,
+illegal on Windows filesystems, causing widespread `rcmdcheck()` failures
+on `windows-latest`). The R side now uses `fs::path_split()` to decompose
+paths correctly regardless of host OS; the bash and JS ports received the
+equivalent fix, verified byte-identical against an extended shared
+fixture. The `TMPDIR` fallback (R side only) also changed from a
+hardcoded `"/tmp"` to `tempdir()`, since `/tmp` does not exist on native
+Windows R.
+**Stages:** 016, 020
 
 ### opencode integration mechanism: Hooks/Plugin, not custom Tools
 **Outcome:** `agent-hooks/opencode/askfirst-plugin.js` is built against opencode's
