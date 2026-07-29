@@ -8,14 +8,14 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-1: Add `fs` to `DESCRIPTION`'s Imports
 
-- [ ] T020-1: Add `fs` to the `Imports:` field of `bindings/r/DESCRIPTION`
+- [x] T020-1: Add `fs` to the `Imports:` field of `bindings/r/DESCRIPTION`
   (alphabetically among the existing `cli`, `jsonlite`, `rlang` entries).
   No `NAMESPACE` changes needed — this codebase calls dependencies via
   fully-qualified `pkg::fn()`, not `@importFrom`.
 
 ## T020-2: Fix `askfirst_mangle_path()` and the `TMPDIR` fallback in `state.R`
 
-- [ ] T020-2: In `bindings/r/R/state.R`, replace `askfirst_mangle_path()`'s
+- [x] T020-2: In `bindings/r/R/state.R`, replace `askfirst_mangle_path()`'s
   body with the `fs::path_split()`-based implementation:
   ```r
   askfirst_mangle_path <- function(path) {
@@ -39,7 +39,7 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-3: Extend the shared fixture with Windows-style cases
 
-- [ ] T020-3: Add new lines to `agent-hooks/askfirst-state-dir-fixture.txt`
+- [x] T020-3: Add new lines to `agent-hooks/askfirst-state-dir-fixture.txt`
   (tab-separated `input\texpected`, matching the existing format) covering
   both a forward-slash and a backslash Windows-style absolute path
   mapping to the same expected mangled output, e.g.:
@@ -55,7 +55,7 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-4: Fix the bash mangling function
 
-- [ ] T020-4: In `agent-hooks/askfirst-state-dir.sh`, replace
+- [x] T020-4: In `agent-hooks/askfirst-state-dir.sh`, replace
   `askfirst_state_dir()`'s `mangled=$(...)` line with:
   ```bash
   mangled=$(printf '%s' "$cwd" | sed 's#\\#/#g; s#^/##; s#/#_#g; s#:##g')
@@ -69,7 +69,7 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-5: Fix the JS mangling function
 
-- [ ] T020-5: In `agent-hooks/opencode/askfirst-plugin.js`, update
+- [x] T020-5: In `agent-hooks/opencode/askfirst-plugin.js`, update
   `askfirstMangleTermPath()` to replace backslashes with forward slashes,
   strip a leading slash, replace remaining slashes with `_`, and strip
   colons — the same sequence as T020-2/T020-4, ported to JS string/regex
@@ -80,7 +80,7 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-6: Regenerate the spliced Claude Code hook scripts
 
-- [ ] T020-6: Run `bash agent-hooks/generate-install-hooks.sh` after
+- [x] T020-6: Run `bash agent-hooks/generate-install-hooks.sh` after
   completing T020-4 (the bash canonical source it splices from). Confirm
   the diff to `agent-hooks/claude/post_tool_use.sh`,
   `agent-hooks/claude/user_prompt_submit.sh`, and
@@ -90,7 +90,7 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-7: Add explicit Windows-style unit tests in `test-log.R`
 
-- [ ] T020-7: In `bindings/r/tests/testthat/test-log.R`, add a new,
+- [x] T020-7: In `bindings/r/tests/testthat/test-log.R`, add a new,
   separate `test_that()` block (not appended to the existing
   cross-platform `"askfirst_mangle_path() strips a leading slash and
   replaces remaining slashes"` test) with explicit assertions for
@@ -120,7 +120,7 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-8: Migrate `file.path()` to `fs::path()` in `R/log.R` and `R/hooks_status.R`
 
-- [ ] T020-8: In `bindings/r/R/log.R`, replace every `file.path(...)` call
+- [x] T020-8: In `bindings/r/R/log.R`, replace every `file.path(...)` call
   (the `log` file path, `pending_dir`/target, `notice_dir`/target) with
   `as.character(fs::path(...))`. In `bindings/r/R/hooks_status.R`, replace
   `target <- file.path(hooks_dir, marker_file)` the same way. Re-run the
@@ -130,7 +130,7 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-9: Migrate `file.path()` to `fs::path()` in `data-raw/` scripts
 
-- [ ] T020-9: In `bindings/r/data-raw/sync-vendor.R`,
+- [x] T020-9: In `bindings/r/data-raw/sync-vendor.R`,
   `check-vendor-sync.R`, `sync-agent-content.R`, and
   `check-agent-content-sync.R`, replace every `file.path(...)` call with
   `as.character(fs::path(...))`. Re-run `sync-agent-content.R` and
@@ -140,7 +140,7 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-10: Migrate `file.path()` to `fs::path()` in test files
 
-- [ ] T020-10: In `bindings/r/tests/testthat/test-install-agent-hooks.R`,
+- [x] T020-10: In `bindings/r/tests/testthat/test-install-agent-hooks.R`,
   `test-capability-gap.R`, `test-scenarios.R`, `test-log.R`, and
   `helper-repo-root.R`, replace every `file.path(...)` call with
   `as.character(fs::path(...))`, for consistency with the source-code
@@ -151,12 +151,12 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-11: Regenerate roxygen docs if needed
 
-- [ ] T020-11: Run `devtools::document()` in `bindings/r/` after T020-2's
+- [x] T020-11: Run `devtools::document()` in `bindings/r/` after T020-2's
   doc-comment changes, and commit any regenerated `man/*.Rd` files.
 
 ## T020-12: Full local verification
 
-- [ ] T020-12: Run the full `testthat` suite
+- [x] T020-12: Run the full `testthat` suite
   (`testthat::test_dir("tests/testthat")`) and confirm 0 failures/warnings
   (matching or exceeding the 183 passing as of stage 019, plus the new
   Windows-style test cases from T020-3/T020-7). Run
@@ -167,7 +167,7 @@ git_hash: 0b9799c2ee2da5f14cb0011f286ae36d356e445c
 
 ## T020-13: Commit, then wait for a real Windows CI run
 
-- [ ] T020-13: Commit all changes from this stage. Then stop and
+- [x] T020-13: Commit all changes from this stage. Then stop and
   explicitly tell the user to push to GitHub and run CI, and wait for
   their confirmation that the `windows-latest` job in
   `r-cmd-check.yml`'s matrix passes before treating this stage as
