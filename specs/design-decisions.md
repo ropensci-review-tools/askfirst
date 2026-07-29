@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: f026845aad2ff202bc7df190e31be8c8ae1f4b0f
+git_hash: 7ff6ec5d47e1e408e6188acecd8bdd43d2800d5a
 ---
 
 # Design Decisions: askfirst
@@ -14,7 +14,7 @@ LLM/AI coding agent rather than a human, and issue a structured signal
 legitimate package metadata rather than a prompt injection. The signal
 redirects the agent to tell the human user to contact the maintainer
 directly — instead of the agent silently working around a bug or missing
-capability. Eighteen design stages are complete. Stage 018 removed three
+capability. Nineteen design stages are complete. Stage 018 removed three
 pieces of content that stage 017 had hand-duplicated across bash and JS —
 the `<askfirst-context>` prose, the escalation-reminder wording, and the
 `askfirst_state_dir()` mangling function (the latter also duplicated
@@ -204,7 +204,22 @@ replace the prompt-injection-vulnerable second-person condition format with
 a structured `askfirst::<language>::<pkg>::<type>` prefix, introduced
 pre-configured agent-tool hooks (SessionStart and PostToolUse) at a shared
 `agent-hooks/` directory, and created a binding-agnostic installation script
-at `agent-hooks/install-agent-hooks.sh`.
+at `agent-hooks/install-agent-hooks.sh`. Stage 019 added a second,
+confidence-gated agent-directed condition (`askfirst_hooks_nudge`) that
+fires alongside stage 014's unchanged human-directed console nudge when
+hooks are missing or stale, and — anticipating a second language binding —
+extracted the fixed condition text `conditions.R` had hardcoded (the hard-
+stop marker delimiters, stop-consequence text, notice-prime text, and the
+new hooks-nudge text) into a new top-level `agent-content/` directory,
+synced into `bindings/r/inst/agent-content/` the same way
+`agent-detect-spec/vendor/` already is, and read by `conditions.R` at
+runtime via `system.file()`. `agent-hooks/askfirst-context.txt`'s prose,
+which separately described the same marker tokens, now derives their
+literal values from this same canonical source via
+`generate-install-hooks.sh`, closing the one remaining place those values
+could drift apart. A new local `.githooks/pre-commit` hook (opt-in via
+`git config core.hooksPath .githooks`) and a parallel CI step guard against
+committing a drifted `agent-content/` copy.
 
 ## Key Decisions
 
@@ -614,7 +629,49 @@ JS-comment form alongside the original `#`-style one.
 **Proposed by:** joint (config-path and detection-branch corrections: mpadge)
 **Relates to:** Stage 007 (Decision 2, `agent-hooks/` as the shared,
 language-agnostic source this manifest extends)
-**Stages:** 014, 017
+**Extended by:** Stage 019 added a second, `askfirst_signal()`-based
+agent-directed `askfirst_hooks_nudge` condition, gated on high AI-agent
+confidence, signalled alongside (not instead of) the human-directed nudge
+described above, which remains unchanged and still fires independent of
+confidence. That stage also moved the fixed condition text `conditions.R`
+had hardcoded (delimiters, stop-consequence, notice-prime) into a new
+binding-agnostic `agent-content/` directory, following the sync-copy
+pattern `agent-detect-spec/vendor/` already established, rather than
+`agent-hooks/`'s symlink.
+**Stages:** 014, 017, 019
+
+### Binding-agnostic fixed text: agent-content/, synced like agent-detect-spec/vendor/
+**Outcome:** The fixed, non-package-authored text `askfirst_signal()` emits
+(the `<<<ASKFIRST:HALT>>>`/`<<<ASKFIRST:RESUME>>>` marker delimiters, the
+hard-stop consequence text, the notice-prime text, and the hooks-nudge
+text) was extracted out of `bindings/r/R/conditions.R`'s string literals
+into a new top-level `agent-content/` directory. `bindings/r/inst/agent-content/`
+holds a committed, byte-identical copy, kept in sync by dedicated
+`sync-agent-content.R`/`check-agent-content-sync.R` scripts, a CI check,
+and a new local `.githooks/pre-commit` hook (opt-in via `core.hooksPath`);
+`conditions.R` reads the synced copy at runtime via `system.file()`.
+`agent-hooks/askfirst-context.txt`'s prose, which separately described the
+same marker-delimiter tokens, was updated to reference
+`{{HALT_MARKER}}`/`{{RESUME_MARKER}}` placeholders rendered from this same
+canonical source by `generate-install-hooks.sh`, so the token values can no
+longer drift between what a binding actually emits and what the
+hook-context prose describes.
+**Rationale:** `bindings/r/` is meant to be one of several future language
+bindings; text a binding's own runtime emits is exactly the kind of
+content `agent-detect-spec/vendor/`'s sync-copy-and-check pattern already
+exists to share safely, as opposed to `agent-hooks/`'s symlink-based
+delivery, which is scoped to content a coding-agent tool's own hook/plugin
+injects and (per the R-packaging decision above) cannot survive being
+packaged into a distributable tarball outside this monorepo.
+**Roads not taken:** Dev-time R-codegen (rendering canonical templates into
+literal R source at build time) was considered first but rejected once the
+closer `agent-detect-spec/vendor/` precedent was found already solving the
+same problem in this codebase via sync-copy plus runtime `system.file()`
+reads. Folding the new sync/check logic into the existing
+`sync-vendor.R`/`check-vendor-sync.R` scripts was also considered and
+rejected, to keep the third-party-derived vendor sync separate from
+askfirst-authored content.
+**Stages:** 019
 
 ### Enforcement: persistent pending sentinel with active PostToolUse blocking, plus a non-blocking escalation for the agent-invoked gate
 **Outcome:** Every `stop-and-ask` signal writes a per-`{pkg}-{type}` file

@@ -8,7 +8,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-1: Create `agent-content/` with four canonical template files
 
-- [ ] T019-1: Create a new top-level `agent-content/` directory (sibling to
+- [x] T019-1: Create a new top-level `agent-content/` directory (sibling to
   `agent-hooks/` and `agent-detect-spec/`) containing four plain-text
   template files, using the `{{PLACEHOLDER}}` convention already
   established by `agent-hooks/askfirst-reminder-messages.txt`:
@@ -44,7 +44,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-2: Wire `conditions.R` to read markers/stop-consequence/notice-prime from `agent-content/`
 
-- [ ] T019-2: In `bindings/r/R/conditions.R`, replace the hardcoded R
+- [x] T019-2: In `bindings/r/R/conditions.R`, replace the hardcoded R
   string literals with runtime reads of the new template files:
   - Add a small internal helper (e.g. `askfirst_read_content(file)`) that
     reads `system.file("agent-content", file, package = "askfirst")` via
@@ -73,7 +73,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-3: Add the `askfirst_hooks_nudge` condition class
 
-- [ ] T019-3: In `bindings/r/R/conditions.R`'s `askfirst_signal()`, add
+- [x] T019-3: In `bindings/r/R/conditions.R`'s `askfirst_signal()`, add
   `askfirst_hooks_nudge = "hooks_nudge"` to `type_map` and
   `askfirst_hooks_nudge = "notice"` to `directive_map`, so the class uses
   the existing notice shape (non-fatal, via `rlang::inform()`) with no new
@@ -85,7 +85,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-4: Add `bindings/r/data-raw/sync-agent-content.R`
 
-- [ ] T019-4: Create `bindings/r/data-raw/sync-agent-content.R`,
+- [x] T019-4: Create `bindings/r/data-raw/sync-agent-content.R`,
   structurally identical to the existing `sync-vendor.R` (`file.copy()`,
   never a symlink), copying every file in `agent-content/` into
   `bindings/r/inst/agent-content/`. Include the same header-comment style
@@ -96,7 +96,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-5: Add `bindings/r/data-raw/check-agent-content-sync.R`
 
-- [ ] T019-5: Create `bindings/r/data-raw/check-agent-content-sync.R`,
+- [x] T019-5: Create `bindings/r/data-raw/check-agent-content-sync.R`,
   structurally identical to the existing `check-vendor-sync.R`: compares
   every file in `agent-content/` against its counterpart in
   `bindings/r/inst/agent-content/` via `readLines()`/`identical()`,
@@ -105,7 +105,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-6: Wire the agent-directed hooks-nudge signal into `askfirst_init()`
 
-- [ ] T019-6: In `bindings/r/R/hooks_status.R`, give
+- [x] T019-6: In `bindings/r/R/hooks_status.R`, give
   `askfirst_maybe_nudge_hooks_install()` a `pkg` parameter. After the
   existing, unchanged `cli::cli_inform()` call: if `status %in%
   c("not_installed", "stale")` **and** `.askfirst_state$confidence` is
@@ -124,7 +124,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-7: Add a local pre-commit hook enforcing both sync checks
 
-- [ ] T019-7: Create `.githooks/pre-commit` (executable, repo-tracked —
+- [x] T019-7: Create `.githooks/pre-commit` (executable, repo-tracked —
   `.git/hooks/` itself is never committed) that runs `Rscript
   bindings/r/data-raw/check-vendor-sync.R` and `Rscript
   bindings/r/data-raw/check-agent-content-sync.R`, aborting the commit
@@ -136,7 +136,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-8: Extend CI to check `agent-content/` sync
 
-- [ ] T019-8: In `.github/workflows/r-cmd-check.yml`, add
+- [x] T019-8: In `.github/workflows/r-cmd-check.yml`, add
   `"agent-content/**"` to both the `on.push.paths` and
   `on.pull_request.paths` lists (alongside the existing
   `"agent-detect-spec/**"` entry), and add a step to the existing
@@ -150,7 +150,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-9: Unify `askfirst-context.txt`'s marker prose with `agent-content/askfirst-markers.txt`
 
-- [ ] T019-9: Edit `agent-hooks/askfirst-context.txt`, replacing its
+- [x] T019-9: Edit `agent-hooks/askfirst-context.txt`, replacing its
   literal `<<<ASKFIRST:HALT>>>`/`<<<ASKFIRST:RESUME>>>` occurrences with
   `{{HALT_MARKER}}`/`{{RESUME_MARKER}}` placeholders. Extend
   `agent-hooks/generate-install-hooks.sh` with a new preprocessing step
@@ -176,7 +176,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-10: Test the `confidence == "high"` hooks-nudge branch
 
-- [ ] T019-10: In `bindings/r/tests/testthat/test-init.R`, add tests
+- [x] T019-10: In `bindings/r/tests/testthat/test-init.R`, add tests
   (alongside the three existing hooks-nudge tests, which all set
   `confidence <- "low"` and must continue passing unchanged) covering the
   new branch: (1) with hooks `not_installed` (or `stale`) and
@@ -190,7 +190,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-11: Test the `agent-content/`-reading helpers in `conditions.R`
 
-- [ ] T019-11: Add tests (new or in an existing `test-conditions.R`-style
+- [x] T019-11: Add tests (new or in an existing `test-conditions.R`-style
   file, matching whatever test file already covers `askfirst_signal()`'s
   hard-stop/notice shapes) verifying: `askfirst_stop_start_delimiter`/
   `askfirst_stop_end_delimiter` load the expected literal token values
@@ -206,7 +206,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-12: Add forward-pointing notes to stage 014's design-decisions entries
 
-- [ ] T019-12: Add a short forward-pointing note to the "Hooks-installation
+- [x] T019-12: Add a short forward-pointing note to the "Hooks-installation
   detection: language-agnostic manifest and version marker, human-directed
   nudge" entry in both
   `specs/014-self-sufficient-stop-signal/design-decisions.md` and the
@@ -219,7 +219,7 @@ git_hash: d612106394e2ac3d7bd514b7278fdff4649fa15e
 
 ## T019-13: Regenerate roxygen docs
 
-- [ ] T019-13: Run `devtools::document()` (or equivalent) in `bindings/r/`
+- [x] T019-13: Run `devtools::document()` (or equivalent) in `bindings/r/`
   to regenerate any `man/*.Rd` files affected by the roxygen comment
   changes in T019-2, T019-3, and T019-6 (e.g. `askfirst_install_agent_hooks.Rd`
   if `askfirst_init()`'s exported documentation changed), and commit the
