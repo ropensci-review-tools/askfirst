@@ -68,6 +68,17 @@ or copy `agent-hooks/claude/` (for Claude Code's hook scripts) or
 `agent-hooks/opencode/askfirst-plugin.js` (for opencode's plugin) into
 their project's hooks/plugins directory directly.
 
+If your users haven't cloned `askfirst` (or don't have R installed) yet,
+they can instead run a one-line bootstrap that fetches and runs the same
+installer directly from GitHub. On Linux and macOS:
+```bash
+curl -fsSL https://raw.githubusercontent.com/ropensci-review-tools/askfirst/main/install.sh | bash
+```
+or, from PowerShell on Windows:
+```powershell
+irm https://raw.githubusercontent.com/ropensci-review-tools/askfirst/main/install.ps1 | iex
+```
+
 ## 1. Registering your package: `askfirst_init()`
 
 Call `askfirst_init()` exactly once, from your package's own `.onLoad()`.
