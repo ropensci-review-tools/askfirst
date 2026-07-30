@@ -9,7 +9,7 @@
 #
 # CONCRETE FINDING (stage 016, opencode only -- this note is kept in both
 # copies since agent-hooks/claude/ and agent-hooks/opencode/ are kept
-# byte-identical): see the matching comment in `post_tool_use.sh` --
+# byte-identical): see the matching comment in `askfirst-post-tool-use.sh` --
 # opencode's real plugin API is a JS/TS `Hooks` object registered via
 # `opencode.json`'s `plugin` array and executed in-process, not a shell
 # script reading JSON from stdin. The opencode copy of this file is very
@@ -19,7 +19,7 @@
 #
 # State lives under a session-scoped tmp directory, not the project's
 # working tree -- see the matching comment/mangling scheme in
-# `post_tool_use.sh` (kept identical here so both hooks derive the same
+# `askfirst-post-tool-use.sh` (kept identical here so both hooks derive the same
 # path from the same `cwd` payload field, if this script is ever actually
 # invoked on the opencode side).
 # askfirst-hook-version: 4

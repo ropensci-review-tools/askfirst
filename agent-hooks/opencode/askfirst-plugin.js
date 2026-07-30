@@ -9,8 +9,9 @@
 
 // Manually-maintained JS port of the canonical bash mangling logic in
 // agent-hooks/askfirst-state-dir.sh (spliced into agent-hooks/claude/
-// post_tool_use.sh and user_prompt_submit.sh) -- not literally shared,
-// since bash and JS can't execute the same function body. Verified
+// askfirst-post-tool-use.sh and askfirst-user-prompt-submit.sh) -- not
+// literally shared, since bash and JS can't execute the same function
+// body. Verified
 // equivalent via a shared fixture of example path pairs, not a shared
 // source file (stage 018, Design Goal 4). Keep this in sync by hand if
 // the mangling scheme ever changes.
@@ -189,7 +190,7 @@ export const AskfirstPlugin = async ({ directory }) => {
     // PostToolUse-equivalent, non-blocking half: one-shot notice-log
     // flush (every tool call) plus the escalating unresolved-notice
     // reminder (file-modifying tool calls only), mirroring
-    // agent-hooks/*/post_tool_use.sh exactly.
+    // agent-hooks/claude/askfirst-post-tool-use.sh exactly.
     "tool.execute.after": async (input, output) => {
       const logFile = path.join(stateDir, "log");
       if (fs.existsSync(logFile)) {

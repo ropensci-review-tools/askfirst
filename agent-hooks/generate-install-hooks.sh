@@ -47,9 +47,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INSTALLER="$REPO_ROOT/agent-hooks/install-agent-hooks.sh"
-SESSION_SRC="$REPO_ROOT/agent-hooks/claude/session_start.sh"
-POST_SRC="$REPO_ROOT/agent-hooks/claude/post_tool_use.sh"
-USER_PROMPT_SRC="$REPO_ROOT/agent-hooks/claude/user_prompt_submit.sh"
+SESSION_SRC="$REPO_ROOT/agent-hooks/claude/askfirst-session-start.sh"
+POST_SRC="$REPO_ROOT/agent-hooks/claude/askfirst-post-tool-use.sh"
+USER_PROMPT_SRC="$REPO_ROOT/agent-hooks/claude/askfirst-user-prompt-submit.sh"
 PLUGIN_SRC="$REPO_ROOT/agent-hooks/opencode/askfirst-plugin.js"
 CONTEXT_SRC="$REPO_ROOT/agent-hooks/askfirst-context.txt"
 REMINDER_SRC="$REPO_ROOT/agent-hooks/askfirst-reminder-messages.txt"

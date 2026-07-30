@@ -57,8 +57,9 @@ askfirst_ensure_hooks_status <- function() {
 #'
 #' Used to derive a stable, deterministic directory name from a project's
 #' working directory, shared independently (with no other coordination)
-#' between this R package and the separate `agent-hooks/*/post_tool_use.sh`
-#' / `user_prompt_submit.sh` processes (and `agent-hooks/opencode/`'s JS
+#' between this R package and the separate
+#' `agent-hooks/claude/askfirst-post-tool-use.sh` /
+#' `askfirst-user-prompt-submit.sh` processes (and `agent-hooks/opencode/`'s JS
 #' plugin), which implement the identical transformation against the `cwd`
 #' field of their own hook payload -- verified byte-identical against a
 #' shared fixture, `agent-hooks/askfirst-state-dir-fixture.txt`. Deliberately
@@ -87,8 +88,8 @@ askfirst_mangle_path <- function(path) {
 #' (which would risk it appearing in `git status` or being committed).
 #' Instead it lives under `${TMPDIR:-<fallback>}/askfirst/<mangled cwd>/`, a
 #' path computed independently and identically by this function and by each
-#' hook script in `agent-hooks/*/post_tool_use.sh` /
-#' `user_prompt_submit.sh` (which have no way to discover R's own
+#' hook script in `agent-hooks/claude/askfirst-post-tool-use.sh` /
+#' `askfirst-user-prompt-submit.sh` (which have no way to discover R's own
 #' `tempdir()`, since that is randomized per R session) -- the project's
 #' working directory is the only value both processes already share. The
 #' fallback (when `TMPDIR` is unset) is `tempdir()`, not a hardcoded

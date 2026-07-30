@@ -32,9 +32,9 @@ test_that("agent-hooks/install-agent-hooks.sh's embedded hooks match agent-hooks
   post_embedded <- extract_heredoc_body(installer_lines, "POST_HOOK")
   user_prompt_embedded <- extract_heredoc_body(installer_lines, "USER_PROMPT_HOOK")
 
-  session_canonical <- readLines(as.character(fs::path(repo_root, "agent-hooks", "claude", "session_start.sh")))
-  post_canonical <- readLines(as.character(fs::path(repo_root, "agent-hooks", "claude", "post_tool_use.sh")))
-  user_prompt_canonical <- readLines(as.character(fs::path(repo_root, "agent-hooks", "claude", "user_prompt_submit.sh")))
+  session_canonical <- readLines(as.character(fs::path(repo_root, "agent-hooks", "claude", "askfirst-session-start.sh")))
+  post_canonical <- readLines(as.character(fs::path(repo_root, "agent-hooks", "claude", "askfirst-post-tool-use.sh")))
+  user_prompt_canonical <- readLines(as.character(fs::path(repo_root, "agent-hooks", "claude", "askfirst-user-prompt-submit.sh")))
 
   expect_identical(session_embedded, session_canonical)
   expect_identical(post_embedded, post_canonical)
@@ -61,7 +61,7 @@ test_that("agent-hooks/install-agent-hooks.sh's embedded plugin matches agent-ho
   expect_identical(plugin_embedded, plugin_canonical)
 })
 
-test_that("the installed post_tool_use.sh carries the current version marker and the relocated tmp-root paths", {
+test_that("the installed askfirst-post-tool-use.sh carries the current version marker and the relocated tmp-root paths", {
   repo_root <- find_repo_root()
   skip_if(
     is.null(repo_root),
@@ -130,9 +130,9 @@ test_that("install-agent-hooks.sh creates .claude/settings.json and registers ho
     vapply(x$hooks, function(h) h$command, character(1))
   }))
 
-  expect_true(any(grepl("session_start\\.sh$", session_cmds)))
-  expect_true(any(grepl("post_tool_use\\.sh$", post_cmds)))
-  expect_true(any(grepl("user_prompt_submit\\.sh$", prompt_cmds)))
+  expect_true(any(grepl("askfirst-session-start\\.sh$", session_cmds)))
+  expect_true(any(grepl("askfirst-post-tool-use\\.sh$", post_cmds)))
+  expect_true(any(grepl("askfirst-user-prompt-submit\\.sh$", prompt_cmds)))
 })
 
 test_that("install-agent-hooks.sh still registers hooks correctly when .claude/settings.json already exists", {
@@ -164,5 +164,47 @@ test_that("install-agent-hooks.sh still registers hooks correctly when .claude/s
   session_cmds <- vapply(
     config$hooks$SessionStart[[1]]$hooks, function(h) h$command, character(1)
   )
-  expect_true(any(grepl("session_start\\.sh$", session_cmds)))
+  expect_true(any(grepl("askfirst-session-start\\.sh$", session_cmds)))
+})
+
+test_that("install-agent-hooks.sh never touches a pre-existing, non-askfirst file at the old generic hook filenames", {
+  repo_root <- find_repo_root()
+  skip_if(
+    is.null(repo_root),
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
+  )
+  skip_if(!nzchar(Sys.which("jq")), "jq not installed")
+
+  installer <- as.character(fs::path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
+
+  dir <- withr::local_tempdir()
+  withr::local_dir(dir)
+
+  # Models another tool (e.g. designlens) already occupying these generic,
+  # conventional filenames in a shared .claude/hooks/ directory -- the exact
+  # collision this stage's rename is meant to prevent.
+  dir.create(".claude/hooks", recursive = TRUE)
+  other_tool_session_start <- c("#!/bin/bash", "# some other tool's SessionStart hook", "echo other-tool")
+  other_tool_post_tool_use <- c("#!/bin/bash", "# some other tool's PostToolUse hook", "echo other-tool")
+  writeLines(other_tool_session_start, ".claude/hooks/session_start.sh")
+  writeLines(other_tool_post_tool_use, ".claude/hooks/post_tool_use.sh")
+
+  result <- system2(
+    "bash", c(shQuote(installer), "--tool", "claude"),
+    stdout = TRUE, stderr = TRUE
+  )
+
+  expect_identical(readLines(".claude/hooks/session_start.sh"), other_tool_session_start)
+  expect_identical(readLines(".claude/hooks/post_tool_use.sh"), other_tool_post_tool_use)
+
+  expect_true(file.exists(".claude/hooks/askfirst-session-start.sh"))
+  expect_true(file.exists(".claude/hooks/askfirst-post-tool-use.sh"))
+  expect_true(file.exists(".claude/hooks/askfirst-user-prompt-submit.sh"))
+  expect_true(any(grepl("register:.*hooks added", result)))
+
+  config <- jsonlite::fromJSON(".claude/settings.json", simplifyVector = FALSE)
+  session_cmds <- vapply(
+    config$hooks$SessionStart[[1]]$hooks, function(h) h$command, character(1)
+  )
+  expect_true(any(grepl("askfirst-session-start\\.sh$", session_cmds)))
 })

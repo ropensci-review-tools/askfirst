@@ -222,13 +222,14 @@ prose, the escalation-reminder wording, and the `askfirst_state_dir()`
 mangling logic are each authored once, under `agent-hooks/` --
 `askfirst-context.txt`, `askfirst-reminder-messages.txt`, and
 `askfirst-state-dir.sh` respectively -- and spliced into
-`agent-hooks/claude/{session_start,post_tool_use,user_prompt_submit}.sh`
+`agent-hooks/claude/{askfirst-session-start,askfirst-post-tool-use,askfirst-user-prompt-submit}.sh`
 and `agent-hooks/opencode/askfirst-plugin.js` by
 `agent-hooks/generate-install-hooks.sh`, which in turn splices those
 per-tool files into `agent-hooks/install-agent-hooks.sh`'s embedded
 copies. Do not hand-edit the spliced regions in
-`session_start.sh`/`post_tool_use.sh`/`user_prompt_submit.sh`/
-`askfirst-plugin.js`/`install-agent-hooks.sh` directly (each spliced
+`askfirst-session-start.sh`/`askfirst-post-tool-use.sh`/
+`askfirst-user-prompt-submit.sh`/`askfirst-plugin.js`/
+`install-agent-hooks.sh` directly (each spliced
 region is marked, e.g. `<askfirst-context>`/`</askfirst-context>` or a
 `# ASKFIRST_*_START`/`_END` comment pair) -- edit the canonical source
 under `agent-hooks/` instead, then run

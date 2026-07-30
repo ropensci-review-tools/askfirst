@@ -11,7 +11,7 @@ test_that("askfirst_hooks_status returns stale when a hook file has no version m
   dir.create(".claude/hooks", recursive = TRUE)
   writeLines(
     c("#!/bin/bash", "# askfirst SessionStart hook, pre-versioning", "echo hi"),
-    ".claude/hooks/session_start.sh"
+    ".claude/hooks/askfirst-session-start.sh"
   )
 
   expect_equal(askfirst_hooks_status(), "stale")
@@ -37,7 +37,7 @@ test_that("askfirst_hooks_status returns current when a hook file has a current 
   dir.create(".claude/hooks", recursive = TRUE)
   writeLines(
     c("#!/bin/bash", "# askfirst-hook-version: 4", "echo hi"),
-    ".claude/hooks/session_start.sh"
+    ".claude/hooks/askfirst-session-start.sh"
   )
 
   expect_equal(askfirst_hooks_status(), "current")
@@ -61,7 +61,7 @@ test_that("askfirst_hooks_status reports current if any one known tool is curren
   withr::local_dir(dir)
 
   dir.create(".claude/hooks", recursive = TRUE)
-  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 4"), ".claude/hooks/session_start.sh")
+  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 4"), ".claude/hooks/askfirst-session-start.sh")
   dir.create(".opencode/plugins", recursive = TRUE)
   writeLines(c("// no marker here"), ".opencode/plugins/askfirst-plugin.js")
 

@@ -16,17 +16,23 @@
 #' checked. `marker_file` is the specific file within `hooks_dir` whose
 #' version marker is authoritative for that tool -- as of stage 017 this
 #' differs by tool in both name and comment style (Claude Code:
-#' `session_start.sh`, a `# askfirst-hook-version: <N>` shell comment;
-#' opencode: `askfirst-plugin.js`, a `// askfirst-hook-version: <N>` JS
-#' comment, since opencode's mechanism is a real JS plugin rather than a
+#' `askfirst-session-start.sh`, a `# askfirst-hook-version: <N>` shell
+#' comment; opencode: `askfirst-plugin.js`, a `// askfirst-hook-version: <N>`
+#' JS comment, since opencode's mechanism is a real JS plugin rather than a
 #' shell-script family -- see `agent-hooks/opencode/askfirst-plugin.js`).
+#' As of stage 023, Claude Code's hook filenames are askfirst-namespaced
+#' (`askfirst-session-start.sh`/`askfirst-post-tool-use.sh`/
+#' `askfirst-user-prompt-submit.sh`) rather than the prior generic
+#' `session_start.sh`/`post_tool_use.sh`/`user_prompt_submit.sh`, to avoid
+#' colliding with another tool's own hook scripts occupying the same
+#' conventional filename in a shared `.claude/hooks/` directory.
 #' @keywords internal
 #' @noRd
 askfirst_hooks_manifest <- function() {
   list(
     hook_version = 4L,
     tools = list(
-      claude = list(hooks_dir = ".claude/hooks", marker_file = "session_start.sh"),
+      claude = list(hooks_dir = ".claude/hooks", marker_file = "askfirst-session-start.sh"),
       opencode = list(hooks_dir = ".opencode/plugins", marker_file = "askfirst-plugin.js")
     )
   )
@@ -71,8 +77,9 @@ askfirst_hooks_status_for_tool <- function(tool, manifest = askfirst_hooks_manif
 #' Overall askfirst-hooks installation status for the current project
 #'
 #' Checks each known coding-agent tool's hooks directory, relative to the
-#' current working directory, for a `session_start.sh` carrying a current
-#' `# askfirst-hook-version:` marker. Reports the best status found across
+#' current working directory, for an `askfirst-session-start.sh` carrying a
+#' current `# askfirst-hook-version:` marker. Reports the best status found
+#' across
 #' all known tools: `"current"` if any one tool's hooks are current, else
 #' `"stale"` if any tool's hooks exist but are out of date, else
 #' `"not_installed"` if no known tool's hooks directory exists at all.

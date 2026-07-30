@@ -325,7 +325,7 @@ test_that("askfirst_init does not print the hooks-install nudge when hooks are c
   dir <- withr::local_tempdir()
   withr::local_dir(dir)
   dir.create(".claude/hooks", recursive = TRUE)
-  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 4"), ".claude/hooks/session_start.sh")
+  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 4"), ".claude/hooks/askfirst-session-start.sh")
   .askfirst_state$confidence <- "low"
 
   expect_no_message(askfirst_init("mypkg", "notice text"))
@@ -377,7 +377,7 @@ test_that("askfirst_init does not signal askfirst_hooks_nudge when hooks are cur
   dir <- withr::local_tempdir()
   withr::local_dir(dir)
   dir.create(".claude/hooks", recursive = TRUE)
-  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 4"), ".claude/hooks/session_start.sh")
+  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 4"), ".claude/hooks/askfirst-session-start.sh")
   .askfirst_state$confidence <- "high"
 
   fired <- FALSE

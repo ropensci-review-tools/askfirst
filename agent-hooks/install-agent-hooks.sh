@@ -5,8 +5,9 @@
 # self-contained and works regardless of whether agent-hooks/ exists at the
 # call site.
 #
-# The embedded session_start.sh/post_tool_use.sh/user_prompt_submit.sh
-# content below is generated from agent-hooks/claude/*.sh via
+# The embedded askfirst-session-start.sh/askfirst-post-tool-use.sh/
+# askfirst-user-prompt-submit.sh content below is generated from
+# agent-hooks/claude/*.sh via
 # agent-hooks/generate-install-hooks.sh -- do not hand-edit the
 # SESSION_HOOK/POST_HOOK/USER_PROMPT_HOOK heredoc bodies directly. After
 # editing any agent-hooks/claude/*.sh file, run
@@ -102,7 +103,7 @@ case "$TOOL" in
 esac
 
 write_session_start() {
-  local target="$1/session_start.sh"
+  local target="$1/askfirst-session-start.sh"
   if [[ -f "$target" ]] && [[ "$OVERWRITE" != "true" ]]; then
     echo "  skip: $target (exists, use --overwrite to replace)" >&2
     return 1
@@ -225,7 +226,7 @@ SESSION_HOOK
 }
 
 write_post_tool_use() {
-  local target="$1/post_tool_use.sh"
+  local target="$1/askfirst-post-tool-use.sh"
   if [[ -f "$target" ]] && [[ "$OVERWRITE" != "true" ]]; then
     echo "  skip: $target (exists, use --overwrite to replace)" >&2
     return 1
@@ -368,7 +369,7 @@ POST_HOOK
 }
 
 write_user_prompt_submit() {
-  local target="$1/user_prompt_submit.sh"
+  local target="$1/askfirst-user-prompt-submit.sh"
   if [[ -f "$target" ]] && [[ "$OVERWRITE" != "true" ]]; then
     echo "  skip: $target (exists, use --overwrite to replace)" >&2
     return 1
@@ -385,7 +386,7 @@ write_user_prompt_submit() {
 #
 # CONCRETE FINDING (stage 016, opencode only -- this note is kept in both
 # copies since agent-hooks/claude/ and agent-hooks/opencode/ are kept
-# byte-identical): see the matching comment in `post_tool_use.sh` --
+# byte-identical): see the matching comment in `askfirst-post-tool-use.sh` --
 # opencode's real plugin API is a JS/TS `Hooks` object registered via
 # `opencode.json`'s `plugin` array and executed in-process, not a shell
 # script reading JSON from stdin. The opencode copy of this file is very
@@ -395,7 +396,7 @@ write_user_prompt_submit() {
 #
 # State lives under a session-scoped tmp directory, not the project's
 # working tree -- see the matching comment/mangling scheme in
-# `post_tool_use.sh` (kept identical here so both hooks derive the same
+# `askfirst-post-tool-use.sh` (kept identical here so both hooks derive the same
 # path from the same `cwd` payload field, if this script is ever actually
 # invoked on the opencode side).
 # askfirst-hook-version: 4
@@ -455,8 +456,9 @@ write_plugin() {
 
 // Manually-maintained JS port of the canonical bash mangling logic in
 // agent-hooks/askfirst-state-dir.sh (spliced into agent-hooks/claude/
-// post_tool_use.sh and user_prompt_submit.sh) -- not literally shared,
-// since bash and JS can't execute the same function body. Verified
+// askfirst-post-tool-use.sh and askfirst-user-prompt-submit.sh) -- not
+// literally shared, since bash and JS can't execute the same function
+// body. Verified
 // equivalent via a shared fixture of example path pairs, not a shared
 // source file (stage 018, Design Goal 4). Keep this in sync by hand if
 // the mangling scheme ever changes.
@@ -635,7 +637,7 @@ export const AskfirstPlugin = async ({ directory }) => {
     // PostToolUse-equivalent, non-blocking half: one-shot notice-log
     // flush (every tool call) plus the escalating unresolved-notice
     // reminder (file-modifying tool calls only), mirroring
-    // agent-hooks/*/post_tool_use.sh exactly.
+    // agent-hooks/claude/askfirst-post-tool-use.sh exactly.
     "tool.execute.after": async (input, output) => {
       const logFile = path.join(stateDir, "log");
       if (fs.existsSync(logFile)) {
@@ -702,8 +704,8 @@ case "$TOOL" in
     fi
 
     # PostToolUse matcher includes Edit/Write/NotebookEdit (not just
-    # Bash/R/Rscript) as of stage 016: without them, post_tool_use.sh is
-    # never invoked at all for file-edit tool calls, which stage 016's
+    # Bash/R/Rscript) as of stage 016: without them, askfirst-post-tool-use.sh
+    # is never invoked at all for file-edit tool calls, which stage 016's
     # unresolved-notice escalation depends on to fire. This also
     # retroactively closes a latent gap from stage 015: its one-shot `log`
     # notice was meant to flush "on the next tool call," but with the
@@ -714,9 +716,9 @@ case "$TOOL" in
       local tmp
       tmp=$(mktemp)
       if jq -e '.hooks.SessionStart // empty' "$TARGET_CONFIG" >/dev/null 2>&1; then
-        jq '.hooks.SessionStart[0].hooks += [{"type": "command", "command": ".claude/hooks/session_start.sh"}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": ".claude/hooks/post_tool_use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/user_prompt_submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
+        jq '.hooks.SessionStart[0].hooks += [{"type": "command", "command": ".claude/hooks/askfirst-session-start.sh"}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": ".claude/hooks/askfirst-post-tool-use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/askfirst-user-prompt-submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
       else
-        jq '.hooks.SessionStart += [{"hooks": [{"type": "command", "command": ".claude/hooks/session_start.sh"}]}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": ".claude/hooks/post_tool_use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/user_prompt_submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
+        jq '.hooks.SessionStart += [{"hooks": [{"type": "command", "command": ".claude/hooks/askfirst-session-start.sh"}]}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": ".claude/hooks/askfirst-post-tool-use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/askfirst-user-prompt-submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
       fi
     }
 
