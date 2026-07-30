@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: a1fe97bb09285f479237750ec46180034244e42d
+git_hash: 50b71277d6f64fb216dbf1c5db0963dff2338c49
 ---
 
 # Design Decisions: askfirst
@@ -241,7 +241,19 @@ copies (`agent-hooks/askfirst-context.txt` and
 now permit a workaround to be mentioned as a clearly subordinate,
 explicitly-labeled aside after the upstream question is surfaced first,
 while keeping the specific menu-option/co-equal-choice framing those
-stages fixed forbidden.
+stages fixed forbidden. Stage 023 renamed askfirst's three Claude Code
+hook scripts (`session_start.sh`/`post_tool_use.sh`/
+`user_prompt_submit.sh` → `askfirst-session-start.sh`/
+`askfirst-post-tool-use.sh`/`askfirst-user-prompt-submit.sh`) after a
+report that the prior generic filenames could already be occupied by
+another tool's own hook scripts in a shared `.claude/hooks/` directory —
+confirmed live against this repo itself, where those exact names belong
+to a separate tool (`designlens`). Verified, before implementing, that
+Claude Code dispatches hooks purely via the `command` string registered
+in `settings.json` (no filename-convention discovery) and that none of
+the three scripts' own logic depends on their filename, so the rename
+carries no behavioral risk; `agent-hooks/manifest.json`'s and
+`hooks_status.R`'s `marker_file` were updated to match.
 
 ## Key Decisions
 
@@ -692,7 +704,20 @@ file already existed, otherwise logging one stderr line and still
 version-tagged hook scripts completely inert with no observable failure
 signal. The fix creates `.claude/settings.json` unconditionally when
 absent before registering, removing the silent-skip branch entirely.
-**Stages:** 014, 017, 019, 022
+Stage 023 renamed the three Claude Code hook scripts themselves —
+`session_start.sh`/`post_tool_use.sh`/`user_prompt_submit.sh` became
+`askfirst-session-start.sh`/`askfirst-post-tool-use.sh`/
+`askfirst-user-prompt-submit.sh` — after a report that these generic,
+conventional filenames could already be occupied by another tool's own
+hook scripts in a shared `.claude/hooks/` directory (confirmed live
+against this repo itself, where those exact names belong to a separate
+tool, `designlens`); the manifest's `marker_file` for Claude Code was
+updated to match. Verified before implementing that Claude Code has no
+filename-convention-based hook discovery (dispatch is purely via the
+`command` string registered in `settings.json`) and that none of the
+three scripts derive behavior from their own or a sibling script's
+filename, so the rename carries no behavioral risk.
+**Stages:** 014, 017, 019, 022, 023
 
 ### Binding-agnostic fixed text: agent-content/, synced like agent-detect-spec/vendor/
 **Outcome:** The fixed, non-package-authored text `askfirst_signal()` emits
@@ -1378,6 +1403,36 @@ to deliberately loosen, rather than tighten, a directive that field
 reports had repeatedly hardened, treated as a scoped course-correction
 based on new reconciliation-trial evidence rather than an unexamined
 reversal.
+Stage 023 was triggered by a direct report that askfirst's Claude Code
+hook filenames (`session_start.sh`, `post_tool_use.sh`,
+`user_prompt_submit.sh`) are generic and conventional enough that another
+tool could already occupy the same path in a shared `.claude/hooks/`
+directory, and that the installer's existing behavior would overwrite
+such a file. Investigating found this was not hypothetical: this very
+repo's own `.claude/hooks/session_start.sh` and `post_tool_use.sh`
+already belong to `designlens`, registered in the committed
+`.claude/settings.json`. Before implementing a fix, two specific
+questions were raised and answered directly rather than assumed: whether
+Claude Code discovers hooks by filename convention (confirmed, via
+official documentation, that it does not — dispatch is purely via the
+`command` string registered in `settings.json`) and whether the three
+scripts' own names encoded a load-bearing execution order the scripts
+depended on internally (confirmed, by grepping for `$0`/`basename`
+self-reference and cross-script filename dependencies, that they do not
+— the temporal sequence the names suggest is governed entirely by which
+Claude Code event key each script is registered under, not by its
+filename). With both axes of filename-independence confirmed, the fix
+renamed all three scripts to be askfirst-namespaced, updating the
+installer's write functions and registration, `manifest.json`'s and
+`hooks_status.R`'s version-marker filename, and doc-only prose
+referencing the old names; `agent-hooks/generate-install-hooks.sh` itself
+was found mid-implementation to hardcode the old canonical source paths
+and needed the same update before regeneration would succeed. A new
+regression test models another tool's pre-existing hook scripts at the
+old generic filenames and confirms the installer leaves them untouched
+while still installing and registering askfirst's own hooks alongside
+them. No migration path was built for pre-existing installs at the old
+filenames, since a fresh install is sufficient.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -1686,3 +1741,21 @@ reversal.
   unchanged — rejected; the hook-independent copy is the one stage 014
   built specifically not to depend on hooks, so leaving it stale would
   have undermined the fix for exactly the sessions it matters most in.
+
+**Hooks-installation (stage 023):**
+- Keeping the generic hook filenames and detecting a collision by
+  inspecting existing file content (e.g. checking for askfirst's own
+  version marker before overwriting) — rejected in favor of namespacing;
+  content-detection still leaves a residual risk and adds ongoing
+  maintenance, where namespacing removes the collision possibility
+  entirely.
+- Building a migration/cleanup path for pre-existing installs at the old
+  generic filenames — rejected as unnecessary scope; a fresh
+  `install-agent-hooks.sh` run is sufficient, and the old files (if
+  genuinely askfirst's own) are simply superseded, not actively harmful
+  to leave in place.
+- Assuming the rename was safe without direct verification — rejected;
+  confirmed against official Claude Code hooks documentation that
+  dispatch has no filename-convention component, and confirmed by
+  grepping all three scripts that none derive behavior from their own or
+  a sibling script's filename, before treating the rename as risk-free.
