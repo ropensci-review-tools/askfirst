@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: 134db745bb5bc438c82002c415bafdd6a528f69b
+git_hash: f20a22eea6944c52deefe3a9687949829acc28c2
 ---
 
 # Design Decisions: askfirst
@@ -271,7 +271,42 @@ R-function path, and the `install.ps1` path all produce an identical
 result; the `install.sh`/`install.ps1` live-fetch phase is expected to
 fail while the repository is private (`raw.githubusercontent.com` 404s on
 unauthenticated requests to private repos) and is wired up as a soft,
-`continue-on-error` CI check for that reason rather than skipped.
+`continue-on-error` CI check for that reason rather than skipped. Stage
+025 replaced `install-agent-hooks.sh`'s single-choice "multiple tools
+detected" prompt — unreachable in practice, since `opencode` was never
+auto-detected — with detect-and-install-all behavior: every detected tool
+gets hooks installed (each reported), and `--tool <name>` still installs
+one explicitly. `detect_tools()` gained real `opencode` auto-detection via
+an existing project-level `.opencode/` directory, reversing stage 019's
+assumption that `opencode` "has no fixed, project-relative config path" —
+opencode's own docs confirm all config locations are read and merged, and
+a project-level `.opencode/` directory is one such location, always read
+regardless of what else exists (`opencode.json`'s presence is still not
+checked, since askfirst never reads or writes it). The zero-detected case
+now prompts interactively when stdin is a terminal, or fails clearly
+(rather than hanging) listing available tools when it is not — the latter
+matters concretely for stage 024's `curl install.sh | bash` path, where
+stdin is the piped script itself. The tool list used for `--list-tools`,
+validation, and this fallback is a `KNOWN_TOOLS` array spliced into
+`install-agent-hooks.sh` from `agent-hooks/manifest.json` by
+`generate-install-hooks.sh` (a fifth splice target, alongside the four
+established in stages 012/018/019) — a runtime `jq` read of
+`manifest.json` was ruled out because the installer must stay
+self-contained for stage 024's standalone-fetch path, and a second
+hand-maintained hardcoded copy (alongside `hooks_status.R`'s existing one)
+was rejected as the exact duplication this stage was meant to remove. On
+the R side, `askfirst_detect_agent_tool()` was un-exported (kept internal)
+now that `askfirst_install_agent_hooks()` detects internally when `tool`
+is omitted — installing every detected tool, or prompting via
+`utils::menu()` (interactive) / erroring with the available tools
+(non-interactive) when none are found — returning a named vector of
+per-tool exit statuses in place of the previous single unnamed integer.
+Implementation surfaced an unplanned, real bug along the way:
+`detect_tools()`'s `printf '%s\n' "${found[@]}"` emitted one blank line
+even when `found` was empty (bash's `printf` always applies its format
+string at least once), making a genuinely empty detection result
+indistinguishable from one match to every caller — fixed by only calling
+`printf` when the array is non-empty.
 
 ## Key Decisions
 
@@ -1082,6 +1117,47 @@ this reuses); the "Hooks-installation detection" decision above (the
 installer this wraps, unmodified)
 **Stages:** 024
 
+### Detect-and-install-all, with a manifest-driven, generation-time-spliced tool list
+**Outcome:** `install-agent-hooks.sh` installs hooks for every tool
+`detect_tools()` finds (looping, reporting each), rather than prompting to
+choose one — replacing a single-choice prompt that was unreachable in
+practice, since `opencode` was never auto-detected. `detect_tools()` now
+also detects `opencode` via an existing project-level `.opencode/`
+directory. The zero-detected case prompts interactively when stdin is a
+terminal, or fails clearly (listing available tools, not hanging) when it
+is not. The tool list itself (`KNOWN_TOOLS`, used by `--list-tools`,
+validation, and the fallback) is generated from
+`agent-hooks/manifest.json` and spliced into the installer by
+`generate-install-hooks.sh` — a fifth splice target alongside the four
+from stages 012/018/019. On the R side,
+`askfirst_install_agent_hooks(tool = NULL, ...)` now performs this same
+detect/install-all/prompt-or-error logic internally, returning a named
+vector of per-tool exit statuses; `askfirst_detect_agent_tool()` was
+un-exported accordingly.
+**Rationale:** A runtime `jq` read of `manifest.json` was ruled out because
+`install-agent-hooks.sh` must stay self-contained (stage 024's `install.sh`
+fetches only this one file); a second hand-maintained hardcoded tool list
+(alongside `hooks_status.R`'s existing compiled-in manifest copy) was
+rejected as the exact duplication this stage was meant to remove.
+`opencode`'s detectability was re-examined against opencode's own
+config-discovery docs, which confirm all locations are read and merged —
+so a project-level `.opencode/` directory's mere presence is a reliable
+signal, correcting stage 019's assumption that no such fixed,
+project-relative signal existed.
+**Tradeoffs:** A per-tool install failure no longer aborts the whole run;
+failures are collected and reported together, changing the installer's
+prior fail-fast semantics for the multi-tool case. Un-exporting
+`askfirst_detect_agent_tool()` and changing
+`askfirst_install_agent_hooks()`'s return shape are breaking API changes,
+accepted pre-1.0 (version `0.0.0.9000`).
+**Proposed by:** joint
+**Relates to:** Stage 019 (the manifest/version-marker mechanism this
+extends to a new consumer); Stage 024 (the self-contained-installer
+constraint that shaped the splice-not-runtime-read decision); Stage 017
+(opencode's plugin auto-discovery, which is what makes `.opencode/`'s
+presence a safe detection signal)
+**Stages:** 025
+
 ## Architectural Evolution
 Stage 001 established the project's foundational research: what signals
 can identify an LLM-driven caller, how a redirect message could reach it,
@@ -1496,6 +1572,33 @@ install-verification test script from a colocated location under
 `agent-hooks/` into a new top-level `tests/` directory, intended as this
 project's general test location going forward rather than a one-off
 exception.
+Stage 025 was triggered by a direct concern that the installer would fail
+outright with no detected hooks at all, and uncertainty about what happened
+when multiple agent-specific directories were present. Investigating found
+the "multiple detected" prompt was unreachable dead code (only `claude` was
+ever auto-detected) and the vignette's own documented example mishandled
+both edges: it hardcoded installing both `"claude"` and `"opencode"`
+whenever more than one tool was detected regardless of what was actually
+detected, and did nothing at all when zero were. The fix replaced
+single-choice selection with install-for-all-detected, added a stdin-aware
+fallback (interactive prompt, or a clear non-hanging error naming available
+tools) for the zero-detected case, gave `opencode` real project-level
+auto-detection via its `.opencode/` directory (correcting a stage-019
+assumption, once opencode's own docs confirmed all config locations are
+read and merged rather than first-match-wins), and made the tool list
+itself generated from `agent-hooks/manifest.json` and spliced into the
+self-contained installer at generation time — avoiding both a runtime file
+read the standalone-fetch path (stage 024) couldn't satisfy, and a second
+hardcoded copy alongside `hooks_status.R`'s existing one. `askfirst_install_agent_hooks()`
+was extended to perform the same detection/install-all/prompt-or-error
+logic in R directly, un-exporting `askfirst_detect_agent_tool()` (no longer
+needed as public API) and changing the return value to a named
+per-tool-status vector. Implementation surfaced a genuine, previously
+unnoticed bug underlying the original concern: `detect_tools()`'s
+`printf '%s\n' "${found[@]}"` emitted a blank line even when `found` was
+empty, since bash's `printf` always applies its format at least once —
+making zero detections indistinguishable from one to every caller
+(`mapfile`, command substitution) until fixed.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -1844,3 +1947,26 @@ exception.
   rejected; the phase is wired up for real and marked
   `continue-on-error` instead, on the expectation it starts passing once
   the repository's visibility changes.
+
+**Install-all-detected-agents (stage 025):**
+- A live `jq` read of `agent-hooks/manifest.json` at run time for the
+  installer's tool list — rejected; the installer must stay self-contained
+  for stage 024's standalone-fetch path, where no `manifest.json` exists
+  alongside it.
+- A second hand-maintained hardcoded tool list inside the installer,
+  alongside `hooks_status.R`'s existing compiled-in manifest copy —
+  rejected as the exact duplication this stage was meant to remove, in
+  favor of a generation-time splice from the one canonical
+  `agent-hooks/manifest.json`.
+- Checking for `opencode.json`'s presence as an additional detection
+  signal — rejected once confirmed askfirst never reads or writes that
+  file, only installs into `.opencode/plugins/`.
+- Traversing upward toward the nearest `.git` directory to mirror
+  opencode's own project-config search precisely — rejected as
+  unnecessary complexity; project-level config is read regardless of what
+  else exists, and the installer already assumes it runs from the project
+  root everywhere else.
+- Aborting the whole install run on the first per-tool failure when
+  installing for multiple detected tools — rejected in favor of
+  collecting and reporting all failures together, so one tool's problem
+  doesn't silently prevent another's successful install.

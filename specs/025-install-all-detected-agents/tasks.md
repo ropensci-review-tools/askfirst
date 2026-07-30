@@ -7,7 +7,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
 # Tasks: install-all-detected-agents
 
 ## T025-1: Splice a generated KNOWN_TOOLS array into install-agent-hooks.sh
-- [ ] T025-1: In `agent-hooks/install-agent-hooks.sh`, add a new marker pair
+- [x] T025-1: In `agent-hooks/install-agent-hooks.sh`, add a new marker pair
   near the top of the script (after the `MODE="install"` initialization,
   before `detect_tools()`), e.g.:
   ```bash
@@ -33,7 +33,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
   `agent-hooks/manifest.json`.
 
 ## T025-2: Add opencode auto-detection to detect_tools()
-- [ ] T025-2: In `agent-hooks/install-agent-hooks.sh`'s `detect_tools()`,
+- [x] T025-2: In `agent-hooks/install-agent-hooks.sh`'s `detect_tools()`,
   add a check for an existing `.opencode/` directory (cwd only, no upward
   traversal) alongside the existing `.claude/settings.json` check for
   `claude`, appending `"opencode"` to the `found` array when it exists.
@@ -48,7 +48,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
   auto-detected."
 
 ## T025-3: Add a --list-tools mode
-- [ ] T025-3: In `agent-hooks/install-agent-hooks.sh`'s argument-parsing
+- [x] T025-3: In `agent-hooks/install-agent-hooks.sh`'s argument-parsing
   `while` loop, add a new `--list-tools` option (parallel to `--detect`)
   that sets `MODE="list-tools"`. Add a dispatch branch (parallel to the
   existing `if [[ "$MODE" == "detect" ]]; then detect_tools; exit 0; fi`)
@@ -57,7 +57,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
   `# Usage:` comment block at the top of the file (used by `usage()`).
 
 ## T025-4: Rework tool resolution and installation to support install-all and a stdin-aware fallback prompt
-- [ ] T025-4: Refactor `agent-hooks/install-agent-hooks.sh` so the two
+- [x] T025-4: Refactor `agent-hooks/install-agent-hooks.sh` so the two
   existing `case "$TOOL" in claude) ... opencode) ... esac` blocks (the
   target-variable-setting one and the actual-install one) are combined into
   a single function, e.g. `install_for_tool()`, taking a tool name as its
@@ -90,7 +90,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
   replaces.
 
 ## T025-5: Un-export askfirst_detect_agent_tool() and add askfirst_list_agent_tools()
-- [ ] T025-5: In `bindings/r/R/install_hooks.R`, remove the `@export` tag
+- [x] T025-5: In `bindings/r/R/install_hooks.R`, remove the `@export` tag
   from `askfirst_detect_agent_tool()`'s roxygen block (keep the function
   itself, its body, and its documentation comment — just no longer part of
   the public API — add `@keywords internal` and `@noRd` in its place,
@@ -103,7 +103,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
   a character vector.
 
 ## T025-6: Redesign askfirst_install_agent_hooks() to detect-install-all-or-prompt
-- [ ] T025-6: In `bindings/r/R/install_hooks.R`, change
+- [x] T025-6: In `bindings/r/R/install_hooks.R`, change
   `askfirst_install_agent_hooks()`'s signature to
   `askfirst_install_agent_hooks(tool = NULL, overwrite = FALSE)`. New
   behavior:
@@ -132,7 +132,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
   optional `tool` argument and the new zero/multi-detection behavior.
 
 ## T025-7: Regenerate NAMESPACE/man pages
-- [ ] T025-7: Run roxygen2 (e.g. `Rscript -e
+- [x] T025-7: Run roxygen2 (e.g. `Rscript -e
   'roxygen2::roxygenise("bindings/r")'` or the project's usual
   `devtools::document()` equivalent) to regenerate `bindings/r/NAMESPACE`
   and `bindings/r/man/`. Confirm `askfirst_detect_agent_tool` no longer
@@ -145,7 +145,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
   new signature and return-value docs.
 
 ## T025-8: Update the vignette's install example
-- [ ] T025-8: In `bindings/r/vignettes/using-askfirst.Rmd`, section "0.
+- [x] T025-8: In `bindings/r/vignettes/using-askfirst.Rmd`, section "0.
   Pre-configuring agent tools", replace the current example:
   ```r
   tools <- askfirst::askfirst_detect_agent_tool()
@@ -169,7 +169,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
   called directly by users (it is no longer exported).
 
 ## T025-9: Add regression tests for the new detection/install-all/fallback behavior
-- [ ] T025-9: Add new tests to
+- [x] T025-9: Add new tests to
   `bindings/r/tests/testthat/test-install-agent-hooks.R` (shell-level,
   following the existing `withr::local_tempdir()` + `system2(bash,
   shQuote(installer), ...)` pattern used by the existing tests in that
@@ -204,7 +204,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
   getNamespaceExports("askfirst"))`).
 
 ## T025-10: Extend tests/test-install-hooks.sh with install-all and no-detection-no-tty coverage
-- [ ] T025-10: In `tests/test-install-hooks.sh` (added stage 024), add two
+- [x] T025-10: In `tests/test-install-hooks.sh` (added stage 024), add two
   new phases (numbered to follow the existing four): one that seeds a
   scratch dir with both a minimal `.claude/settings.json` and an empty
   `.opencode/` directory, runs `agent-hooks/install-agent-hooks.sh` with
@@ -223,7 +223,7 @@ git_hash: 9482dea3ea39b23747bf2eaf44e4637aa6883700
   phases in the appropriate (non-phase-2) branches.
 
 ## T025-11: Verify the full change set
-- [ ] T025-11: Run `bash -n agent-hooks/install-agent-hooks.sh` and `bash -n
+- [x] T025-11: Run `bash -n agent-hooks/install-agent-hooks.sh` and `bash -n
   agent-hooks/generate-install-hooks.sh` to check syntax. Run
   `agent-hooks/generate-install-hooks.sh` and confirm it regenerates
   cleanly with no unintended diff beyond the new `KNOWN_TOOLS` splice. Run
