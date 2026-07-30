@@ -200,22 +200,18 @@ project's working tree.
 From R:
 
 ```r
-# Detect which tools are available, then install for each:
-tools <- askfirst::askfirst_detect_agent_tool()
-for (t in tools) {
-  askfirst::askfirst_install_agent_hooks(t)
-}
+# Detects and installs hooks for every agent tool found in this project
+# (or prompts/errors if none are found):
+askfirst::askfirst_install_agent_hooks()
 ```
 
-Or from the shell — the script auto-detects and interactively prompts if
-multiple tools are found:
+Or from the shell — the script does the same detect-and-install-all,
+falling back to an interactive prompt (or a clear error, in a
+non-interactive shell) if no tool is detected:
 
 ```bash
 /path/to/askfirst/agent-hooks/install-agent-hooks.sh
 ```
-
-If you prefer to configure manually, run the shared shell script — it
-interactively prompts when multiple tools are detected.
 
 **Editing hook content** (maintainers only): the `<askfirst-context>`
 prose, the escalation-reminder wording, and the `askfirst_state_dir()`

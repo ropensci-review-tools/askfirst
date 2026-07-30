@@ -3,10 +3,10 @@
 # installer and its root-level entry points (install.sh, install.ps1).
 #
 # Usage:
-#   tests/test-install-hooks.sh                # run all 4 phases (phase 2 is
+#   tests/test-install-hooks.sh                # run all 6 phases (phase 2 is
 #                                               # reported but doesn't affect
 #                                               # the exit code -- see phase2())
-#   tests/test-install-hooks.sh --skip-phase2   # run phases 1, 3, 4 only (hard)
+#   tests/test-install-hooks.sh --skip-phase2   # run phases 1, 3, 4, 5, 6 (hard)
 #   tests/test-install-hooks.sh --phase2-only   # run phase 2 only (soft, for a
 #                                               # continue-on-error CI step)
 #
@@ -86,6 +86,17 @@ check_hooks_installed() {
 
   if [[ "$problem_found" == false ]]; then
     echo "ok"
+  fi
+}
+
+# Prints "ok" if $1/.opencode/plugins/askfirst-plugin.js exists, otherwise a
+# "missing: ..." line.
+check_opencode_installed() {
+  local dir="$1"
+  if [[ -f "$dir/.opencode/plugins/askfirst-plugin.js" ]]; then
+    echo "ok"
+  else
+    echo "missing: .opencode/plugins/askfirst-plugin.js"
   fi
 }
 
@@ -188,6 +199,63 @@ $problems"
   fi
 }
 
+# Phase 5: install-all-detected (hard requirement, always enforced) --
+# seeds both a claude and an opencode marker in the same scratch dir, runs
+# the installer with no --tool, and asserts hooks are installed for both
+# (stage 025's detect-and-install-all behavior, replacing the installer's
+# old single-choice "multiple tools detected" prompt).
+phase5() {
+  local dir output problems_claude problems_opencode
+  dir="$(mktemp -d)"
+  mkdir -p "$dir/.claude" "$dir/.opencode"
+  echo '{}' >"$dir/.claude/settings.json"
+  output="$(cd "$dir" && "$INSTALLER" 2>&1)"
+  if [[ $? -ne 0 ]]; then
+    log_fail "phase 5 (install-all-detected): install-agent-hooks.sh exited non-zero:
+$output"
+    return
+  fi
+  problems_claude="$(check_hooks_installed "$dir")"
+  problems_opencode="$(check_opencode_installed "$dir")"
+  if [[ "$problems_claude" == "ok" && "$problems_opencode" == "ok" ]] \
+    && echo "$output" | grep -q "installed for claude" \
+    && echo "$output" | grep -q "installed for opencode"; then
+    log_pass "phase 5 (install-all-detected)"
+  else
+    log_fail "phase 5 (install-all-detected):
+$problems_claude
+$problems_opencode"
+  fi
+}
+
+# Phase 6: no tool detected, stdin not a terminal (hard requirement, always
+# enforced) -- models the `curl install.sh | bash` invocation shape (stdin
+# is the piped script, not a terminal). Must fail clearly and quickly, not
+# hang on a broken interactive prompt.
+phase6() {
+  local dir output status
+  dir="$(mktemp -d)"
+  output="$(cd "$dir" && timeout 10 "$INSTALLER" </dev/null 2>&1)"
+  status=$?
+  if [[ $status -eq 124 ]]; then
+    log_fail "phase 6 (no detection, non-tty stdin): install-agent-hooks.sh hung (timed out)"
+    return
+  fi
+  if [[ $status -eq 0 ]]; then
+    log_fail "phase 6 (no detection, non-tty stdin): install-agent-hooks.sh exited 0 (expected non-zero):
+$output"
+    return
+  fi
+  if echo "$output" | grep -q "could not detect an agent tool" \
+    && echo "$output" | grep -q "claude" \
+    && echo "$output" | grep -q "opencode"; then
+    log_pass "phase 6 (no detection, non-tty stdin)"
+  else
+    log_fail "phase 6 (no detection, non-tty stdin): unexpected output:
+$output"
+  fi
+}
+
 MODE="${1:-all}"
 
 case "$MODE" in
@@ -195,6 +263,8 @@ case "$MODE" in
     phase1
     phase3
     phase4
+    phase5
+    phase6
     ;;
   --phase2-only)
     phase2
@@ -204,6 +274,8 @@ case "$MODE" in
     phase2
     phase3
     phase4
+    phase5
+    phase6
     ;;
   *)
     echo "Unknown option: $MODE (expected --skip-phase2, --phase2-only, or no argument)" >&2

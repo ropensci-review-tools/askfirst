@@ -11,10 +11,13 @@
 # agent-hooks/generate-install-hooks.sh -- do not hand-edit the
 # SESSION_HOOK/POST_HOOK/USER_PROMPT_HOOK heredoc bodies directly. After
 # editing any agent-hooks/claude/*.sh file, run
-# agent-hooks/generate-install-hooks.sh and commit the result.
+# agent-hooks/generate-install-hooks.sh and commit the result. The
+# KNOWN_TOOLS array below is likewise generated, from
+# agent-hooks/manifest.json's `tools` keys -- do not hand-edit it either.
 # Usage:
-#   install-agent-hooks.sh                    # auto-detect & install
+#   install-agent-hooks.sh                    # auto-detect & install (all detected tools)
 #   install-agent-hooks.sh --detect           # detect tool(s), print & exit
+#   install-agent-hooks.sh --list-tools       # list all known tools, print & exit
 #   install-agent-hooks.sh --tool claude       # force Claude Code
 #   install-agent-hooks.sh --tool opencode     # force opencode
 #   install-agent-hooks.sh --overwrite         # replace existing files
@@ -26,6 +29,10 @@ OVERWRITE=false
 TOOL=""
 MODE="install"
 
+# ASKFIRST_KNOWN_TOOLS_START
+KNOWN_TOOLS=(claude opencode)
+# ASKFIRST_KNOWN_TOOLS_END
+
 usage() {
   sed -n '/^# Usage:/,/^$/{ s/^# //; p; }' "$0"
   exit 0
@@ -36,23 +43,38 @@ while [[ $# -gt 0 ]]; do
     --tool) TOOL="$2"; shift 2 ;;
     --overwrite) OVERWRITE=true; shift ;;
     --detect) MODE="detect"; shift ;;
+    --list-tools) MODE="list-tools"; shift ;;
     --help) usage ;;
     *) echo "Unknown option: $1"; usage ;;
   esac
 done
 
 detect_tools() {
-  # opencode has no fixed, project-relative config path to check here: its
-  # config file (opencode.json) is discovered via a precedence order across
-  # several possible locations (see
-  # https://opencode.ai/docs/config#precedence-order), unlike Claude Code's
-  # fixed .claude/settings.json -- so opencode is never auto-detected and
-  # must always be selected explicitly via --tool opencode.
+  # claude: .claude/settings.json is a fixed, project-relative config path.
+  # opencode: no single fixed config-file path exists (opencode.json is
+  # discovered via a precedence order across several locations, see
+  # https://opencode.ai/docs/config), but a project-level `.opencode/`
+  # directory is itself one of those locations (project-specific, higher
+  # precedence than opencode's global ~/.config/opencode/), and is read and
+  # merged by opencode regardless of what else exists -- so its mere
+  # existence is a reliable, always-applicable signal. askfirst never reads
+  # or writes opencode.json (only installs into .opencode/plugins/, see
+  # write_plugin() below), so opencode.json's presence is deliberately not
+  # checked here.
   local found=()
   if [[ -f ".claude/settings.json" ]]; then
     found+=("claude")
   fi
-  printf '%s\n' "${found[@]}"
+  if [[ -d ".opencode" ]]; then
+    found+=("opencode")
+  fi
+  # printf applies its format at least once even with zero arguments --
+  # "${found[@]}" on an empty array would otherwise still emit one blank
+  # line, making a genuinely empty result indistinguishable from one match
+  # by every caller of this function (mapfile, command substitution, etc.).
+  if [[ ${#found[@]} -gt 0 ]]; then
+    printf '%s\n' "${found[@]}"
+  fi
 }
 
 if [[ "$MODE" == "detect" ]]; then
@@ -60,47 +82,10 @@ if [[ "$MODE" == "detect" ]]; then
   exit 0
 fi
 
-if [[ -z "$TOOL" ]]; then
-  mapfile -t detected < <(detect_tools)
-  if [[ ${#detected[@]} -eq 0 ]]; then
-    echo "error: could not detect agent tool — no .claude/ config found in current directory" >&2
-    echo "  Use --tool <name> to specify the tool explicitly (e.g. --tool opencode)." >&2
-    exit 1
-  elif [[ ${#detected[@]} -eq 1 ]]; then
-    TOOL="${detected[0]}"
-  else
-    echo "Multiple tools detected: ${detected[*]}" >&2
-    echo "Which tool should hooks be installed for?" >&2
-    select chosen in "${detected[@]}"; do
-      if [[ -n "$chosen" ]]; then
-        TOOL="$chosen"
-        break
-      fi
-    done
-  fi
+if [[ "$MODE" == "list-tools" ]]; then
+  printf '%s\n' "${KNOWN_TOOLS[@]}"
+  exit 0
 fi
-
-case "$TOOL" in
-  claude)
-    TARGET_HOOKS_DIR=".claude/hooks"
-    TARGET_CONFIG=".claude/settings.json"
-    ;;
-  opencode)
-    # opencode auto-discovers plugins from .opencode/plugins/ -- no
-    # opencode.json/.opencode/settings.json registration needed for a
-    # local plugin file (confirmed against opencode's own published docs
-    # and a live opencode@1.18.8 session during stage 017). This is a
-    # structurally different install path from Claude Code's shell hooks
-    # (which do need config registration), so opencode gets its own
-    # target-directory variable rather than reusing TARGET_HOOKS_DIR/
-    # TARGET_CONFIG.
-    TARGET_PLUGIN_DIR=".opencode/plugins"
-    ;;
-  *)
-    echo "error: unknown tool '$TOOL' (supported: claude, opencode)" >&2
-    exit 1
-    ;;
-esac
 
 write_session_start() {
   local target="$1/askfirst-session-start.sh"
@@ -690,54 +675,137 @@ PLUGIN_HOOK
   echo "  install: $target" >&2
 }
 
-case "$TOOL" in
-  claude)
-    mkdir -p "$TARGET_HOOKS_DIR"
-    write_session_start "$TARGET_HOOKS_DIR"
-    write_post_tool_use "$TARGET_HOOKS_DIR"
-    write_user_prompt_submit "$TARGET_HOOKS_DIR"
+# Installs hooks for a single tool. Combines what were previously two
+# separate `case "$TOOL"` blocks (target-variable setup, then the actual
+# write/register steps) into one function, so install-all-detected (below)
+# can call this once per detected tool. Note: invoking this via `if !
+# install_for_tool ...` (as done below) suspends `set -e` for the entire
+# function body, per bash's documented -e/if-condition exemption -- so a
+# per-file "skip, already exists" return from write_session_start etc. no
+# longer aborts the remaining write_*/register steps for that tool the way
+# a bare top-level call under `set -e` would have.
+install_for_tool() {
+  local tool="$1"
+  local TARGET_HOOKS_DIR TARGET_CONFIG TARGET_PLUGIN_DIR
 
-    if ! command -v jq &>/dev/null; then
-      echo "warning: jq not found — cannot auto-register hooks in $TARGET_CONFIG" >&2
-      echo "  Register the hooks manually. See the askfirst vignette for details." >&2
-      exit 0
-    fi
+  case "$tool" in
+    claude)
+      TARGET_HOOKS_DIR=".claude/hooks"
+      TARGET_CONFIG=".claude/settings.json"
+      ;;
+    opencode)
+      # opencode auto-discovers plugins from .opencode/plugins/ -- no
+      # opencode.json/.opencode/settings.json registration needed for a
+      # local plugin file (confirmed against opencode's own published docs
+      # and a live opencode@1.18.8 session during stage 017). This is a
+      # structurally different install path from Claude Code's shell hooks
+      # (which do need config registration), so opencode gets its own
+      # target-directory variable rather than reusing TARGET_HOOKS_DIR/
+      # TARGET_CONFIG.
+      TARGET_PLUGIN_DIR=".opencode/plugins"
+      ;;
+    *)
+      echo "error: unknown tool '$tool' (supported: ${KNOWN_TOOLS[*]})" >&2
+      return 1
+      ;;
+  esac
 
-    # PostToolUse matcher includes Edit/Write/NotebookEdit (not just
-    # Bash/R/Rscript) as of stage 016: without them, askfirst-post-tool-use.sh
-    # is never invoked at all for file-edit tool calls, which stage 016's
-    # unresolved-notice escalation depends on to fire. This also
-    # retroactively closes a latent gap from stage 015: its one-shot `log`
-    # notice was meant to flush "on the next tool call," but with the
-    # narrower matcher, that flush silently never happened whenever the
-    # very next tool call was an Edit/Write rather than a Bash/R/Rscript
-    # call.
-    register_hooks_claude() {
-      local tmp
-      tmp=$(mktemp)
-      if jq -e '.hooks.SessionStart // empty' "$TARGET_CONFIG" >/dev/null 2>&1; then
-        jq '.hooks.SessionStart[0].hooks += [{"type": "command", "command": ".claude/hooks/askfirst-session-start.sh"}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": ".claude/hooks/askfirst-post-tool-use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/askfirst-user-prompt-submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
-      else
-        jq '.hooks.SessionStart += [{"hooks": [{"type": "command", "command": ".claude/hooks/askfirst-session-start.sh"}]}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": ".claude/hooks/askfirst-post-tool-use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/askfirst-user-prompt-submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
+  case "$tool" in
+    claude)
+      mkdir -p "$TARGET_HOOKS_DIR"
+      write_session_start "$TARGET_HOOKS_DIR"
+      write_post_tool_use "$TARGET_HOOKS_DIR"
+      write_user_prompt_submit "$TARGET_HOOKS_DIR"
+
+      if ! command -v jq &>/dev/null; then
+        echo "warning: jq not found — cannot auto-register hooks in $TARGET_CONFIG" >&2
+        echo "  Register the hooks manually. See the askfirst vignette for details." >&2
+        return 0
       fi
-    }
 
-    [[ -f "$TARGET_CONFIG" ]] || echo '{}' > "$TARGET_CONFIG"
-    register_hooks_claude
-    echo "  register: $TARGET_CONFIG (hooks added)" >&2
-    ;;
-  opencode)
-    # No config registration step at all (unlike Claude Code): opencode
-    # auto-discovers plugins from .opencode/plugins/ on its own. Stage 016's
-    # register_hooks_opencode()/`.opencode/settings.json` write (already
-    # suspected inert) and the three dead `.opencode/hooks/*.sh` shell
-    # scripts it used to install are both removed as of stage 017, replaced
-    # entirely by this single real plugin file.
-    mkdir -p "$TARGET_PLUGIN_DIR"
-    write_plugin "$TARGET_PLUGIN_DIR"
-    echo "  opencode: plugin auto-discovered from $TARGET_PLUGIN_DIR/, no registration step needed" >&2
-    ;;
-esac
+      # PostToolUse matcher includes Edit/Write/NotebookEdit (not just
+      # Bash/R/Rscript) as of stage 016: without them, askfirst-post-tool-use.sh
+      # is never invoked at all for file-edit tool calls, which stage 016's
+      # unresolved-notice escalation depends on to fire. This also
+      # retroactively closes a latent gap from stage 015: its one-shot `log`
+      # notice was meant to flush "on the next tool call," but with the
+      # narrower matcher, that flush silently never happened whenever the
+      # very next tool call was an Edit/Write rather than a Bash/R/Rscript
+      # call.
+      register_hooks_claude() {
+        local tmp
+        tmp=$(mktemp)
+        if jq -e '.hooks.SessionStart // empty' "$TARGET_CONFIG" >/dev/null 2>&1; then
+          jq '.hooks.SessionStart[0].hooks += [{"type": "command", "command": ".claude/hooks/askfirst-session-start.sh"}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": ".claude/hooks/askfirst-post-tool-use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/askfirst-user-prompt-submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
+        else
+          jq '.hooks.SessionStart += [{"hooks": [{"type": "command", "command": ".claude/hooks/askfirst-session-start.sh"}]}] | .hooks.PostToolUse //= [] | .hooks.PostToolUse += [{"matcher": "Bash|R|Rscript|Edit|Write|NotebookEdit", "hooks": [{"type": "command", "command": ".claude/hooks/askfirst-post-tool-use.sh"}]}] | .hooks.UserPromptSubmit //= [] | .hooks.UserPromptSubmit += [{"hooks": [{"type": "command", "command": ".claude/hooks/askfirst-user-prompt-submit.sh"}]}]' "$TARGET_CONFIG" > "$tmp" && mv "$tmp" "$TARGET_CONFIG"
+        fi
+      }
 
-echo "done: hooks installed for $TOOL" >&2
+      [[ -f "$TARGET_CONFIG" ]] || echo '{}' > "$TARGET_CONFIG"
+      register_hooks_claude
+      echo "  register: $TARGET_CONFIG (hooks added)" >&2
+      ;;
+    opencode)
+      # No config registration step at all (unlike Claude Code): opencode
+      # auto-discovers plugins from .opencode/plugins/ on its own. Stage 016's
+      # register_hooks_opencode()/`.opencode/settings.json` write (already
+      # suspected inert) and the three dead `.opencode/hooks/*.sh` shell
+      # scripts it used to install are both removed as of stage 017, replaced
+      # entirely by this single real plugin file.
+      mkdir -p "$TARGET_PLUGIN_DIR"
+      write_plugin "$TARGET_PLUGIN_DIR"
+      echo "  opencode: plugin auto-discovered from $TARGET_PLUGIN_DIR/, no registration step needed" >&2
+      ;;
+  esac
+
+  echo "done: hooks installed for $tool" >&2
+}
+
+TOOLS_TO_INSTALL=()
+
+if [[ -n "$TOOL" ]]; then
+  TOOLS_TO_INSTALL=("$TOOL")
+else
+  mapfile -t detected < <(detect_tools)
+  if [[ ${#detected[@]} -ge 1 ]]; then
+    TOOLS_TO_INSTALL=("${detected[@]}")
+    if [[ ${#TOOLS_TO_INSTALL[@]} -gt 1 ]]; then
+      echo "Detected ${#TOOLS_TO_INSTALL[@]} agent tools: ${TOOLS_TO_INSTALL[*]} -- installing hooks for each." >&2
+    fi
+  elif [[ -t 0 ]]; then
+    echo "No agent tool detected in the current directory." >&2
+    echo "Which tool should hooks be installed for?" >&2
+    select chosen in "${KNOWN_TOOLS[@]}"; do
+      if [[ -n "$chosen" ]]; then
+        TOOLS_TO_INSTALL=("$chosen")
+        break
+      fi
+    done
+  else
+    # stdin is not a terminal -- e.g. `curl install.sh | bash`, where stdin
+    # is the piped script itself, not something a `select`/`read` prompt
+    # could usefully read from. Fail clearly instead of hanging/misbehaving.
+    echo "error: could not detect an agent tool in the current directory" >&2
+    echo "  Available tools: ${KNOWN_TOOLS[*]}" >&2
+    echo "  Use --tool <name> to specify one explicitly (e.g. --tool opencode)." >&2
+    exit 1
+  fi
+fi
+
+FAILED_TOOLS=()
+for t in "${TOOLS_TO_INSTALL[@]}"; do
+  if [[ ${#TOOLS_TO_INSTALL[@]} -gt 1 ]]; then
+    echo "Installing hooks for detected tool: $t" >&2
+  fi
+  if ! install_for_tool "$t"; then
+    FAILED_TOOLS+=("$t")
+  fi
+done
+
+if [[ ${#FAILED_TOOLS[@]} -gt 0 ]]; then
+  echo "error: failed to install hooks for: ${FAILED_TOOLS[*]}" >&2
+  exit 1
+fi
+
 exit 0

@@ -4,23 +4,30 @@
 \alias{askfirst_install_agent_hooks}
 \title{Install askfirst agent hooks for the current project}
 \usage{
-askfirst_install_agent_hooks(tool, overwrite = FALSE)
+askfirst_install_agent_hooks(tool = NULL, overwrite = FALSE)
 }
 \arguments{
-\item{tool}{A single string: \code{"claude"} or \code{"opencode"}.
-Required -- use \code{\link{askfirst_detect_agent_tool}} to discover
-available tools, then pass the result here.}
+\item{tool}{A single string (\code{"claude"} or \code{"opencode"}), or
+\code{NULL} (the default) to auto-detect.}
 
 \item{overwrite}{If \code{TRUE}, replace existing hook files. Default
 \code{FALSE} (skip existing files with a message).}
 }
 \value{
-Invisibly, the exit status of the shell script (0 on success).
+Invisibly, a named integer vector of exit statuses (0 on
+success), one entry per tool installed, named by tool. (Prior to
+stage 025, when \code{tool} was a required argument, this returned a
+single unnamed integer -- a breaking change, acceptable pre-1.0, at
+version \code{0.0.0.9000}.)
 }
 \description{
 Installs SessionStart, PostToolUse, and UserPromptSubmit hooks for the
-specified agent tool. Call \code{\link{askfirst_detect_agent_tool}} first
-if you are unsure which tool to use.
+specified agent tool -- or, when \code{tool} is omitted, detects and
+installs hooks for every agent tool found in the current project,
+reporting which tool(s) were installed. When none are detected, prompts
+interactively for a tool name (in an interactive session), or errors
+with the available tool names and instructions to pass \code{tool}
+explicitly (in a non-interactive session).
 }
 \details{
 The shell script is located via \code{system.file("agent-hooks",
@@ -32,6 +39,11 @@ so this one symlink covers it -- no separate symlink is needed).
 }
 \examples{
 \dontrun{
+# Detect and install for every agent tool found in this project,
+# or prompt/error if none are found:
+askfirst_install_agent_hooks()
+
+# Install for one tool explicitly:
 askfirst_install_agent_hooks("claude")
 askfirst_install_agent_hooks("opencode", overwrite = TRUE)
 }

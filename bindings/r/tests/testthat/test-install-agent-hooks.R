@@ -208,3 +208,82 @@ test_that("install-agent-hooks.sh never touches a pre-existing, non-askfirst fil
   )
   expect_true(any(grepl("askfirst-session-start\\.sh$", session_cmds)))
 })
+
+test_that("--list-tools prints all known tools", {
+  repo_root <- find_repo_root()
+  skip_if(
+    is.null(repo_root),
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
+  )
+
+  installer <- as.character(fs::path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
+
+  result <- system2("bash", c(shQuote(installer), "--list-tools"), stdout = TRUE, stderr = TRUE)
+
+  expect_setequal(result, c("claude", "opencode"))
+})
+
+test_that("install-agent-hooks.sh installs hooks for every detected tool when --tool is omitted", {
+  repo_root <- find_repo_root()
+  skip_if(
+    is.null(repo_root),
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
+  )
+  skip_if(!nzchar(Sys.which("jq")), "jq not installed")
+
+  installer <- as.character(fs::path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
+
+  dir <- withr::local_tempdir()
+  withr::local_dir(dir)
+
+  dir.create(".claude", showWarnings = FALSE)
+  writeLines("{}", ".claude/settings.json")
+  dir.create(".opencode", showWarnings = FALSE)
+
+  result <- system2("bash", shQuote(installer), stdout = TRUE, stderr = TRUE)
+
+  expect_true(any(grepl("^Detected 2 agent tools:", result)))
+  expect_true(any(grepl("installed for claude", result)))
+  expect_true(any(grepl("installed for opencode", result)))
+
+  expect_true(file.exists(".claude/hooks/askfirst-session-start.sh"))
+  expect_true(file.exists(".claude/hooks/askfirst-post-tool-use.sh"))
+  expect_true(file.exists(".claude/hooks/askfirst-user-prompt-submit.sh"))
+  expect_true(file.exists(".opencode/plugins/askfirst-plugin.js"))
+
+  config <- jsonlite::fromJSON(".claude/settings.json", simplifyVector = FALSE)
+  session_cmds <- vapply(
+    config$hooks$SessionStart[[1]]$hooks, function(h) h$command, character(1)
+  )
+  expect_true(any(grepl("askfirst-session-start\\.sh$", session_cmds)))
+})
+
+test_that("install-agent-hooks.sh fails clearly (not hangs) when no tool is detected and stdin is not a terminal", {
+  repo_root <- find_repo_root()
+  skip_if(
+    is.null(repo_root),
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
+  )
+
+  installer <- as.character(fs::path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
+
+  dir <- withr::local_tempdir()
+  withr::local_dir(dir)
+
+  # Explicitly redirects the child process's stdin from the null device
+  # (portable: nullfile() resolves to /dev/null on Unix, "nul" on Windows),
+  # modeling the `curl install.sh | bash` invocation shape where stdin is
+  # not a terminal -- this must error immediately, not hang on a `select`
+  # prompt reading from an already-exhausted/non-terminal stdin.
+  result <- suppressWarnings(system2(
+    "bash", shQuote(installer),
+    stdout = TRUE, stderr = TRUE, stdin = nullfile(),
+    timeout = 10
+  ))
+  status <- attr(result, "status")
+
+  expect_false(is.null(status))
+  expect_true(status != 0)
+  expect_true(any(grepl("could not detect an agent tool", result)))
+  expect_true(any(grepl("Available tools:.*claude.*opencode", result)))
+})

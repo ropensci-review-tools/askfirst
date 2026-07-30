@@ -30,13 +30,18 @@ assistant needs context about the `askfirst` signal format. Install the
 askfirst hooks once per project:
 
 ```r
-tools <- askfirst::askfirst_detect_agent_tool()
-if (length(tools) == 1) {
-  askfirst::askfirst_install_agent_hooks(tools)
-} else if (length(tools) > 1) {
-  askfirst::askfirst_install_agent_hooks("claude")
-  askfirst::askfirst_install_agent_hooks("opencode")
-}
+askfirst::askfirst_install_agent_hooks()
+```
+
+This detects and installs hooks for every agent tool found in the current
+project (printing which tool(s) were installed), and -- when none are
+detected -- either prompts interactively for a tool name, or, in a
+non-interactive session, errors with the available tool names and
+instructions to pass `tool = "..."` explicitly. To install for a specific
+tool without detection, pass it directly:
+```r
+askfirst::askfirst_install_agent_hooks("claude")
+askfirst::askfirst_install_agent_hooks("opencode", overwrite = TRUE)
 ```
 
 For Claude Code, this copies SessionStart/PostToolUse/UserPromptSubmit hook
@@ -60,7 +65,9 @@ pending-sentinel clearing on a new turn) via opencode's
 `tool.execute.before`, and `"chat.message"` hooks respectively.
 
 If your users prefer to configure manually, they can run the shared shell
-script directly — it interactively prompts when multiple tools are detected:
+script directly — like the R function above, it installs hooks for every
+tool it detects, or prompts interactively (when none are detected and the
+shell is attached to a terminal) for a tool name:
 ```bash
 /path/to/askfirst/agent-hooks/install-agent-hooks.sh
 ```

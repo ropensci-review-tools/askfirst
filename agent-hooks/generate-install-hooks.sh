@@ -35,10 +35,19 @@
 # askfirst actually emits and what this hook-context prose describes them
 # as.
 #
+# As of stage 025, install-agent-hooks.sh's KNOWN_TOOLS array (the list of
+# tools it supports -- used for --list-tools, tool-name validation, and its
+# no-tool-detected fallback prompt) is likewise spliced in, generated from
+# agent-hooks/manifest.json's `tools` keys. install-agent-hooks.sh must
+# remain self-contained (it can be fetched standalone via install.sh's
+# curl, with no agent-hooks/manifest.json alongside it), so it cannot read
+# manifest.json at run time -- this splice gives it an always-available,
+# non-hardcoded copy without a runtime file read.
+#
 # Run this after editing any of: agent-hooks/askfirst-context.txt,
 # agent-hooks/askfirst-reminder-messages.txt,
 # agent-hooks/askfirst-state-dir.sh, agent-content/askfirst-markers.txt,
-# agent-hooks/claude/{session_start,
+# agent-hooks/manifest.json, agent-hooks/claude/{session_start,
 # post_tool_use,user_prompt_submit}.sh, or
 # agent-hooks/opencode/askfirst-plugin.js -- then commit every regenerated
 # file together (the per-tool canonical files AND install-agent-hooks.sh).
@@ -55,14 +64,20 @@ CONTEXT_SRC="$REPO_ROOT/agent-hooks/askfirst-context.txt"
 REMINDER_SRC="$REPO_ROOT/agent-hooks/askfirst-reminder-messages.txt"
 STATE_DIR_SRC="$REPO_ROOT/agent-hooks/askfirst-state-dir.sh"
 MARKERS_SRC="$REPO_ROOT/agent-content/askfirst-markers.txt"
+MANIFEST_SRC="$REPO_ROOT/agent-hooks/manifest.json"
 
 for f in "$INSTALLER" "$SESSION_SRC" "$POST_SRC" "$USER_PROMPT_SRC" "$PLUGIN_SRC" \
-  "$CONTEXT_SRC" "$REMINDER_SRC" "$STATE_DIR_SRC" "$MARKERS_SRC"; do
+  "$CONTEXT_SRC" "$REMINDER_SRC" "$STATE_DIR_SRC" "$MARKERS_SRC" "$MANIFEST_SRC"; do
   if [[ ! -f "$f" ]]; then
     echo "error: expected file not found: $f" >&2
     exit 1
   fi
 done
+
+if ! command -v jq &>/dev/null; then
+  echo "error: jq is required to read $MANIFEST_SRC" >&2
+  exit 1
+fi
 
 # Replaces the region between two literal marker lines in $1 (a file) with
 # the content of $4 (a file), indenting each inserted line to match the
@@ -193,6 +208,17 @@ splice_between_markers "$PLUGIN_SRC" '// ASKFIRST_REMINDER_LEVEL2_START' '// ASK
 rm -f "$bash_level1" "$bash_level2" "$js_level1" "$js_level2"
 
 echo "regenerated (pass 1): $SESSION_SRC, $POST_SRC, $USER_PROMPT_SRC, $PLUGIN_SRC (from $CONTEXT_SRC, $REMINDER_SRC, $STATE_DIR_SRC, $MARKERS_SRC)" >&2
+
+# KNOWN_TOOLS array: install-agent-hooks.sh's list of supported tools,
+# generated from agent-hooks/manifest.json's `tools` object keys, spliced
+# directly into install-agent-hooks.sh itself (not one of the per-tool
+# canonical files above).
+known_tools_line=$(mktemp)
+printf 'KNOWN_TOOLS=(%s)\n' "$(jq -r '.tools | keys | join(" ")' "$MANIFEST_SRC")" > "$known_tools_line"
+splice_between_markers "$INSTALLER" '# ASKFIRST_KNOWN_TOOLS_START' '# ASKFIRST_KNOWN_TOOLS_END' "$known_tools_line" exclusive
+rm -f "$known_tools_line"
+
+echo "regenerated: $INSTALLER's KNOWN_TOOLS array (from $MANIFEST_SRC)" >&2
 
 # --- Pass 2: per-tool canonical files -> install-agent-hooks.sh ---
 
