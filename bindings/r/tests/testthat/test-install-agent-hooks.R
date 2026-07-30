@@ -96,3 +96,73 @@ test_that("the Claude Code PostToolUse matcher includes file-modifying tool call
 
   expect_match(installer_text, "Bash\\|R\\|Rscript\\|Edit\\|Write\\|NotebookEdit")
 })
+
+test_that("install-agent-hooks.sh creates .claude/settings.json and registers hooks when absent", {
+  repo_root <- find_repo_root()
+  skip_if(
+    is.null(repo_root),
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
+  )
+  skip_if(!nzchar(Sys.which("jq")), "jq not installed")
+
+  installer <- as.character(fs::path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
+
+  dir <- withr::local_tempdir()
+  withr::local_dir(dir)
+
+  result <- system2(
+    "bash", c(shQuote(installer), "--tool", "claude"),
+    stdout = TRUE, stderr = TRUE
+  )
+
+  expect_true(file.exists(".claude/settings.json"))
+  expect_false(any(grepl("skip:", result, fixed = TRUE)))
+  expect_true(any(grepl("register:.*hooks added", result)))
+
+  config <- jsonlite::fromJSON(".claude/settings.json", simplifyVector = FALSE)
+  session_cmds <- vapply(
+    config$hooks$SessionStart[[1]]$hooks, function(h) h$command, character(1)
+  )
+  post_cmds <- unlist(lapply(config$hooks$PostToolUse, function(x) {
+    vapply(x$hooks, function(h) h$command, character(1))
+  }))
+  prompt_cmds <- unlist(lapply(config$hooks$UserPromptSubmit, function(x) {
+    vapply(x$hooks, function(h) h$command, character(1))
+  }))
+
+  expect_true(any(grepl("session_start\\.sh$", session_cmds)))
+  expect_true(any(grepl("post_tool_use\\.sh$", post_cmds)))
+  expect_true(any(grepl("user_prompt_submit\\.sh$", prompt_cmds)))
+})
+
+test_that("install-agent-hooks.sh still registers hooks correctly when .claude/settings.json already exists", {
+  repo_root <- find_repo_root()
+  skip_if(
+    is.null(repo_root),
+    "not running inside a full askfirst repo checkout (agent-hooks/ not found)"
+  )
+  skip_if(!nzchar(Sys.which("jq")), "jq not installed")
+
+  installer <- as.character(fs::path(repo_root, "agent-hooks", "install-agent-hooks.sh"))
+
+  dir <- withr::local_tempdir()
+  withr::local_dir(dir)
+
+  dir.create(".claude", showWarnings = FALSE)
+  writeLines('{"unrelatedSetting": true}', ".claude/settings.json")
+
+  result <- system2(
+    "bash", c(shQuote(installer), "--tool", "claude"),
+    stdout = TRUE, stderr = TRUE
+  )
+
+  expect_false(any(grepl("skip:", result, fixed = TRUE)))
+  expect_true(any(grepl("register:.*hooks added", result)))
+
+  config <- jsonlite::fromJSON(".claude/settings.json", simplifyVector = FALSE)
+  expect_true(isTRUE(config$unrelatedSetting))
+  session_cmds <- vapply(
+    config$hooks$SessionStart[[1]]$hooks, function(h) h$command, character(1)
+  )
+  expect_true(any(grepl("session_start\\.sh$", session_cmds)))
+})

@@ -285,6 +285,15 @@ test_that("askfirst_notice_prime substitutes {{PKG}}/{{HALT_MARKER}}/{{RESUME_MA
   expect_no_match(text, "{{", fixed = TRUE)
 })
 
+test_that("askfirst_notice_prime puts asking the user first and only subordinates a workaround mention", {
+  text <- askfirst:::askfirst_notice_prime("mypkg")
+  ask_pos <- regexpr("ask the developers of mypkg", text, fixed = TRUE)
+  workaround_pos <- regexpr("unvetted workaround", text, fixed = TRUE)
+  expect_true(ask_pos > 0)
+  expect_true(workaround_pos > 0)
+  expect_true(ask_pos < workaround_pos)
+})
+
 test_that("askfirst_read_content reads agent-content/ files verbatim", {
   text <- askfirst:::askfirst_read_content("askfirst-hooks-nudge.txt")
   expect_match(text, "{{PKG}}", fixed = TRUE)

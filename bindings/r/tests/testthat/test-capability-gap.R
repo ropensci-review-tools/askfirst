@@ -99,6 +99,23 @@ test_that("askfirst_capability_gap has no TELL-USER block when no hooks_nudge pr
   expect_no_match(conditionMessage(caught), "<<<ASKFIRST:TELL-USER>>>", fixed = TRUE)
 })
 
+test_that("askfirst_capability_gap's stop-consequence text puts asking the user first and only subordinates a workaround mention", {
+  local_reset_askfirst_state()
+  .askfirst_state$confidence <- "high"
+
+  caught <- tryCatch(
+    askfirst_capability_gap("mypkg", "grouped input is not supported yet"),
+    askfirst_capability_gap = function(cnd) cnd
+  )
+
+  msg <- conditionMessage(caught)
+  ask_pos <- regexpr("ask the developers of mypkg directly", msg, fixed = TRUE)
+  workaround_pos <- regexpr("unvetted workaround", msg, fixed = TRUE)
+  expect_true(ask_pos > 0)
+  expect_true(workaround_pos > 0)
+  expect_true(ask_pos < workaround_pos)
+})
+
 test_that("askfirst_capability_gap supports cli/glue-style interpolation from the caller's frame", {
   local_reset_askfirst_state()
   .askfirst_state$confidence <- "high"

@@ -203,12 +203,15 @@ Your response to these signals:
    implementing a workaround") always applies to any missing or buggy
    capability, whether or not the specific task matches a listed example
 6. On a `stop-and-ask` signal -- which, per the marker block above, already
-   tells you this directly -- your only immediate next step is to surface
-   the upstream question to the user and wait for their answer. Do not
-   present, draft, or offer to implement a workaround as an option --
-   recommended, marked, or otherwise -- in the same turn; there is no menu
-   to offer until the user has responded. `notice` signals do not gate
-   anything and need no such pause, though they may carry a short
+   tells you this directly -- your first and primary action is to surface
+   the upstream question to the user and wait for their answer. This must
+   come first, not buried after other content. You may separately note
+   that an unvetted workaround exists, but only as a clearly subordinate,
+   explicitly-labeled aside (e.g. "an unvetted workaround also exists, if
+   you'd rather not wait") -- never as a selectable menu option,
+   recommended or otherwise, co-equal with asking the user; there is no
+   menu to offer until the user has responded. `notice` signals do not
+   gate anything and need no such pause, though they may carry a short
    forward-reference to what a later stop-and-ask block from the same
    package means.
 </askfirst-context>
@@ -567,12 +570,15 @@ Your response to these signals:
    implementing a workaround") always applies to any missing or buggy
    capability, whether or not the specific task matches a listed example
 6. On a \`stop-and-ask\` signal -- which, per the marker block above, already
-   tells you this directly -- your only immediate next step is to surface
-   the upstream question to the user and wait for their answer. Do not
-   present, draft, or offer to implement a workaround as an option --
-   recommended, marked, or otherwise -- in the same turn; there is no menu
-   to offer until the user has responded. \`notice\` signals do not gate
-   anything and need no such pause, though they may carry a short
+   tells you this directly -- your first and primary action is to surface
+   the upstream question to the user and wait for their answer. This must
+   come first, not buried after other content. You may separately note
+   that an unvetted workaround exists, but only as a clearly subordinate,
+   explicitly-labeled aside (e.g. "an unvetted workaround also exists, if
+   you'd rather not wait") -- never as a selectable menu option,
+   recommended or otherwise, co-equal with asking the user; there is no
+   menu to offer until the user has responded. \`notice\` signals do not
+   gate anything and need no such pause, though they may carry a short
    forward-reference to what a later stop-and-ask block from the same
    package means.
 </askfirst-context>
@@ -714,12 +720,9 @@ case "$TOOL" in
       fi
     }
 
-    if [[ -f "$TARGET_CONFIG" ]]; then
-      register_hooks_claude
-      echo "  register: $TARGET_CONFIG (hooks added)" >&2
-    else
-      echo "  skip: $TARGET_CONFIG not found — hooks installed but not registered" >&2
-    fi
+    [[ -f "$TARGET_CONFIG" ]] || echo '{}' > "$TARGET_CONFIG"
+    register_hooks_claude
+    echo "  register: $TARGET_CONFIG (hooks added)" >&2
     ;;
   opencode)
     # No config registration step at all (unlike Claude Code): opencode
