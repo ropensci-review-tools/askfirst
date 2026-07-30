@@ -7,7 +7,7 @@ git_hash: d367e8e09e97cbbe5b7782774e18b465f7f49411
 # Tasks: root-install-script
 
 ## T024-1: Create root-level `install.sh` wrapper
-- [ ] T024-1: Create `install.sh` at the repo root. It must: start with
+- [x] T024-1: Create `install.sh` at the repo root. It must: start with
   `#!/usr/bin/env bash` and `set -euo pipefail`; `curl -fsSL` the raw file
   `https://raw.githubusercontent.com/ropensci-review-tools/askfirst/main/agent-hooks/install-agent-hooks.sh`
   and pipe it into `bash -s -- "$@"` so any arguments the caller passes
@@ -20,7 +20,7 @@ git_hash: d367e8e09e97cbbe5b7782774e18b465f7f49411
   file executable (`chmod +x install.sh`).
 
 ## T024-2: Create root-level `install.ps1` PowerShell wrapper
-- [ ] T024-2: Create `install.ps1` at the repo root, a PowerShell
+- [x] T024-2: Create `install.ps1` at the repo root, a PowerShell
   counterpart to `install.sh` — a wrapper, not a reimplementation of
   installer logic. It must:
   1. Download `agent-hooks/install-agent-hooks.sh` from
@@ -43,7 +43,7 @@ git_hash: d367e8e09e97cbbe5b7782774e18b465f7f49411
   assumptions beyond that), matching `install.sh`'s behavior.
 
 ## T024-3: Revise `README.md`'s "askfirst for everybody" section
-- [ ] T024-3: In `README.md`, replace the current single sentence under
+- [x] T024-3: In `README.md`, replace the current single sentence under
   `## askfirst for everybody` ("To make sure your AI will respond
   appropriately to `askfirst` messages, please install agent-specific
   hooks.") with:
@@ -65,7 +65,7 @@ git_hash: d367e8e09e97cbbe5b7782774e18b465f7f49411
      change any other section of `README.md`.
 
 ## T024-4: Cross-reference both one-liners in the vignette
-- [ ] T024-4: In `bindings/r/vignettes/using-askfirst.Rmd`, section "0.
+- [x] T024-4: In `bindings/r/vignettes/using-askfirst.Rmd`, section "0.
   Pre-configuring agent tools" (currently lines 26-69), add the new
   `curl -fsSL .../install.sh | bash` and
   `irm .../install.ps1 | iex` one-liners as a third documented install
@@ -78,7 +78,7 @@ git_hash: d367e8e09e97cbbe5b7782774e18b465f7f49411
   including `askfirst-development.Rmd`, untouched.
 
 ## T024-5: Write `tests/test-install-hooks.sh`
-- [ ] T024-5: Create a standalone bash test script at
+- [x] T024-5: Create a standalone bash test script at
   `tests/test-install-hooks.sh`, in a new top-level `tests/` directory
   (this establishes that directory as the project's general test
   location going forward — more tests will land here later — rather than
@@ -133,7 +133,7 @@ git_hash: d367e8e09e97cbbe5b7782774e18b465f7f49411
   summary per phase.
 
 ## T024-6: Add `.github/workflows/test-install.yml`
-- [ ] T024-6: Create `.github/workflows/test-install.yml`, matching the
+- [x] T024-6: Create `.github/workflows/test-install.yml`, matching the
   path-filtering and step-naming style of the existing
   `.github/workflows/r-cmd-check.yml`. Trigger on `push` and
   `pull_request` with `paths` covering `install.sh`, `install.ps1`,
@@ -155,7 +155,7 @@ git_hash: d367e8e09e97cbbe5b7782774e18b465f7f49411
   private-repo caveat from T024-5.
 
 ## T024-7: Verify the full change set locally
-- [ ] T024-7: With the repo still private, run
+- [x] T024-7: With the repo still private, run
   `tests/test-install-hooks.sh` locally and confirm: phase 1
   (direct-script install) passes, phase 2 (`install.sh` live-fetch) fails
   with a network/404 error (expected while private — confirms `install.sh`

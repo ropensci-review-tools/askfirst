@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: 50b71277d6f64fb216dbf1c5db0963dff2338c49
+git_hash: 134db745bb5bc438c82002c415bafdd6a528f69b
 ---
 
 # Design Decisions: askfirst
@@ -253,7 +253,25 @@ Claude Code dispatches hooks purely via the `command` string registered
 in `settings.json` (no filename-convention discovery) and that none of
 the three scripts' own logic depends on their filename, so the rename
 carries no behavioral risk; `agent-hooks/manifest.json`'s and
-`hooks_status.R`'s `marker_file` were updated to match.
+`hooks_status.R`'s `marker_file` were updated to match. Stage 024 added
+two new repo-root entry points to the same, unmodified
+`agent-hooks/install-agent-hooks.sh` — `install.sh`, which `curl`s the
+installer from GitHub's raw content endpoint and execs it via bash, and
+`install.ps1`, a PowerShell counterpart that locates a `bash` executable
+(Git Bash, falling back to WSL) and execs the same downloaded script
+through it — giving a first-time user with no local checkout and no R
+installed a single copy-paste terminal command, without either script
+duplicating installer logic or requiring a new sync target in
+`agent-hooks/generate-install-hooks.sh`. A native PowerShell
+reimplementation of the installer was considered for `install.ps1` and
+rejected for the same reason. A new top-level `tests/` directory
+(`tests/test-install-hooks.sh`) verifies, across four scratch-directory
+phases, that the direct-script install, the `install.sh` live-fetch, the
+R-function path, and the `install.ps1` path all produce an identical
+result; the `install.sh`/`install.ps1` live-fetch phase is expected to
+fail while the repository is private (`raw.githubusercontent.com` 404s on
+unauthenticated requests to private repos) and is wired up as a soft,
+`continue-on-error` CI check for that reason rather than skipped.
 
 ## Key Decisions
 
@@ -1035,6 +1053,35 @@ maintenance dependency between the demo fixture and the production code
 it is meant to test against.
 **Stages:** 008
 
+### Root-level install entry points: install.sh/install.ps1, thin wrappers around the same canonical installer
+**Outcome:** Two new repo-root scripts, `install.sh` (bash) and
+`install.ps1` (PowerShell), each fetch
+`agent-hooks/install-agent-hooks.sh` from GitHub's raw content endpoint
+and exec it — `install.ps1` via a located `bash` (Git Bash, falling back
+to WSL) — giving a single copy-paste `curl`/`irm` one-liner from the
+README for a user with no local checkout and no R installed.
+**Rationale:** Neither script duplicates installer logic, so
+`agent-hooks/generate-install-hooks.sh`'s existing multi-source sync
+pipeline (the canonical-source-files pattern from the "Repo hygiene"
+decision above) does not need a new target to stay in sync. A native
+PowerShell reimplementation of the installer was considered for
+`install.ps1` and rejected for the same reason — it would have opened the
+same duplication problem a second time, in a second language.
+**Tradeoffs:** Both one-liners require network access and track `main`
+directly — no release-tag pinning exists yet. `install.ps1` still
+requires Git Bash or WSL to be present on the machine; it removes the
+need for the user to invoke bash themselves, not the underlying bash
+dependency. The live-fetch path is expected to fail while the repository
+remains private (`raw.githubusercontent.com` 404s on unauthenticated
+requests to private repos) — verified with a CI phase marked
+`continue-on-error` rather than worked around with an auth token or
+mocked URL.
+**Proposed by:** joint
+**Relates to:** Stage 007 (the `agent-hooks/` canonical-source pattern
+this reuses); the "Hooks-installation detection" decision above (the
+installer this wraps, unmodified)
+**Stages:** 024
+
 ## Architectural Evolution
 Stage 001 established the project's foundational research: what signals
 can identify an LLM-driven caller, how a redirect message could reach it,
@@ -1433,6 +1480,22 @@ old generic filenames and confirms the installer leaves them untouched
 while still installing and registering askfirst's own hooks alongside
 them. No migration path was built for pre-existing installs at the old
 filenames, since a fresh install is sufficient.
+Stage 024 closed a gap the vignette's own install instructions had left
+open: neither the R function nor the local-checkout script invocation
+works for a user who hasn't cloned the repo or installed R yet. A thin
+`install.sh` wrapper (curl the canonical installer, exec via bash) closes
+that gap for a single copy-paste command; an `install.ps1` PowerShell
+counterpart was added mid-session after being requested, reversing an
+initial design decision to document the Windows story in prose only
+(Git Bash/WSL) rather than build a second script. The reversal was
+resolved by keeping `install.ps1` a wrapper — it locates and shells out
+to `bash` rather than reimplementing installer logic — preserving the
+same single-source-of-truth property the base plan had already
+established for `install.sh`. A second, later request moved the new
+install-verification test script from a colocated location under
+`agent-hooks/` into a new top-level `tests/` directory, intended as this
+project's general test location going forward rather than a one-off
+exception.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -1759,3 +1822,25 @@ filenames, since a fresh install is sufficient.
   dispatch has no filename-convention component, and confirmed by
   grepping all three scripts that none derive behavior from their own or
   a sibling script's filename, before treating the rename as risk-free.
+
+**Install entry points (stage 024):**
+- A full standalone copy of installer logic at the repo root, kept in
+  sync by extending `agent-hooks/generate-install-hooks.sh` — rejected
+  for `install.sh`; a thin wrapper that fetches the canonical installer
+  from GitHub at run time achieves the same one-liner UX with a single
+  source of truth, at the cost of requiring network access and tracking
+  `main` directly (no release-tag pinning exists yet).
+- A native PowerShell reimplementation of the installer for `install.ps1`
+  — considered after a PowerShell-runnable entry point was requested, and
+  rejected in favor of a wrapper that locates and shells out to `bash`
+  (Git Bash, falling back to WSL); reimplementing would have reopened the
+  same installer-logic-duplication problem `install.sh` had already
+  avoided, in a second language.
+- A cmd.exe-native variant — not built; PowerShell was judged the
+  relevant native Windows shell to support, and cmd.exe was left
+  undocumented rather than given its own script.
+- Working around the private-repo `raw.githubusercontent.com` 404 (an
+  auth token, a mocked URL) so the live-fetch CI phase would pass today —
+  rejected; the phase is wired up for real and marked
+  `continue-on-error` instead, on the expectation it starts passing once
+  the repository's visibility changes.
