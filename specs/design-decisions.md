@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: e87e2de04bde998dea889cbf8cfdb729ba9970d3
+git_hash: a1fe97bb09285f479237750ec46180034244e42d
 ---
 
 # Design Decisions: askfirst
@@ -229,7 +229,19 @@ its own `TELL-USER`/`END-TELL-USER`-bounded message shape, distinct from
 both the hard-stop and plain-notice shapes, and made `askfirst_signal()`
 fold a pending nudge into the next same-session `stop-and-ask` halt as one
 message, so a must-relay-to-human instruction isn't dropped when it
-co-occurs with a higher-severity halt.
+co-occurs with a higher-severity halt. Stage 022 fixed a real installer
+bug — `agent-hooks/install-agent-hooks.sh`'s Claude Code branch only
+registered hooks into `.claude/settings.json` if that file already
+existed, otherwise silently skipping registration while still reporting
+success — by having it create the file unconditionally when absent. The
+same stage was the first to loosen, rather than further harden, the
+"no workaround as an option" clause (stages 011/012/014): both canonical
+copies (`agent-hooks/askfirst-context.txt` and
+`agent-content/askfirst-stop-consequence.txt`/`askfirst-notice-prime.txt`)
+now permit a workaround to be mentioned as a clearly subordinate,
+explicitly-labeled aside after the upstream question is surfaced first,
+while keeping the specific menu-option/co-equal-choice framing those
+stages fixed forbidden.
 
 ## Key Decisions
 
@@ -530,7 +542,16 @@ class, and `<<<ASKFIRST:HALT>>>`/`<<<ASKFIRST:RESUME>>>` compact tokens
 replace the prose `----- ASKFIRST AGENT STOP/RESUME ... -----` delimiter
 lines. `stop-and-ask` signals are now also written to stdout,
 unconditionally, in addition to the existing stderr condition-system
-delivery — `notice` signals are not duplicated this way.
+delivery — `notice` signals are not duplicated this way. Stage 022
+loosened, without removing, the "no workaround as an option" rule stages
+011/012/014 progressively hardened: a `stop-and-ask` signal's guidance
+(in both `agent-hooks/askfirst-context.txt`'s hook-context copy and
+`agent-content/askfirst-stop-consequence.txt`/`askfirst-notice-prime.txt`'s
+hook-independent copy) still requires surfacing the upstream question
+first, but now permits a workaround to be separately mentioned as a
+clearly subordinate, explicitly-labeled aside — never as a selectable,
+co-equal, or "recommended" menu option, which remains forbidden exactly
+as stage 012 established.
 **Rationale:** The previous second-person format ("If you are an AI coding
 agent...") was interpreted as a prompt injection by AI assistants, causing
 outright refusal. The structured prefix lets the tool's system context
@@ -564,7 +585,23 @@ to carry instruction strength. Rather than escalating message strength only
 once hooks are confirmed current, the decision was to emit the full
 hard-stop shape unconditionally, accepting a residual guardrail-rejection
 risk in the no-hooks case as the lesser failure mode versus a workaround
-slipping through unchallenged.
+slipping through unchallenged. Stage 022 found, via a controlled
+reconciliation trial run with and without hook-context reinforcement, that
+hook reinforcement measurably fixed injection-distrust behavior (an agent
+verified the signal's provenance and quoted it faithfully to the user
+rather than hedging it as suspicious) but did not stop the agent from
+presenting a workaround as a selectable option in the same turn as the
+halt, in either condition — the same violation occurred with or without
+reinforcement present. The diagnosis: "don't tell your principal a
+workaround exists" is a fundamentally different, harder ask than "don't
+autonomously implement one," since it conflicts with a stronger
+transparency norm (surface known options to your principal) that
+reinforcement arguing for the signal's authenticity does not touch. Rather
+than reinforcing the same clause a fourth time, the fix narrowed what it
+actually prohibits: mentioning a workaround as a clearly subordinate,
+labeled aside is now permitted, while the menu-option/co-equal-choice
+pattern stages 011/012 fixed remains forbidden in both canonical copies of
+the text.
 **Roads not taken:** Keeping the second-person embedded-instruction format
 (actively counterproductive — triggers prompt-injection guardrails);
 implementing hook installation as R-only logic (rejected mid-stage in favor
@@ -586,7 +623,7 @@ line (not just bounding start/end tokens) with a marker, as a stage 015
 field report also suggested — deferred as added complexity against
 `cli::format_inline()`'s reflowed output, revisit only if the token pair
 proves insufficient.
-**Stages:** 007, 011, 012, 013, 014, 015
+**Stages:** 007, 011, 012, 013, 014, 015, 022
 
 ### Hooks-installation detection: language-agnostic manifest and version marker, human-directed nudge
 **Outcome:** A hand-maintained `agent-hooks/manifest.json` records, per known
@@ -647,8 +684,15 @@ confidence. That stage also moved the fixed condition text `conditions.R`
 had hardcoded (delimiters, stop-consequence, notice-prime) into a new
 binding-agnostic `agent-content/` directory, following the sync-copy
 pattern `agent-detect-spec/vendor/` already established, rather than
-`agent-hooks/`'s symlink.
-**Stages:** 014, 017, 019
+`agent-hooks/`'s symlink. Stage 022 fixed a second, previously silent
+installer bug found via field trial: `install-agent-hooks.sh`'s Claude
+Code branch registered hooks into `.claude/settings.json` only if that
+file already existed, otherwise logging one stderr line and still
+`exit 0`ing as a reported success — leaving fully-installed,
+version-tagged hook scripts completely inert with no observable failure
+signal. The fix creates `.claude/settings.json` unconditionally when
+absent before registering, removing the silent-skip branch entirely.
+**Stages:** 014, 017, 019, 022
 
 ### Binding-agnostic fixed text: agent-content/, synced like agent-detect-spec/vendor/
 **Outcome:** The fixed, non-package-authored text `askfirst_signal()` emits
@@ -1310,6 +1354,30 @@ uniformly by construction, the latter by treating that harness as entirely
 out of scope for this repo's own workflow. The stage also revised the
 nudge's own body wording to point at a direct repository URL rather than a
 script-relative path.
+Stage 022 was triggered by a field trial document reporting two unrelated
+gaps found while reconciling a no-hooks session against one where hook
+content had been manually read mid-session. The first was a concrete
+installer bug: `install-agent-hooks.sh`'s Claude Code branch only
+registered hooks into `.claude/settings.json` if that file already
+existed, silently skipping registration (while still reporting success)
+otherwise — confirmed still present, and fixed by creating the file
+unconditionally when absent. The second was a substantive finding about
+the "no workaround as an option" clause stages 011/012/014 had
+progressively hardened: running the same task with and without hook-
+context reinforcement showed reinforcement fixed injection-distrust
+behavior but did not stop an agent from presenting a workaround as a
+selectable option in the same turn as a halt, in either condition. Rather
+than reinforcing the same clause a fourth time, this stage narrowed what
+it prohibits — permitting a workaround to be mentioned as a clearly
+subordinate, labeled aside, while keeping the specific menu-option pattern
+stage 012 fixed forbidden — applied consistently across both of the
+clause's two independent canonical copies (the hook-context prose and the
+hook-independent text embedded directly in `askfirst_signal()`'s own
+message, per stage 014). This is the first stage in the project's history
+to deliberately loosen, rather than tighten, a directive that field
+reports had repeatedly hardened, treated as a scoped course-correction
+based on new reconciliation-trial evidence rather than an unexamined
+reversal.
 
 ## Important Roads Not Taken
 **Detection:**
@@ -1599,3 +1667,22 @@ script-relative path.
   trial cell as a task of this stage — rejected; that harness is a
   separate repository under the maintainer's own manual control, not part
   of this repo's own workflow.
+
+**Messaging (stage 022):**
+- Allowing a workaround to appear as a genuine selectable option (labeled
+  unvetted) alongside asking the user — rejected in favor of keeping a
+  hard line against menu-style framing; this is precisely the pattern
+  stage 012 explicitly removed after a field report, and loosening the
+  clause was not meant to reopen that specific gap.
+- Rewriting only the reinforcement text's justification (arguing
+  transparency-norm grounds instead of injection-distrust grounds) while
+  keeping the hard withholding requirement unchanged — considered, then
+  rejected once the reconciliation trial showed the violation occurred
+  regardless of which argument the reinforcement made; the clause itself,
+  not just its justification, needed to change.
+- Fixing only the hook-context copy (`agent-hooks/askfirst-context.txt`)
+  and leaving the hook-independent copy
+  (`agent-content/askfirst-stop-consequence.txt`/`askfirst-notice-prime.txt`)
+  unchanged — rejected; the hook-independent copy is the one stage 014
+  built specifically not to depend on hooks, so leaving it stale would
+  have undermined the fix for exactly the sessions it matters most in.

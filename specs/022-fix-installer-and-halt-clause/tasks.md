@@ -7,7 +7,7 @@ git_hash: 4dea3684cd28feaab71355e7f2d4b9107ec86eed
 # Tasks: fix-installer-and-halt-clause
 
 ## T022-1: Fix installer silent-skip bug in the Claude Code branch
-- [ ] T022-1: In `agent-hooks/install-agent-hooks.sh`'s `claude)` case
+- [x] T022-1: In `agent-hooks/install-agent-hooks.sh`'s `claude)` case
   (~lines 717-722), replace the
   `if [[ -f "$TARGET_CONFIG" ]]; then register_hooks_claude; echo
   "register..."; else echo "skip..."; fi` block with: create
@@ -21,7 +21,7 @@ git_hash: 4dea3684cd28feaab71355e7f2d4b9107ec86eed
   equivalent gap).
 
 ## T022-2: Add installer test for settings.json creation
-- [ ] T022-2: Add a test (wherever `install-agent-hooks.sh` is currently
+- [x] T022-2: Add a test (wherever `install-agent-hooks.sh` is currently
   tested, or a new script-level test if none exists) that runs the
   installer against a temp directory with no `.claude/settings.json`
   present, and asserts: (a) `.claude/settings.json` is created, (b) it
@@ -34,7 +34,7 @@ git_hash: 4dea3684cd28feaab71355e7f2d4b9107ec86eed
   correctly, not overwritten).
 
 ## T022-3: Revise HALT directive point 6 in the hook-context canonical source
-- [ ] T022-3: Edit point 6 of the `<askfirst-context>` block in
+- [x] T022-3: Edit point 6 of the `<askfirst-context>` block in
   `agent-hooks/askfirst-context.txt` so that, on a `stop-and-ask` signal:
   surfacing the upstream question to the user and waiting for their
   answer remains the required first and primary action (stated up front);
@@ -51,7 +51,7 @@ git_hash: 4dea3684cd28feaab71355e7f2d4b9107ec86eed
   menu option, recommended or otherwise, co-equal with asking the user."
 
 ## T022-4: Regenerate downstream copies from the hook-context source
-- [ ] T022-4: Run `agent-hooks/generate-install-hooks.sh` after T022-3 to
+- [x] T022-4: Run `agent-hooks/generate-install-hooks.sh` after T022-3 to
   propagate the revised point 6 into `agent-hooks/claude/session_start.sh`
   and `agent-hooks/opencode/askfirst-plugin.js`, and into
   `install-agent-hooks.sh`'s embedded `SESSION_HOOK`/`POST_HOOK`/
@@ -62,7 +62,7 @@ git_hash: 4dea3684cd28feaab71355e7f2d4b9107ec86eed
   `agent-hooks/`, if one exists) to confirm no drift remains.
 
 ## T022-5: Revise the hook-independent stop-consequence and notice-prime text
-- [ ] T022-5: Edit `agent-content/askfirst-stop-consequence.txt` and
+- [x] T022-5: Edit `agent-content/askfirst-stop-consequence.txt` and
   `agent-content/askfirst-notice-prime.txt` to carry the same substance as
   T022-3's revised wording (these are short, inline forms — not required
   to be byte-identical to `askfirst-context.txt`, but must not
@@ -74,14 +74,14 @@ git_hash: 4dea3684cd28feaab71355e7f2d4b9107ec86eed
   question has been surfaced.
 
 ## T022-6: Sync the revised agent-content text into the R package
-- [ ] T022-6: Run `bindings/r/data-raw/sync-agent-content.R` (or the
+- [x] T022-6: Run `bindings/r/data-raw/sync-agent-content.R` (or the
   current equivalent sync script) to update
   `bindings/r/inst/agent-content/askfirst-stop-consequence.txt` and
   `askfirst-notice-prime.txt` from the edited canonical sources, then run
   `check-agent-content-sync.R` to confirm no drift remains.
 
 ## T022-7: Add/update tests asserting the revised stop-consequence and notice-prime wording
-- [ ] T022-7: In `bindings/r/tests/testthat/test-capability-gap.R` and
+- [x] T022-7: In `bindings/r/tests/testthat/test-capability-gap.R` and
   `test-log.R` (both already assert on `<<<ASKFIRST:HALT>>>` message
   content), add assertions that the emitted message contains the new
   subordinate-aside language (e.g. matches on "unvetted" or the specific
@@ -91,7 +91,7 @@ git_hash: 4dea3684cd28feaab71355e7f2d4b9107ec86eed
   they actually exercise the new wording rather than passing vacuously.
 
 ## T022-8: Run full test suite and confirm no regressions
-- [ ] T022-8: Run the R package test suite (`devtools::test()` or
+- [x] T022-8: Run the R package test suite (`devtools::test()` or
   equivalent in `bindings/r/`) and any installer-level tests added in
   T022-2, confirming all pass. Confirm `git status` shows only the
   expected changed files: `agent-hooks/install-agent-hooks.sh`,
