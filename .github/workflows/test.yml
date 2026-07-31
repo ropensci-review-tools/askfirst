@@ -1,0 +1,67 @@
+name: Full test suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  full-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Set up R dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: bindings/r
+
+      - name: Run R testthat suite
+        run: Rscript -e 'testthat::test_local("bindings/r")'
+
+      - name: Set up bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Run opencode plugin bun test
+        run: bun test agent-hooks/opencode/askfirst-plugin.test.js
+
+  install-hooks:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+
+      - name: Set up R dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: bindings/r
+
+      - name: Run install tests (phases 1, 3, 4 — hard requirements)
+        run: tests/test-install-hooks.sh --skip-phase2
+
+      # Phase 2 exercises install.sh's real `curl .../main/install.sh | bash`
+      # path against raw.githubusercontent.com. This 404s while the repo is
+      # private (unauthenticated requests can't reach private-repo content),
+      # so it's continue-on-error for now. Remove continue-on-error and fold
+      # this back into the step above once the repo is public.
+      - name: Run install test (phase 2 — soft requirement while repo is private)
+        continue-on-error: true
+        run: tests/test-install-hooks.sh --phase2-only
