@@ -767,7 +767,13 @@ TOOLS_TO_INSTALL=()
 if [[ -n "$TOOL" ]]; then
   TOOLS_TO_INSTALL=("$TOOL")
 else
-  mapfile -t detected < <(detect_tools)
+  # A `while read` loop, not `mapfile` (bash 4+ only) -- macOS's preinstalled
+  # /bin/bash is 3.2 (Apple never shipped past the last GPLv2 release), so
+  # `mapfile` isn't available there.
+  detected=()
+  while IFS= read -r line; do
+    detected+=("$line")
+  done < <(detect_tools)
   if [[ ${#detected[@]} -ge 1 ]]; then
     TOOLS_TO_INSTALL=("${detected[@]}")
     if [[ ${#TOOLS_TO_INSTALL[@]} -gt 1 ]]; then

@@ -1,3 +1,20 @@
+#' Run agent-hooks/install-agent-hooks.sh through an explicit `bash`
+#'
+#' Never execute the script "directly" (i.e. \code{system2(script, ...)}
+#' relying on its `#!/bin/bash` shebang) -- that depends on the OS
+#' understanding shebang lines, which Windows does not; this is the same
+#' reason \code{install.ps1} locates and shells out to \code{bash} rather
+#' than trying to run the downloaded script as if it were a native
+#' executable. Explicitly invoking through `bash` here works identically
+#' on every OS, `bash` being a hard prerequisite already (Git Bash/WSL, per
+#' \code{install.ps1}'s own requirement).
+#' @keywords internal
+#' @noRd
+askfirst_run_installer_script <- function(args, stdout, stderr) {
+  script <- system.file("agent-hooks", "install-agent-hooks.sh", package = "askfirst", mustWork = TRUE)
+  system2("bash", c(script, args), stdout = stdout, stderr = stderr)
+}
+
 #' Detect available agent tool(s) for the current project
 #'
 #' Calls \code{agent-hooks/install-agent-hooks.sh --detect} to check which agent
@@ -10,8 +27,7 @@
 #' @keywords internal
 #' @noRd
 askfirst_detect_agent_tool <- function() {
-  script <- system.file("agent-hooks", "install-agent-hooks.sh", package = "askfirst", mustWork = TRUE)
-  out <- system2(script, "--detect", stdout = TRUE, stderr = FALSE)
+  out <- askfirst_run_installer_script("--detect", stdout = TRUE, stderr = FALSE)
   if (length(out) == 0 || identical(out, "")) character() else out
 }
 
@@ -30,8 +46,7 @@ askfirst_detect_agent_tool <- function() {
 #' @keywords internal
 #' @noRd
 askfirst_list_agent_tools <- function() {
-  script <- system.file("agent-hooks", "install-agent-hooks.sh", package = "askfirst", mustWork = TRUE)
-  system2(script, "--list-tools", stdout = TRUE, stderr = FALSE)
+  askfirst_run_installer_script("--list-tools", stdout = TRUE, stderr = FALSE)
 }
 
 #' Install hooks for a single, already-known tool name
@@ -46,14 +61,12 @@ askfirst_install_agent_hooks_for_tool <- function(tool, overwrite) {
     "`tool` must be a single string" = is.character(tool) && length(tool) == 1
   )
 
-  script <- system.file("agent-hooks", "install-agent-hooks.sh", package = "askfirst", mustWork = TRUE)
-
   args <- c("--tool", tool)
   if (isTRUE(overwrite)) {
     args <- c(args, "--overwrite")
   }
 
-  system2(script, args, stdout = "", stderr = "")
+  askfirst_run_installer_script(args, stdout = "", stderr = "")
 }
 
 #' Install askfirst agent hooks for the current project

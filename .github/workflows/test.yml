@@ -54,5 +54,5 @@ jobs:
         with:
           working-directory: bindings/r
 
-      - name: Run install tests (all 6 phases — hard requirements)
+      - name: Run install tests (6 phases)
         run: tests/test-install-hooks.sh
