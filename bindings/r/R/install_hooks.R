@@ -1,3 +1,31 @@
+#' Locate a working `bash`, skipping Windows' WSL-launcher stub
+#'
+#' On Windows, \code{Sys.which("bash")} can resolve to
+#' \code{C:\\Windows\\System32\\bash.exe} -- a Microsoft-provided stub that
+#' launches WSL, ahead of Git Bash's own \code{bash.exe} on \code{PATH}.
+#' Confirmed empirically in CI: that stub errors immediately ("Windows
+#' Subsystem for Linux has no installed distributions") when no WSL
+#' distribution is installed, so anything invoked through it silently
+#' fails. This walks \code{PATH} directly and returns the first
+#' \code{bash.exe} found outside a \code{System32} directory, falling back
+#' to plain \code{"bash"} (ordinary \code{PATH} resolution) on non-Windows
+#' platforms or if nothing else is found.
+#' @keywords internal
+#' @noRd
+askfirst_find_bash <- function() {
+  if (.Platform$OS.type != "windows") {
+    return("bash")
+  }
+  path_dirs <- strsplit(Sys.getenv("PATH"), .Platform$path.sep, fixed = TRUE)[[1]]
+  for (dir in path_dirs) {
+    candidate <- file.path(dir, "bash.exe")
+    if (file.exists(candidate) && !grepl("[/\\\\]system32[/\\\\]?$", dir, ignore.case = TRUE)) {
+      return(candidate)
+    }
+  }
+  Sys.which("bash")
+}
+
 #' Run agent-hooks/install-agent-hooks.sh through an explicit `bash`
 #'
 #' Never execute the script "directly" (i.e. \code{system2(script, ...)}
@@ -12,7 +40,7 @@
 #' @noRd
 askfirst_run_installer_script <- function(args, stdout, stderr) {
   script <- system.file("agent-hooks", "install-agent-hooks.sh", package = "askfirst", mustWork = TRUE)
-  system2("bash", c(script, args), stdout = stdout, stderr = stderr)
+  system2(askfirst_find_bash(), c(script, args), stdout = stdout, stderr = stderr)
 }
 
 #' Detect available agent tool(s) for the current project
