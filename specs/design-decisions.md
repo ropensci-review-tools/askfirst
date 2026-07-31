@@ -1,7 +1,7 @@
 ---
 created: 2026-07-28T09:26:31Z
 agent: claude-sonnet-5
-git_hash: f20a22eea6944c52deefe3a9687949829acc28c2
+git_hash: fcdce2b7f0a7eebe1f2da6bf328be5eb0350b1fd
 ---
 
 # Design Decisions: askfirst
@@ -306,7 +306,20 @@ Implementation surfaced an unplanned, real bug along the way:
 even when `found` was empty (bash's `printf` always applies its format
 string at least once), making a genuinely empty detection result
 indistinguishable from one match to every caller — fixed by only calling
-`printf` when the array is non-empty.
+`printf` when the array is non-empty. Stage 026 closed the gap between the
+project's local `make test` target and what actually ran in CI:
+previously only `.github/workflows/r-cmd-check.yml` (scoped to
+`bindings/r/`) ran unconditionally, `.github/workflows/test-install.yml`
+was path-filtered, and the opencode plugin's `bun test` suite never ran in
+CI at all. A single `.github/workflows/test.yml` now runs on every push/PR
+to `main` with no path filter: an `ubuntu-latest`-only job for the
+OS-agnostic R testthat and bun test suites, plus a 3-OS matrix job
+(replacing the deleted `test-install.yml`) for the install-hooks script.
+The repository went public partway through this stage, closing stage
+024's deferred item directly — `tests/test-install-hooks.sh`'s live-fetch
+phase, previously a soft, `continue-on-error` check, is now a hard
+requirement like every other phase, and the script always runs all of its
+phases unconditionally.
 
 ## Key Decisions
 
@@ -1158,6 +1171,36 @@ constraint that shaped the splice-not-runtime-read decision); Stage 017
 presence a safe detection signal)
 **Stages:** 025
 
+### CI wiring: one unconditional workflow covering the full local test suite, phase 2 promoted once public
+**Outcome:** `.github/workflows/test.yml` replaces
+`.github/workflows/test-install.yml` (deleted) with two jobs: `full-suite`
+(`ubuntu-latest`) running R testthat and the opencode plugin's `bun test`,
+and `install-hooks` (3-OS matrix) running `tests/test-install-hooks.sh`.
+Both trigger unconditionally on push/PR to `main`, with no path filter.
+`.github/workflows/r-cmd-check.yml` is unchanged — a separate, heavier
+CRAN-style check never part of `make test`. Mid-stage, the repository went
+public, closing stage 024's deferred item: the install-hooks script's
+live-fetch phase moved from a soft, `continue-on-error` check to a hard
+requirement, and the script now always runs all of its phases
+unconditionally rather than accepting mode flags.
+**Rationale:** Path-filtered triggers meant a change touching only, say,
+the opencode plugin ran no CI at all; an unconditional gate catches
+cross-cutting breakage filters would miss. Running the OS-agnostic suites
+on a single runner (rather than the full matrix) keeps CI cost
+proportionate, since that logic is pure string/path manipulation rather
+than OS-filesystem-dependent. Promoting phase 2 once public removes a
+soft-fail path whose underlying cause no longer applies.
+**Tradeoffs:** Slightly higher CI cost per push than path-filtered
+triggers. Direct behavioral tests for the Claude Code hook shell scripts
+(`agent-hooks/claude/*.sh`) remain out of scope — identified during this
+stage's scoping but deferred, since those scripts are today only checked
+indirectly via R-side installation tests.
+**Proposed by:** joint
+**Relates to:** Stage 024 (the deferred phase-2 promotion this closes);
+Stage 017 (the opencode plugin test suite this brings into CI for the
+first time)
+**Stages:** 026
+
 ## Architectural Evolution
 Stage 001 established the project's foundational research: what signals
 can identify an LLM-driven caller, how a redirect message could reach it,
@@ -1600,6 +1643,28 @@ empty, since bash's `printf` always applies its format at least once —
 making zero detections indistinguishable from one to every caller
 (`mapfile`, command substitution) until fixed.
 
+Stage 026 was triggered by a gap between the project's local `make test`
+target and what CI actually enforced: `r-cmd-check.yml` covered only
+`bindings/r/`, `test-install.yml` was path-filtered, and the opencode
+plugin's `bun test` suite ran in neither, so a change that broke it could
+pass CI cleanly. A new `test.yml` unifies all three suites into one
+unconditionally-triggered workflow, deleting `test-install.yml` rather
+than running its script twice across two workflows. The OS-agnostic
+suites (R testthat, bun test) run once on `ubuntu-latest` rather than
+across the full 3-OS matrix used for the install-hooks script, since that
+logic is pure string/path manipulation with no OS-filesystem dependency.
+Partway through implementation, the repository's visibility changed from
+private to public, directly closing stage 024's deferred item: the
+install-hooks script's live-fetch phase — previously a soft,
+`continue-on-error` check working around `raw.githubusercontent.com`
+404s on unauthenticated requests to private repos — was promoted to a
+hard requirement in the same pass, since the underlying failure mode no
+longer applied. A second, distinct gap was identified during scoping but
+deliberately left out of this stage: the Claude Code hook shell scripts
+(`agent-hooks/claude/*.sh`) have real runtime logic that is only checked
+indirectly today, via R-side installation tests, never by executing the
+scripts themselves with a real payload.
+
 ## Important Roads Not Taken
 **Detection:**
 - Call-stack/frame introspection — no usable signal exists at the R
@@ -1970,3 +2035,27 @@ making zero detections indistinguishable from one to every caller
   installing for multiple detected tools — rejected in favor of
   collecting and reporting all failures together, so one tool's problem
   doesn't silently prevent another's successful install.
+
+**Full-test-suite CI (stage 026):**
+- Adding a `bun`-test step to the existing `test-install.yml` in place —
+  rejected in favor of a new, unified `test.yml`; conflating an
+  OS-agnostic job with the install-hooks 3-OS matrix job in one
+  already-path-filtered workflow would have obscured why each job exists
+  and what triggers it.
+- Keeping `test-install.yml` running alongside the new `test.yml` —
+  rejected; both would have run the same install-hooks script on every
+  relevant push/PR, and the new workflow's unconditional trigger already
+  covers every case the old path-filtered one did.
+- Running the R testthat and bun test suites across the full 3-OS matrix
+  like the install-hooks job — rejected; that logic is pure string/path
+  manipulation, not OS-filesystem-dependent, so a single `ubuntu-latest`
+  runner is sufficient and keeps CI cost proportionate.
+- Adding direct behavioral tests for the Claude Code hook shell scripts
+  (`agent-hooks/claude/*.sh`) in this same stage — identified as a
+  distinct, real gap during scoping, but deferred to a future stage rather
+  than folded into a stage scoped to CI wiring.
+- Deferring the phase-2 hard-requirement promotion to a later stage now
+  that the repository is public — rejected; the underlying blocker (a
+  private-repo 404) no longer applied once the visibility changed
+  mid-stage, so the fix was made immediately rather than left stale for a
+  follow-up.
