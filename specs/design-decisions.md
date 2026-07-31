@@ -1,7 +1,7 @@
 ---
-created: 2026-07-28T09:26:31Z
+created: 2026-07-31T00:00:00Z
 agent: claude-sonnet-5
-git_hash: fcdce2b7f0a7eebe1f2da6bf328be5eb0350b1fd
+git_hash: 667f262a4b0432043b00bfcdedc60dde10b0f449
 ---
 
 # Design Decisions: askfirst
@@ -1199,7 +1199,22 @@ indirectly via R-side installation tests.
 **Relates to:** Stage 024 (the deferred phase-2 promotion this closes);
 Stage 017 (the opencode plugin test suite this brings into CI for the
 first time)
-**Stages:** 026
+**Extended by:** A retrospective covering the untracked commits
+immediately following stage 026 captured five further fixes needed to get
+the newly-unconditional, 3-OS `install-hooks` matrix job actually green:
+skipping the Windows WSL-launcher `bash.exe` stub in
+`bindings/r/R/install_hooks.R`; macOS-specific fixes for a missing
+`timeout` dependency and stale-package test caching; replacing `mapfile`
+(unavailable in bash 3.2, macOS's shipped default) and a shebang-execution
+issue, both install-time bugs surfaced only on Windows; a corrected
+`--tool` flag in phase 4; and enforcing LF line endings via
+`.gitattributes` to prevent Windows checkouts from mangling script content
+via CRLF conversion. The same window separately reinstated three Claude
+Code hook scripts under `.claude/hooks/` (`designlens_session_start.sh`,
+`designlens_post_tool_use.sh`, `designlens_stop.sh`) that `.claude/settings.json`
+referenced but which had gone missing from the working tree — an
+unrelated repo-hygiene fix, not part of the install-hooks test hardening.
+**Stages:** 026, 027
 
 ## Architectural Evolution
 Stage 001 established the project's foundational research: what signals
