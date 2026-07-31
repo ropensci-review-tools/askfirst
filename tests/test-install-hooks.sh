@@ -151,7 +151,7 @@ $problems"
 
 # Phase 3: R function vs. script comparison.
 phase3() {
-  local dir_r dir_script
+  local dir_r dir_script r_diag r_status
 
   # Always (re)install, never conditionally on "is askfirst already
   # installed" -- CI's r-lib/actions/setup-r-dependencies@v2 step caches the
@@ -166,8 +166,17 @@ phase3() {
   dir_r="$(make_scratch_dir)"
   dir_script="$(make_scratch_dir)"
 
-  if ! (cd "$dir_r" && Rscript -e 'askfirst::askfirst_install_agent_hooks("claude")') >/dev/null 2>&1; then
-    log_fail "phase 3 (R function vs. script comparison): askfirst_install_agent_hooks() exited non-zero"
+  # r_diag captures Sys.which("bash"), getwd(), and the install status
+  # vector (rather than discarding this to /dev/null as before) so that if
+  # the diff check below still fails, the failure message shows exactly
+  # what R saw -- whether bash was found on PATH, what R's cwd actually
+  # was, and what askfirst_install_agent_hooks() itself reported -- instead
+  # of only "files differ" with no way to tell why.
+  r_diag="$(cd "$dir_r" && Rscript -e 'cat("bash: ", Sys.which("bash"), "\n", sep = ""); cat("wd: ", getwd(), "\n", sep = ""); print(askfirst::askfirst_install_agent_hooks("claude"))' 2>&1)"
+  r_status=$?
+  if [[ $r_status -ne 0 ]]; then
+    log_fail "phase 3 (R function vs. script comparison): askfirst_install_agent_hooks() exited non-zero:
+$r_diag"
     return
   fi
   if ! (cd "$dir_script" && "$INSTALLER" --tool claude) >/dev/null 2>&1; then
@@ -202,7 +211,10 @@ $settings_diff"
   if [[ -z "$diffs" ]]; then
     log_pass "phase 3 (R function vs. script comparison)"
   else
-    log_fail "phase 3 (R function vs. script comparison):$diffs"
+    log_fail "phase 3 (R function vs. script comparison):$diffs
+
+R diagnostic output (Sys.which(\"bash\"), getwd(), install status):
+$r_diag"
   fi
 }
 
