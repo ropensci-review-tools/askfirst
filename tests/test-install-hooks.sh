@@ -31,6 +31,31 @@ log_skip() {
   SKIP=$((SKIP + 1))
 }
 
+# Portable substitute for GNU coreutils' `timeout` -- not preinstalled on
+# macOS, whose BSD userland doesn't include it. Runs "$@" in the
+# background, kills it with SIGKILL if still running after $1 seconds, and
+# returns 124 in that case to match GNU timeout's own convention (the only
+# caller, phase6, checks for exactly that).
+run_with_timeout() {
+  local secs="$1"
+  shift
+  "$@" &
+  local cmd_pid=$!
+  (
+    sleep "$secs"
+    kill -9 "$cmd_pid" 2>/dev/null
+  ) &
+  local watcher_pid=$!
+  wait "$cmd_pid" 2>/dev/null
+  local status=$?
+  kill "$watcher_pid" 2>/dev/null
+  wait "$watcher_pid" 2>/dev/null
+  if [[ $status -eq 137 ]]; then
+    return 124
+  fi
+  return "$status"
+}
+
 make_scratch_dir() {
   local dir
   dir="$(mktemp -d)"
@@ -128,11 +153,14 @@ $problems"
 phase3() {
   local dir_r dir_script
 
-  if ! Rscript -e 'if (!("askfirst" %in% rownames(installed.packages()))) quit(status = 1)' >/dev/null 2>&1; then
-    if ! R CMD INSTALL --no-docs --no-byte-compile --no-test-load "$REPO_ROOT/bindings/r" >/dev/null 2>&1; then
-      log_fail "phase 3 (R function vs. script comparison): R CMD INSTALL bindings/r failed"
-      return
-    fi
+  # Always (re)install, never conditionally on "is askfirst already
+  # installed" -- CI's r-lib/actions/setup-r-dependencies@v2 step caches the
+  # R library across runs, so a stale askfirst build from a previous run
+  # (predating whatever's actually being tested right now) could otherwise
+  # silently be what this phase compares against.
+  if ! R CMD INSTALL --no-docs --no-byte-compile --no-test-load "$REPO_ROOT/bindings/r" >/dev/null 2>&1; then
+    log_fail "phase 3 (R function vs. script comparison): R CMD INSTALL bindings/r failed"
+    return
   fi
 
   dir_r="$(make_scratch_dir)"
@@ -237,7 +265,7 @@ $problems_opencode"
 phase6() {
   local dir output status
   dir="$(mktemp -d)"
-  output="$(cd "$dir" && timeout 10 "$INSTALLER" </dev/null 2>&1)"
+  output="$(cd "$dir" && run_with_timeout 10 "$INSTALLER" </dev/null 2>&1)"
   status=$?
   if [[ $status -eq 124 ]]; then
     log_fail "phase 6 (no detection, non-tty stdin): install-agent-hooks.sh hung (timed out)"
