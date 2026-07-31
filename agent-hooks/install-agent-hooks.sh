@@ -98,7 +98,7 @@ write_session_start() {
 # askfirst SessionStart hook — injects system-level context about askfirst
 # into the assistant's prompt before any package code is loaded.
 # Fires once per session. Must never cause the session to fail.
-# askfirst-hook-version: 4
+# askfirst-hook-version: 1
 
 set -euo pipefail
 
@@ -259,7 +259,7 @@ write_post_tool_use() {
 # working directory (`getwd()` on the R side, this payload's `cwd` field
 # here). Neither side resolves symlinks -- keep both sides in sync if this
 # scheme ever changes.
-# askfirst-hook-version: 4
+# askfirst-hook-version: 1
 
 # ASKFIRST_STATE_DIR_START
 # Mangles cwd into a directory-name-safe string: normalizes backslashes to
@@ -384,7 +384,7 @@ write_user_prompt_submit() {
 # `askfirst-post-tool-use.sh` (kept identical here so both hooks derive the same
 # path from the same `cwd` payload field, if this script is ever actually
 # invoked on the opencode side).
-# askfirst-hook-version: 4
+# askfirst-hook-version: 1
 
 # ASKFIRST_STATE_DIR_START
 # Mangles cwd into a directory-name-safe string: normalizes backslashes to
@@ -437,7 +437,7 @@ write_plugin() {
 // convention those files assume, which opencode does not implement.
 // Plain JS, no imports/requires beyond Node/Bun builtins (fs, path) --
 // no node_modules or build step needed to install this file.
-// askfirst-hook-version: 4
+// askfirst-hook-version: 1
 
 // Manually-maintained JS port of the canonical bash mangling logic in
 // agent-hooks/askfirst-state-dir.sh (spliced into agent-hooks/claude/

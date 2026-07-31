@@ -36,7 +36,7 @@ test_that("askfirst_hooks_status returns current when a hook file has a current 
 
   dir.create(".claude/hooks", recursive = TRUE)
   writeLines(
-    c("#!/bin/bash", "# askfirst-hook-version: 4", "echo hi"),
+    c("#!/bin/bash", "# askfirst-hook-version: 1", "echo hi"),
     ".claude/hooks/askfirst-session-start.sh"
   )
 
@@ -49,7 +49,7 @@ test_that("askfirst_hooks_status recognizes opencode's JS-comment marker as curr
 
   dir.create(".opencode/plugins", recursive = TRUE)
   writeLines(
-    c("// askfirst opencode plugin", "// askfirst-hook-version: 4", "export const AskfirstPlugin = async () => ({})"),
+    c("// askfirst opencode plugin", "// askfirst-hook-version: 1", "export const AskfirstPlugin = async () => ({})"),
     ".opencode/plugins/askfirst-plugin.js"
   )
 
@@ -61,7 +61,7 @@ test_that("askfirst_hooks_status reports current if any one known tool is curren
   withr::local_dir(dir)
 
   dir.create(".claude/hooks", recursive = TRUE)
-  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 4"), ".claude/hooks/askfirst-session-start.sh")
+  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 1"), ".claude/hooks/askfirst-session-start.sh")
   dir.create(".opencode/plugins", recursive = TRUE)
   writeLines(c("// no marker here"), ".opencode/plugins/askfirst-plugin.js")
 

@@ -2,7 +2,7 @@
 # askfirst SessionStart hook — injects system-level context about askfirst
 # into the assistant's prompt before any package code is loaded.
 # Fires once per session. Must never cause the session to fail.
-# askfirst-hook-version: 4
+# askfirst-hook-version: 1
 
 set -euo pipefail
 

@@ -26,11 +26,15 @@
 #' `session_start.sh`/`post_tool_use.sh`/`user_prompt_submit.sh`, to avoid
 #' colliding with another tool's own hook scripts occupying the same
 #' conventional filename in a shared `.claude/hooks/` directory.
+#'
+#' The `hook_version` below must be the same as in `agent-hooks/manifest.json`.
+#' This is the only other place that it is hard-coded (see specs/028).
+#'
 #' @keywords internal
 #' @noRd
 askfirst_hooks_manifest <- function() {
   list(
-    hook_version = 4L,
+    hook_version = 1L,
     tools = list(
       claude = list(hooks_dir = ".claude/hooks", marker_file = "askfirst-session-start.sh"),
       opencode = list(hooks_dir = ".opencode/plugins", marker_file = "askfirst-plugin.js")

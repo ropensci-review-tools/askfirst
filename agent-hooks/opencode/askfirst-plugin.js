@@ -5,7 +5,7 @@
 // convention those files assume, which opencode does not implement.
 // Plain JS, no imports/requires beyond Node/Bun builtins (fs, path) --
 // no node_modules or build step needed to install this file.
-// askfirst-hook-version: 4
+// askfirst-hook-version: 1
 
 // Manually-maintained JS port of the canonical bash mangling logic in
 // agent-hooks/askfirst-state-dir.sh (spliced into agent-hooks/claude/

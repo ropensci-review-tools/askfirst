@@ -216,7 +216,7 @@ test_that("askfirst_signal with default prefix = TRUE includes the structured pr
   expect_match(msg, "askfirst::r::mypkg::notice", fixed = TRUE)
   expect_match(msg, "type: notice", fixed = TRUE)
   expect_match(msg, "raw message", fixed = TRUE)
-  expect_match(msg, "See: https://ropensci.github.io/askfirst/", fixed = TRUE)
+  expect_match(msg, "See: https://github.com/ropensci-review-tools/askfirst", fixed = TRUE)
   expect_match(msg, "hard stop", fixed = TRUE)
   expect_match(msg, "ask the developers of mypkg", fixed = TRUE)
 })
@@ -239,7 +239,7 @@ test_that("askfirst_signal hard-stop shape includes the delimiter and imperative
   expect_match(msg, "askfirst::r::mypkg::stop-and-ask", fixed = TRUE)
   expect_match(msg, "type: capability_gap", fixed = TRUE)
   expect_match(msg, "raw message", fixed = TRUE)
-  expect_match(msg, "See: https://ropensci.github.io/askfirst/", fixed = TRUE)
+  expect_match(msg, "See: https://github.com/ropensci-review-tools/askfirst", fixed = TRUE)
 })
 
 test_that("askfirst_signal with prefix = FALSE omits the hard-stop delimiter for stop-and-ask classes", {
@@ -325,7 +325,7 @@ test_that("askfirst_init does not print the hooks-install nudge when hooks are c
   dir <- withr::local_tempdir()
   withr::local_dir(dir)
   dir.create(".claude/hooks", recursive = TRUE)
-  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 4"), ".claude/hooks/askfirst-session-start.sh")
+  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 1"), ".claude/hooks/askfirst-session-start.sh")
   .askfirst_state$confidence <- "low"
 
   expect_no_message(askfirst_init("mypkg", "notice text"))
@@ -377,7 +377,7 @@ test_that("askfirst_init does not signal askfirst_hooks_nudge when hooks are cur
   dir <- withr::local_tempdir()
   withr::local_dir(dir)
   dir.create(".claude/hooks", recursive = TRUE)
-  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 4"), ".claude/hooks/askfirst-session-start.sh")
+  writeLines(c("#!/bin/bash", "# askfirst-hook-version: 1"), ".claude/hooks/askfirst-session-start.sh")
   .askfirst_state$confidence <- "high"
 
   fired <- FALSE

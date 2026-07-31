@@ -10,13 +10,12 @@ askfirst_lang <- function() {
   "r"
 }
 
-#' Placeholder URL for askfirst documentation
+#' URL for askfirst documentation
 #'
 #' Returns the URL appended to every structured signal as a `See: <url>`
-#' line. This is a placeholder target — the actual documentation page about
-#' askfirst's agent protocol does not exist yet.
+#' line.
 #' @keywords internal
 #' @noRd
 askfirst_url <- function() {
-  "https://ropensci.github.io/askfirst/"
+  "https://github.com/ropensci-review-tools/askfirst"
 }

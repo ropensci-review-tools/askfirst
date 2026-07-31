@@ -40,7 +40,7 @@
 # working directory (`getwd()` on the R side, this payload's `cwd` field
 # here). Neither side resolves symlinks -- keep both sides in sync if this
 # scheme ever changes.
-# askfirst-hook-version: 4
+# askfirst-hook-version: 1
 
 # ASKFIRST_STATE_DIR_START
 # Mangles cwd into a directory-name-safe string: normalizes backslashes to

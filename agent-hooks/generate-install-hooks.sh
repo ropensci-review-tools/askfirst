@@ -44,6 +44,14 @@
 # manifest.json at run time -- this splice gives it an always-available,
 # non-hardcoded copy without a runtime file read.
 #
+# As of stage 028, each per-tool canonical file's own
+# `askfirst-hook-version: <N>` marker line is likewise rewritten from
+# agent-hooks/manifest.json's `hook_version` field (via jq + sed, matched on
+# the fixed prefix rather than any specific old value) instead of being
+# hand-edited independently in all four files -- bumping the version now
+# only ever requires editing manifest.json once, then re-running this
+# script.
+#
 # Run this after editing any of: agent-hooks/askfirst-context.txt,
 # agent-hooks/askfirst-reminder-messages.txt,
 # agent-hooks/askfirst-state-dir.sh, agent-content/askfirst-markers.txt,
@@ -207,7 +215,15 @@ splice_between_markers "$PLUGIN_SRC" '// ASKFIRST_REMINDER_LEVEL2_START' '// ASK
 
 rm -f "$bash_level1" "$bash_level2" "$js_level1" "$js_level2"
 
-echo "regenerated (pass 1): $SESSION_SRC, $POST_SRC, $USER_PROMPT_SRC, $PLUGIN_SRC (from $CONTEXT_SRC, $REMINDER_SRC, $STATE_DIR_SRC, $MARKERS_SRC)" >&2
+# Version marker: each per-tool canonical file's own
+# askfirst-hook-version line is now generated from manifest.json's
+# hook_version field, not hand-maintained -- bumping the version only
+# ever requires editing manifest.json, then re-running this script.
+hook_version=$(jq -r '.hook_version' "$MANIFEST_SRC")
+sed -i "s/^\(# askfirst-hook-version: \).*/\1${hook_version}/" "$SESSION_SRC" "$POST_SRC" "$USER_PROMPT_SRC"
+sed -i "s#^\(// askfirst-hook-version: \).*#\1${hook_version}#" "$PLUGIN_SRC"
+
+echo "regenerated (pass 1): $SESSION_SRC, $POST_SRC, $USER_PROMPT_SRC, $PLUGIN_SRC (from $CONTEXT_SRC, $REMINDER_SRC, $STATE_DIR_SRC, $MARKERS_SRC, $MANIFEST_SRC)" >&2
 
 # KNOWN_TOOLS array: install-agent-hooks.sh's list of supported tools,
 # generated from agent-hooks/manifest.json's `tools` object keys, spliced

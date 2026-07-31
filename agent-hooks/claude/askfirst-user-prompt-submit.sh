@@ -22,7 +22,7 @@
 # `askfirst-post-tool-use.sh` (kept identical here so both hooks derive the same
 # path from the same `cwd` payload field, if this script is ever actually
 # invoked on the opencode side).
-# askfirst-hook-version: 4
+# askfirst-hook-version: 1
 
 # ASKFIRST_STATE_DIR_START
 # Mangles cwd into a directory-name-safe string: normalizes backslashes to
