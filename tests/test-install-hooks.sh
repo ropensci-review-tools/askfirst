@@ -3,19 +3,13 @@
 # installer and its root-level entry points (install.sh, install.ps1).
 #
 # Usage:
-#   tests/test-install-hooks.sh                # run all 6 phases (phase 2 is
-#                                               # reported but doesn't affect
-#                                               # the exit code -- see phase2())
-#   tests/test-install-hooks.sh --skip-phase2   # run phases 1, 3, 4, 5, 6 (hard)
-#   tests/test-install-hooks.sh --phase2-only   # run phase 2 only (soft, for a
-#                                               # continue-on-error CI step)
+#   tests/test-install-hooks.sh   # run all 6 phases (all hard requirements)
 #
-# Phase 2 (install.sh's live curl-from-GitHub path) is expected to fail while
-# the ropensci-review-tools/askfirst repo is private, since
+# Phase 2 (install.sh's live curl-from-GitHub path) was a soft requirement
+# while the ropensci-review-tools/askfirst repo was private, since
 # raw.githubusercontent.com 404s on unauthenticated requests to private repos.
-# Once the repo is public, phase 2 should be promoted to a hard requirement
-# (drop the --skip-phase2/--phase2-only split in the CI workflow and just run
-# this script once).
+# Now that the repo is public, phase 2 is a hard requirement like every other
+# phase (stage 024's deferred item, closed in stage 026).
 
 set -uo pipefail
 
@@ -35,10 +29,6 @@ log_pass() {
 log_fail() {
   echo "FAIL: $1" >&2
   HARD_FAIL=$((HARD_FAIL + 1))
-}
-
-log_soft_fail() {
-  echo "FAIL (soft): $1" >&2
 }
 
 make_scratch_dir() {
@@ -117,19 +107,19 @@ $problems"
   fi
 }
 
-# Phase 2: install.sh live-fetch (soft requirement while the repo is private).
+# Phase 2: install.sh live-fetch (hard requirement, always enforced).
 phase2() {
   local dir problems
   dir="$(make_scratch_dir)"
   if ! (cd "$dir" && bash "$INSTALL_SH" --tool claude) >/dev/null 2>&1; then
-    log_soft_fail "phase 2 (install.sh live-fetch): install.sh exited non-zero (expected while the repo is private)"
+    log_fail "phase 2 (install.sh live-fetch): install.sh exited non-zero"
     return
   fi
   problems="$(check_hooks_installed "$dir")"
   if [[ "$problems" == "ok" ]]; then
     log_pass "phase 2 (install.sh live-fetch)"
   else
-    log_soft_fail "phase 2 (install.sh live-fetch):
+    log_fail "phase 2 (install.sh live-fetch):
 $problems"
   fi
 }
@@ -256,33 +246,13 @@ $output"
   fi
 }
 
-MODE="${1:-all}"
-
-case "$MODE" in
-  --skip-phase2)
-    phase1
-    phase3
-    phase4
-    phase5
-    phase6
-    ;;
-  --phase2-only)
-    phase2
-    ;;
-  all)
-    phase1
-    phase2
-    phase3
-    phase4
-    phase5
-    phase6
-    ;;
-  *)
-    echo "Unknown option: $MODE (expected --skip-phase2, --phase2-only, or no argument)" >&2
-    exit 2
-    ;;
-esac
+phase1
+phase2
+phase3
+phase4
+phase5
+phase6
 
 echo
-echo "Summary: $PASS passed, $HARD_FAIL failed (hard requirements only; phase 2 is soft)"
+echo "Summary: $PASS passed, $HARD_FAIL failed"
 [[ $HARD_FAIL -eq 0 ]]

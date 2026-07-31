@@ -92,6 +92,16 @@ Stage decisions already made in conversation (see this stage's
 - Leave `agent-hooks/claude/*.sh`'s direct-execution test gap untouched in
   this stage (see Context) — flagged for a future stage.
 
+## Mid-Implementation Update
+The `ropensci-review-tools/askfirst` repo went public partway through this
+stage's implementation. This closes stage 024's deferred item directly, so
+rather than leaving the newly-created `install-hooks` job with the
+now-obsolete private-repo soft-fail split (Design Goal 3 / Proposed
+Approach above, as originally written), phase 2 was promoted to a hard
+requirement in the same pass: `tests/test-install-hooks.sh` now runs all 6
+phases unconditionally with no soft-fail path, and `test.yml`'s
+`install-hooks` job runs it in a single step. See T026-5 in `tasks.md`.
+
 ## Open Questions
 Both resolved during plan review:
 - Naming: confirmed as `test.yml`, matching the Makefile's `test` target
