@@ -3,13 +3,7 @@
 # installer and its root-level entry points (install.sh, install.ps1).
 #
 # Usage:
-#   tests/test-install-hooks.sh   # run all 6 phases (all hard requirements)
-#
-# Phase 2 (install.sh's live curl-from-GitHub path) was a soft requirement
-# while the ropensci-review-tools/askfirst repo was private, since
-# raw.githubusercontent.com 404s on unauthenticated requests to private repos.
-# Now that the repo is public, phase 2 is a hard requirement like every other
-# phase (stage 024's deferred item, closed in stage 026).
+#   tests/test-install-hooks.sh   # run all 6 phases
 
 set -uo pipefail
 
@@ -90,7 +84,7 @@ check_opencode_installed() {
   fi
 }
 
-# Phase 1: direct-script install (hard requirement, always enforced).
+# Phase 1: direct-script install.
 phase1() {
   local dir problems
   dir="$(make_scratch_dir)"
@@ -107,7 +101,7 @@ $problems"
   fi
 }
 
-# Phase 2: install.sh live-fetch (hard requirement, always enforced).
+# Phase 2: install.sh live-fetch.
 phase2() {
   local dir problems
   dir="$(make_scratch_dir)"
@@ -124,7 +118,7 @@ $problems"
   fi
 }
 
-# Phase 3: R function vs. script comparison (hard requirement, always enforced).
+# Phase 3: R function vs. script comparison.
 phase3() {
   local dir_r dir_script
 
@@ -166,9 +160,9 @@ phase3() {
   fi
 }
 
-# Phase 4: install.ps1 install via pwsh (hard requirement, always enforced).
-# pwsh (PowerShell Core) is preinstalled on ubuntu-latest, macos-latest, and
-# windows-latest GitHub-hosted runners, so this phase is not Windows-only.
+# Phase 4: install.ps1 install via pwsh pwsh (PowerShell Core) is preinstalled
+# on ubuntu-latest, macos-latest, and windows-latest GitHub-hosted runners, so
+# this phase is not Windows-only.
 phase4() {
   local dir problems
   if ! command -v pwsh >/dev/null 2>&1; then
@@ -189,11 +183,11 @@ $problems"
   fi
 }
 
-# Phase 5: install-all-detected (hard requirement, always enforced) --
-# seeds both a claude and an opencode marker in the same scratch dir, runs
-# the installer with no --tool, and asserts hooks are installed for both
-# (stage 025's detect-and-install-all behavior, replacing the installer's
-# old single-choice "multiple tools detected" prompt).
+# Phase 5: install-all-detected -- seeds both a claude and an opencode marker
+# in the same scratch dir, runs the installer with no --tool, and asserts hooks
+# are installed for both (stage 025's detect-and-install-all behavior,
+# replacing the installer's old single-choice "multiple tools detected"
+# prompt).
 phase5() {
   local dir output problems_claude problems_opencode
   dir="$(mktemp -d)"
@@ -218,10 +212,10 @@ $problems_opencode"
   fi
 }
 
-# Phase 6: no tool detected, stdin not a terminal (hard requirement, always
-# enforced) -- models the `curl install.sh | bash` invocation shape (stdin
-# is the piped script, not a terminal). Must fail clearly and quickly, not
-# hang on a broken interactive prompt.
+# Phase 6: no tool detected, stdin not a terminal -- models the `curl
+# install.sh | bash` invocation shape (stdin is the piped script, not a
+# terminal). Must fail clearly and quickly, not hang on a broken interactive
+# prompt.
 phase6() {
   local dir output status
   dir="$(mktemp -d)"
