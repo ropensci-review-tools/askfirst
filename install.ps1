@@ -8,7 +8,7 @@
 #
 # Usage:
 #   irm https://raw.githubusercontent.com/ropensci-review-tools/askfirst/main/install.ps1 | iex
-#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ropensci-review-tools/askfirst/main/install.ps1))) -tool claude
+#   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/ropensci-review-tools/askfirst/main/install.ps1))) --tool claude
 
 param(
   [Parameter(ValueFromRemainingArguments = $true)]

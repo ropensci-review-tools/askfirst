@@ -147,16 +147,28 @@ phase3() {
     return
   fi
 
+  # Compared with CRLF stripped (tr -d '\r', not dos2unix -- portable across
+  # all three OSes' bash environments without requiring an extra binary that
+  # isn't guaranteed present on macOS or Windows Git Bash) so a stray line-
+  # ending difference between the two invocation paths can't produce a false
+  # positive here; the .gitattributes normalization to LF is the real fix,
+  # this is defense-in-depth.
   local diffs=""
   for f in askfirst-session-start.sh askfirst-post-tool-use.sh askfirst-user-prompt-submit.sh; do
-    if ! diff -q "$dir_r/.claude/hooks/$f" "$dir_script/.claude/hooks/$f" >/dev/null 2>&1; then
+    local d
+    d="$(diff -u <(tr -d '\r' <"$dir_r/.claude/hooks/$f") <(tr -d '\r' <"$dir_script/.claude/hooks/$f") 2>&1)"
+    if [[ -n "$d" ]]; then
       diffs="$diffs
-.claude/hooks/$f differs between the R function and the direct script"
+.claude/hooks/$f differs between the R function and the direct script:
+$d"
     fi
   done
-  if ! diff -q <(jq -S .hooks "$dir_r/.claude/settings.json") <(jq -S .hooks "$dir_script/.claude/settings.json") >/dev/null 2>&1; then
+  local settings_diff
+  settings_diff="$(diff -u <(jq -S .hooks "$dir_r/.claude/settings.json" | tr -d '\r') <(jq -S .hooks "$dir_script/.claude/settings.json" | tr -d '\r') 2>&1)"
+  if [[ -n "$settings_diff" ]]; then
     diffs="$diffs
-.hooks section of .claude/settings.json differs between the R function and the direct script"
+.hooks section of .claude/settings.json differs between the R function and the direct script:
+$settings_diff"
   fi
 
   if [[ -z "$diffs" ]]; then
@@ -176,7 +188,7 @@ phase4() {
     return
   fi
   dir="$(make_scratch_dir)"
-  if ! (cd "$dir" && pwsh -NoProfile -NonInteractive -File "$INSTALL_PS1" -tool claude) >/dev/null 2>&1; then
+  if ! (cd "$dir" && pwsh -NoProfile -NonInteractive -File "$INSTALL_PS1" --tool claude) >/dev/null 2>&1; then
     log_fail "phase 4 (install.ps1 via pwsh): install.ps1 exited non-zero"
     return
   fi
