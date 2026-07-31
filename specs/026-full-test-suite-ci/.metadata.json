@@ -1,12 +1,15 @@
 {
-  "agents": ["claude-sonnet-5"],
+  "agents": [
+    "claude-sonnet-5"
+  ],
   "created": "2026-07-31T13:04:07Z",
-  "last_updated": "2026-07-31T13:04:07Z",
-  "sessions": 1,
-  "input_tokens": null,
-  "output_tokens": null,
-  "user_word_count": null,
-  "lines_added": null,
-  "lines_deleted": null,
-  "files_changed": null
+  "last_updated": "2026-07-31T13:14:39Z",
+  "last_session_id": "50f090fd-bb4d-4124-bab7-fe951fddec76",
+  "sessions": 2,
+  "input_tokens": 28033948,
+  "output_tokens": 145720,
+  "user_word_count": 2832,
+  "lines_added": 27,
+  "lines_deleted": 21,
+  "files_changed": 1
 }
