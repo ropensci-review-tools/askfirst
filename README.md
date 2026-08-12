@@ -6,7 +6,7 @@ Open source software has always been built on communities. Communities of users;
 
 But now coding assistants do all the work for us. When your coding assistant finds something my software can't do, it will implement it's own work-around solution. Every person's coding assistant is trained to implement its own solution. Independently. With no feedback towards the original authors of any software.
 
-`askfirst` is intended both for developers and users of software. If an issue could be resolved within software that has `askfirst` functions, anyone using that software through an AI will be advised by their AI to contact the developers.
+`askfirst` restores community feedback loops by prompting your coding agent to direct you back towards original software authors, rather than finding its own work-arounds. Software developers insert a few simple text lines within their own software, describing ways their software could be usefully extended. Any coding agent attempting to extend software in ways described by `askfirst` scenarios will be prompted to inform the user to contact the original software authors about possible extensions.
 
 ## askfirst for everybody
 
