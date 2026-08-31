@@ -11,8 +11,8 @@
     "path": "agents.json",
     "url": "https://raw.githubusercontent.com/vercel/detect-agent/main/agents.json",
     "schema_url": "https://raw.githubusercontent.com/vercel/detect-agent/main/agents.schema.json",
-    "last_synced_commit": "db63e913876eebbe8526e67a21d5ab392a58908c",
-    "last_synced_commit_date": "2026-07-15T20:48:51Z",
-    "last_synced_at": "2026-07-27T08:07:43Z"
+    "last_synced_commit": "48532d956dffc738239255c00957915d7e695b2a",
+    "last_synced_commit_date": "2026-08-11T18:08:51Z",
+    "last_synced_at": "2026-08-31T12:06:49Z"
   }
 }
