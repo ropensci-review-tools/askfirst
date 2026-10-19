@@ -28,8 +28,29 @@
       }
     },
     {
+      "key": "KIMI",
+      "name": "kimi",
+      "description": "Kimi Code plugin hooks. KIMI_CODE_HOME may be configured outside an active Kimi session, so detection uses the plugin-scoped KIMI_PLUGIN_ROOT marker.",
+      "match": {
+        "type": "anyOf",
+        "conditions": [{ "type": "env_set", "name": "KIMI_PLUGIN_ROOT" }]
+      }
+    },
+    {
+      "key": "GROK",
+      "name": "grok",
+      "description": "Grok Build plugin hooks. Evaluated before Claude Code because Grok supports Claude Code plugins and may expose compatibility markers.",
+      "match": {
+        "type": "anyOf",
+        "conditions": [
+          { "type": "env_set", "name": "GROK_PLUGIN_ROOT" },
+          { "type": "env_set", "name": "GROK_PLUGIN_DATA" }
+        ]
+      }
+    },
+    {
       "key": "GEMINI",
-      "name": "gemini",
+      "name": "gemini_cli",
       "match": {
         "type": "anyOf",
         "conditions": [{ "type": "env_set", "name": "GEMINI_CLI" }]
@@ -45,7 +66,7 @@
     },
     {
       "key": "CODEX",
-      "name": "codex",
+      "name": "codex_cli",
       "match": {
         "type": "anyOf",
         "conditions": [
@@ -77,7 +98,7 @@
     },
     {
       "key": "OPENCODE",
-      "name": "opencode",
+      "name": "open_code",
       "match": {
         "type": "anyOf",
         "conditions": [
@@ -123,7 +144,7 @@
     {
       "key": "COWORK",
       "name": "cowork",
-      "description": "Claude Cowork. Evaluated before `claude` so the more specific COWORK marker wins. Requires CLAUDE_CODE_IS_COWORK plus a Claude Code marker.",
+      "description": "Claude Cowork. Evaluated before `claude_code` so the more specific COWORK marker wins. Requires CLAUDE_CODE_IS_COWORK plus a Claude Code marker.",
       "match": {
         "type": "allOf",
         "conditions": [
@@ -140,7 +161,7 @@
     },
     {
       "key": "CLAUDE",
-      "name": "claude",
+      "name": "claude_code",
       "match": {
         "type": "anyOf",
         "conditions": [
